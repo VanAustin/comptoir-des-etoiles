@@ -1,0 +1,22 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Code d'appairage · Administration{% endblock %}
+
+{% block body %}
+    <p><a href="{{ path('admin_device_index') }}">← Retour aux tablettes</a></p>
+
+    <section class="card form-card pairing">
+        <h1>Appairer « {{ device.name }} »</h1>
+
+        {% if code %}
+            <p class="lede">Sur la tablette, ouvrez dans Chrome l'adresse ci-dessous et saisissez ce code.</p>
+            <p class="pairing-code num" aria-label="Code d'appairage">{{ code }}</p>
+            <p class="pairing-url num">{{ app.request.schemeAndHttpHost ~ app.request.basePath }}/appairer</p>
+            <p>Ce code est valable jusqu'à <strong>{{ device.pairingCodeExpiresAt|date('H\\hi') }}</strong> et ne sert qu'une fois. Il ne sera plus affiché ensuite.</p>
+        {% else %}
+            <p class="alert alert-info">Ce code n'est plus affiché, pour qu'il ne reste pas visible à l'écran. Si la tablette n'est pas encore appairée, créez un nouveau code depuis la liste des tablettes.</p>
+        {% endif %}
+
+        <a class="btn" href="{{ path('admin_device_index') }}">Revenir aux tablettes</a>
+    </section>
+{% endblock %}

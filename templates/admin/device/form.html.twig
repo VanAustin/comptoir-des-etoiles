@@ -1,0 +1,44 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Ajouter une tablette · Administration{% endblock %}
+
+{% block body %}
+    <p><a href="{{ path('admin_device_index') }}">← Retour aux tablettes</a></p>
+
+    <section class="card form-card">
+        <h1>Ajouter une tablette</h1>
+        <p class="lede">Pour l'événement « {{ event.name }} ». Un code d'appairage s'affichera ensuite, à saisir sur la tablette.</p>
+
+        {% if errors is not empty %}
+            <p class="alert alert-error" role="alert">Le formulaire contient des erreurs : corrigez les champs signalés.</p>
+        {% endif %}
+
+        <form method="post" novalidate>
+            <div class="field">
+                <label for="name">Nom de la tablette</label>
+                <input type="text" id="name" name="name" value="{{ values.name }}" maxlength="60" required placeholder="Caisse buvette"
+                       {% if errors.name is defined %}aria-invalid="true" aria-describedby="name-error"{% endif %}>
+                {% if errors.name is defined %}<p class="field-error" id="name-error">{{ errors.name }}</p>{% endif %}
+            </div>
+
+            <fieldset class="field"{% if errors.role is defined %} aria-describedby="role-error"{% endif %}>
+                <legend>Rôle</legend>
+                {% for role in roles %}
+                    <label class="choice">
+                        <input type="radio" name="role" value="{{ role.value }}" {{ values.role == role.value ? 'checked' }}>
+                        <span>
+                            <strong>{{ role.label }}</strong>
+                            {% if role.value == 'caisse' %}Encaisse les commandes. Reçoit une lettre (A, B…) pour numéroter ses commandes.
+                            {% elseif role.value == 'cuisine' %}Voit les commandes à préparer et les fait avancer.
+                            {% else %}Affiche les numéros prêts et en préparation, rien d'autre.{% endif %}
+                        </span>
+                    </label>
+                {% endfor %}
+                {% if errors.role is defined %}<p class="field-error" id="role-error">{{ errors.role }}</p>{% endif %}
+            </fieldset>
+
+            <input type="hidden" name="_token" value="{{ csrf_token('device-form') }}">
+            <button type="submit" class="btn btn-primary">Ajouter la tablette</button>
+        </form>
+    </section>
+{% endblock %}

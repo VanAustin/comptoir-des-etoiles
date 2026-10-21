@@ -1,0 +1,68 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Tablettes · Administration{% endblock %}
+
+{% set state_labels = {
+    waiting: ['En attente d\'appairage', 'pill-waiting'],
+    code_expired: ['Code expiré', ''],
+    paired: ['Appairée', 'pill-active'],
+    expired: ['Expirée', ''],
+    revoked: ['Révoquée', 'pill-revoked'],
+} %}
+
+{% block body %}
+    {% if event is null %}
+        <h1>Tablettes</h1>
+        <p class="card empty">Aucun événement n'est actif. Les tablettes sont rattachées à l'événement actif : <a href="{{ path('admin_event_index') }}">activez d'abord un événement</a>.</p>
+    {% else %}
+        <div class="section-head">
+            <div>
+                <h1>Tablettes</h1>
+                <p class="lede">Tablettes de l'événement « {{ event.name }} ». Elles cessent de fonctionner le lendemain de l'événement à 6 h.</p>
+            </div>
+            <a class="btn btn-primary" href="{{ path('admin_device_new') }}">Ajouter une tablette</a>
+        </div>
+
+        {% if devices is empty %}
+            <p class="card empty">Aucune tablette pour l'instant. Ajoutez la première, par exemple « Caisse buvette ».</p>
+        {% else %}
+            <div class="tablewrap">
+                <table>
+                    <thead>
+                        <tr><th>Tablette</th><th>Rôle</th><th>Lettre</th><th>État</th><th><span class="visually-hidden">Actions</span></th></tr>
+                    </thead>
+                    <tbody>
+                        {% for device in devices %}
+                            {% set state = states[device.id] %}
+                            <tr>
+                                <td>{{ device.name }}</td>
+                                <td>{{ device.role.label }}</td>
+                                <td class="num">{{ device.tillLetter ?? '—' }}</td>
+                                <td>
+                                    <span class="pill {{ state_labels[state][1] }}">{{ state_labels[state][0] }}</span>
+                                    {% if state == 'paired' %}
+                                        <span class="seen">{{ device.lastSeenAt ? 'vue à ' ~ device.lastSeenAt|date('H\\hi') : 'pas encore vue' }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="actions">
+                                    {% if state in ['waiting', 'code_expired'] %}
+                                        <form class="inline-form" method="post" action="{{ path('admin_device_regenerate', {id: device.id}) }}">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('device-regenerate-' ~ device.id) }}">
+                                            <button type="submit" class="btn btn-small">Nouveau code</button>
+                                        </form>
+                                    {% endif %}
+                                    {% if state != 'revoked' %}
+                                        <form class="inline-form" method="post" action="{{ path('admin_device_revoke', {id: device.id}) }}">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('device-revoke-' ~ device.id) }}">
+                                            <button type="submit" class="btn btn-small">Révoquer</button>
+                                        </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    {% endif %}
+{% endblock %}

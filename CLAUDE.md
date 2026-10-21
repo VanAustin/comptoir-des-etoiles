@@ -42,6 +42,7 @@ PHP, Composer et Symfony ne sont **pas** installés sur le Mac : tout tourne dan
 - Le nom du service dans `compose.yaml` est `php`.
 - Le HTTPS pour les tablettes (répétition générale, mode portable) sera traité à l'étape 2, une fois l'application en place. Ne rien prévoir de plus pour l'instant.
 - En production sur un hébergement mutualisé (sans Docker), le même code tourne avec le PHP de l'hébergeur : ne rien faire qui dépende de Docker dans le code de l'application.
+- Apache ne transmet pas l'en-tête `Authorization` à PHP par défaut. `docker/apache.conf` le fait avec `SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1` ; sur un hébergement Apache, prévoir la même règle (fichier `.htaccess` dans `public/`), sinon aucune tablette ne peut s'authentifier. À documenter dans `README.md` avec l'installation.
 
 ## Architecture
 

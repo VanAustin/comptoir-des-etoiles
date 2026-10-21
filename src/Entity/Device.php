@@ -5,15 +5,24 @@ namespace App\Entity;
 use App\Enum\DeviceRole;
 use App\Repository\DeviceRepository;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
  * Tablette appairée. Le serveur ne garde que les empreintes SHA-256 du jeton
  * et du code d'appairage, jamais leur valeur.
+ *
+ * C'est aussi l'« utilisateur » Symfony des requêtes de l'API (pare-feu api).
  */
 #[ORM\Entity(repositoryClass: DeviceRepository::class)]
 #[ORM\UniqueConstraint(columns: ['event_id', 'till_letter'])]
-class Device
+class Device implements UserInterface
 {
+    public const STATE_WAITING = 'waiting';
+    public const STATE_CODE_EXPIRED = 'code_expired';
+    public const STATE_PAIRED = 'paired';
+    public const STATE_EXPIRED = 'expired';
+    public const STATE_REVOKED = 'revoked';
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -179,5 +188,52 @@ class Device
         $this->revokedAt = $revokedAt;
 
         return $this;
+    }
+
+    public function isPaired(): bool
+    {
+        return null !== $this->tokenHash;
+    }
+
+    public function isRevoked(): bool
+    {
+        return null !== $this->revokedAt;
+    }
+
+    public function isExpired(\DateTimeImmutable $now): bool
+    {
+        return null !== $this->expiresAt && $this->expiresAt <= $now;
+    }
+
+    public function hasValidPairingCode(\DateTimeImmutable $now): bool
+    {
+        return null !== $this->pairingCodeHash && null !== $this->pairingCodeExpiresAt && $this->pairingCodeExpiresAt > $now;
+    }
+
+    /** État affiché dans l'administration (voir les constantes STATE_*). */
+    public function getState(\DateTimeImmutable $now): string
+    {
+        return match (true) {
+            $this->isRevoked() => self::STATE_REVOKED,
+            $this->isPaired() && $this->isExpired($now) => self::STATE_EXPIRED,
+            $this->isPaired() => self::STATE_PAIRED,
+            $this->hasValidPairingCode($now) => self::STATE_WAITING,
+            default => self::STATE_CODE_EXPIRED,
+        };
+    }
+
+    public function getUserIdentifier(): string
+    {
+        return \sprintf('tablette:%d %s', $this->id, $this->name);
+    }
+
+    /** @return list<string> */
+    public function getRoles(): array
+    {
+        return ['ROLE_DEVICE', $this->role->securityRole()];
+    }
+
+    public function eraseCredentials(): void
+    {
     }
 }

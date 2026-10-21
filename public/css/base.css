@@ -115,3 +115,19 @@ td.actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end
 .field input[aria-invalid="true"] { border-color: var(--erreur); }
 
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+.pill-waiting { background: var(--or-fond); color: var(--or-texte); }
+.pill-revoked { background: var(--erreur-fond); color: var(--erreur); }
+.seen { display: block; font-size: 13px; color: var(--encre-douce); margin-top: 4px; }
+
+/* Choix par boutons radio, en grandes zones tactiles */
+fieldset.field { border: 0; padding: 0; margin: 0 0 16px; }
+fieldset.field legend { font-size: 14px; font-weight: 700; color: var(--encre-douce); margin-bottom: 6px; padding: 0; }
+.choice { display: flex; gap: 12px; align-items: flex-start; min-height: 48px; padding: 12px; border: 1px solid var(--kraft); border-radius: var(--rayon-bouton); margin-bottom: 8px; cursor: pointer; }
+.choice input { width: 22px; height: 22px; margin: 2px 0 0; accent-color: var(--renard); }
+.choice strong { display: block; }
+
+/* Code d'appairage */
+.pairing { text-align: center; }
+.pairing-code { font-size: 56px; font-weight: 700; letter-spacing: .08em; margin: 16px 0 8px; color: var(--encre); }
+.pairing-url { font-size: 18px; color: var(--renard-texte); word-break: break-all; }
