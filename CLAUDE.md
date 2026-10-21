@@ -1,0 +1,219 @@
+# Le Comptoir des étoiles
+
+Application de caisse pour l'APE (Association des Parents d'Élèves) de l'école Antoine de St Exupéry, à Uzein. Elle relie caisse, cuisine et écran d'appel client pendant les événements (Halloween, Loto, Carnaval, Vide-grenier, Kermesse), suit les stocks et produit un bilan pour ajuster les courses suivantes.
+
+Premier événement réel : **Loto du 18 décembre 2026**. Répétition générale avec des bénévoles début décembre.
+
+## Contraintes du projet (non négociables)
+
+- **Budget : 0 €.** Aucun service payant, aucun matériel à acheter.
+- **Léger et maintenable, avec le moins de dépendances possible.** Le projet sera repris par des parents bénévoles. Ne jamais ajouter de dépendance Composer ou JavaScript sans le demander d'abord.
+- **Tablettes Android, navigateur Chrome.** L'application est installable (PWA) depuis le navigateur.
+- **Réseau incertain.** Le jour J, les tablettes se connectent soit à un hébergement en ligne via le partage 4G d'un téléphone, soit à un portable qui fait tourner Symfony sur le réseau local du partage de connexion. Le même code doit fonctionner dans les deux cas.
+- **Aucune commande ne doit être perdue**, même pendant une coupure réseau.
+
+## Stack
+
+Dépendances de production autorisées, et rien d'autre :
+
+- `symfony/skeleton` (Symfony 7.4 LTS, PHP 8.2+)
+- `symfony/twig-bundle`
+- `doctrine/doctrine-bundle`, `doctrine/orm`, `doctrine/doctrine-migrations-bundle`
+- `symfony/security-bundle` et `symfony/rate-limiter` : seule exception à la règle du minimum, réservée à l'authentification de l'administration (hachage du mot de passe, protection CSRF, limitation des tentatives, protection de session). Pour un projet qui pourrait devenir public, un composant audité vaut mieux qu'une authentification écrite à la main.
+- Base de données : **SQLite** (un seul fichier, facile à sauvegarder et à déplacer)
+
+Développement uniquement : `symfony/maker-bundle`, PHPUnit.
+
+Explicitement exclus : EasyAdmin, Symfony Form, Stimulus, AssetMapper, Webpack Encore, Node, tout framework CSS ou JS.
+
+## Environnement de développement : Docker
+
+PHP, Composer et Symfony ne sont **pas** installés sur le Mac : tout tourne dans Docker.
+
+- Une seule image, basée sur **FrankenPHP** (`dunglas/frankenphp`, PHP 8.3 ou plus récent), avec les extensions `pdo_sqlite`, `intl` et `opcache`. Son serveur web intégré (Caddy) fournit le **HTTPS automatique avec une autorité locale**, ce qui permet de tester le service worker dès le développement, et de servir l'application en HTTPS sur le réseau local le jour J en mode portable.
+- Fichiers attendus, et rien de plus : `Dockerfile`, `compose.yaml` (et éventuellement `compose.override.yaml` pour le développement), `Caddyfile` seulement si la configuration par défaut ne suffit pas. Pas de MySQL, pas de Redis, pas de Node.
+- La base SQLite reste dans `var/`, monté en volume : elle survit au redémarrage des conteneurs.
+- **Toutes** les commandes PHP passent par le conteneur, jamais par le PHP du Mac :
+  - `docker compose exec php composer …`
+  - `docker compose exec php bin/console …`
+  - `docker compose exec php bin/phpunit`
+- Le nom du service dans `compose.yaml` est `php`.
+- L'autorité locale de Caddy doit être approuvée une fois sur le Mac (et sur chaque tablette pour le mode portable) ; documenter la procédure dans `README.md`.
+- En production sur un hébergement mutualisé (sans Docker), le même code tourne avec le PHP de l'hébergeur : ne rien faire qui dépende de Docker dans le code de l'application.
+
+## Architecture
+
+- **Pages** : Twig, HTML simple.
+- **JavaScript** : fichiers vanilla dans `public/js/`, sans build. Modules ES natifs.
+- **CSS** : fichiers simples dans `public/css/`, avec `tokens.css` chargé en premier (voir Charte).
+- **Polices** : fichiers locaux dans `public/fonts/`, jamais depuis Google Fonts (doit marcher hors ligne).
+- **Administration** (événements, menu, prix, stocks, tablettes) : pages Twig avec formulaires HTML traités dans les contrôleurs. Protégée par Symfony Security (voir Sécurité). Pas de comptes utilisateurs pour les bénévoles.
+- **API JSON** pour les tablettes, sous `/api`, accessible uniquement aux tablettes appairées (voir Sécurité).
+- **Hors ligne** : service worker qui met en cache l'application ; file d'attente des commandes dans IndexedDB, envoyée au retour du réseau.
+- **Idempotence** : chaque commande reçoit un UUID créé sur la tablette. `POST /api/orders` avec un UUID déjà connu ne crée pas de doublon et renvoie la commande existante.
+- **Temps réel** : l'écran cuisine et l'écran Arrivées interrogent le serveur toutes les 2 à 3 secondes (`GET /api/orders?since=<horodatage>`). Pas de Mercure pour l'instant.
+- **Stocks** : le stock restant est calculé à partir des ventes (stock de départ moins quantités vendues des commandes non annulées), jamais stocké comme un compteur décrémenté.
+
+## Modèle de données (point de départ)
+
+- `Event` : nom, date, actif ou non.
+- `Product` : événement, nom, icône (émoji ou image), catégorie, prix (centimes, entier), stock de départ (nullable = non compté), passe en cuisine (bool), ordre d'affichage, composants si formule.
+- `Order` : UUID (identifiant venu de la tablette), événement, numéro affiché (séquentiel par événement), moyen de paiement (espèces ou carte), montant reçu, état, créé le, modifié le, tablette d'origine.
+- `OrderLine` : commande, produit, libellé et prix figés au moment de la vente, quantité.
+- `Device` : tablette appairée. Nom (« Caisse buvette »), rôle (`caisse`, `cuisine`, `affichage`), empreinte SHA-256 du jeton, événement, créée le, vue pour la dernière fois le, expire le, révoquée le.
+- `AuditLog` : qui (administrateur ou tablette), quoi (annulation, changement de prix ou de stock, appairage, révocation), quand, valeurs avant et après.
+- `AdminUser` : identifiant, mot de passe haché. Créé uniquement par la commande d'installation.
+
+Montants toujours en centimes (entiers) côté serveur.
+
+États d'une commande : `new` → `prep` → `ready` → `served`, ou `cancelled`. Une commande sans article cuisine passe directement à `served`.
+
+## Écrans
+
+| Écran | Nom affiché | Rôle |
+| --- | --- | --- |
+| Caisse | Caisse | Grille d'articles, panier, paiement (calcul de la monnaie), numéro de commande en grand |
+| Cuisine | Cuisine | Tickets à préparer, boutons « Je prépare », « Prête », « Remise au client », alerte au-delà de 10 min |
+| Appel client | Arrivées | Numéros prêts et en préparation, très grands, façon tableau d'aéroport |
+| Bilan | Carnet de bord | CA, nombre de commandes, panier moyen, ventes et stock restant par article, historique, annulation, export CSV pour Excel |
+| Administration | Menu | Articles, prix, stocks de départ, passage en cuisine |
+
+Le prototype validé par l'APE sert de référence pour l'ergonomie : `docs/prototype.html`.
+
+## Sécurité
+
+Usage prévu : une APE, petite échelle. Mais le code est écrit **comme s'il était publié et installé par d'autres associations**, sur un serveur exposé à internet. Aucune règle ci-dessous n'est optionnelle.
+
+### Principe : le serveur ne fait jamais confiance à la tablette
+
+- Le serveur **recalcule** prix, totaux et monnaie à partir de la base. Le total envoyé par la tablette est ignoré.
+- Toute entrée est validée côté serveur : UUID au bon format, quantités entières entre 1 et 99, produit appartenant à l'événement actif, état demandé autorisé depuis l'état actuel, taille du corps JSON limitée (64 Ko).
+- Les transitions d'état sont vérifiées par le serveur : `new` → `prep` → `ready` → `served`. L'annulation est réservée à l'administration.
+
+### Administration
+
+- Symfony Security avec formulaire de connexion, mot de passe haché (`auto`, donc bcrypt ou argon2), protection CSRF sur la connexion et sur **chaque** formulaire qui modifie des données.
+- `login_throttling` : 5 tentatives par tranche de 15 minutes, par IP et par identifiant.
+- Session régénérée à la connexion (comportement par défaut de Symfony, à ne pas désactiver), expiration après 2 heures d'inactivité.
+- **Aucun identifiant par défaut livré.** Le premier administrateur est créé par une commande : `php bin/console app:install`, qui demande le mot de passe (12 caractères minimum) et génère `APP_SECRET`.
+
+### Tablettes : appairage, sans comptes
+
+- L'administration crée une tablette (nom + rôle) et affiche un **code d'appairage** à usage unique (8 caractères, valable 10 minutes) et son QR code.
+- La tablette échange ce code contre un **jeton** aléatoire (32 octets, `random_bytes`). Le serveur n'en garde que l'empreinte SHA-256. La tablette le conserve et l'envoie dans l'en-tête `Authorization: Bearer`.
+- Le jeton expire à la fin de l'événement (par défaut le lendemain à 6 h) et peut être révoqué à tout moment depuis l'administration.
+- Chaque rôle n'accède qu'à ce dont il a besoin :
+  - `caisse` : lire le menu et les stocks, créer des commandes.
+  - `cuisine` : lire les commandes en cours, faire avancer leur état.
+  - `affichage` : lire uniquement les numéros et leur état, rien d'autre (pas de montants, pas d'articles).
+- Limitation de débit par tablette sur l'API (par exemple 120 requêtes par minute), pour encaisser l'interrogation toutes les 2 à 3 secondes sans permettre d'abus.
+- Comparaisons de jetons et de codes avec `hash_equals`.
+
+### Navigateur
+
+- Twig échappe tout par défaut ; ne jamais utiliser `|raw` sur une donnée saisie.
+- En JavaScript, insérer les données (noms d'articles, catégories) avec `textContent` ou `createElement`, **jamais** `innerHTML` avec une donnée.
+- Aucun script ni style en ligne : tout dans `public/js/` et `public/css/`, pour permettre une politique de sécurité stricte.
+- En-têtes envoyés sur toutes les réponses (un écouteur `kernel.response`, sans dépendance) :
+  - `Content-Security-Policy: default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'`
+  - `X-Content-Type-Options: nosniff`
+  - `Referrer-Policy: same-origin`
+  - `Permissions-Policy: camera=(), microphone=(), geolocation=()` (à assouplir pour la caméra si le scan du QR code d'appairage se fait dans l'app)
+  - `Strict-Transport-Security: max-age=31536000` quand le site est servi en HTTPS
+- Cookies de session : `secure: auto`, `httponly: true`, `samesite: lax`.
+- Le jeton de tablette est stocké dans IndexedDB et n'est jamais mis dans une URL.
+
+### HTTPS (point technique important)
+
+Le service worker, donc le mode hors ligne, **ne fonctionne qu'en HTTPS** (ou sur `localhost`).
+
+- Mode hébergé : HTTPS obligatoire (Let's Encrypt, gratuit chez la plupart des hébergeurs).
+- Mode portable en réseau local : le portable lance le conteneur FrankenPHP, dont Caddy fournit le certificat via son autorité locale. Cette autorité est installée une fois sur chaque tablette ; la procédure est documentée dans `README.md`. Ne jamais désactiver la vérification des certificats ni recourir aux options de Chrome qui traitent un site HTTP comme sécurisé.
+
+### Données et serveur
+
+- Racine web = `public/` uniquement. La base SQLite vit dans `var/`, jamais accessible par URL.
+- `.env.local`, la base et les sauvegardes ne sont jamais commités (`.gitignore`).
+- `APP_ENV=prod` et `APP_DEBUG=0` en production ; aucune page d'erreur détaillée en production.
+- **Aucune donnée personnelle des clients** : pas de nom, pas de téléphone, pas d'e-mail. Une commande est un numéro. Garder ce principe, il évite l'essentiel des obligations RGPD.
+- Commande de sauvegarde : `php bin/console app:backup` copie la base horodatée dans `var/backups/`.
+- Les montants, annulations et changements de prix sont tracés dans `AuditLog`.
+
+### Dépendances et dépôt
+
+- `composer.lock` commité. `composer audit` lancé par une GitHub Action à chaque pull request et chaque semaine (gratuit pour un dépôt public).
+- Dependabot activé pour Composer et GitHub Actions.
+- Tests obligatoires pour : authentification et CSRF de l'administration, appairage et expiration des jetons, droits de chaque rôle sur l'API (une tablette `affichage` ne peut pas créer de commande, etc.), recalcul des totaux par le serveur, idempotence.
+
+## Si le projet devient public
+
+- Le nom, le logo, les couleurs et le nom de l'association sont **configurables** (fichier de configuration ou écran d'administration), sans toucher au code.
+- Le logo de l'APE (qui reprend le Petit Prince, protégé en France) **n'est pas commité** dans le dépôt : il est déposé par chaque installation dans `var/uploads/`. Le dépôt ne contient qu'un logo générique.
+- Les droits d'auteur appartiennent à la personne qui porte le projet (pas à l'APE). Le fichier `LICENSE` porte son nom ; l'APE utilise l'application librement, comme tout le monde, au titre de la licence.
+- Projet développé par une seule personne : pas de contributions extérieures acceptées pour l'instant.
+- Ajouter un fichier `SECURITY.md` qui explique comment signaler une faille en privé.
+- Documenter l'installation pas à pas dans `README.md`, y compris `app:install` et le certificat local.
+
+## Charte graphique
+
+Référence complète : document « Charte graphique — Le Comptoir des étoiles ». L'essentiel :
+
+```css
+:root {
+  --renard: #A66927;  --renard-texte: #8A5418;   /* action principale */
+  --or: #E2B83A;                                  /* en préparation, numéros */
+  --sauge: #7A9438;   --sauge-texte: #4F6B22;    /* prête */
+  --kraft: #E1C385;                               /* bordures, tickets */
+  --encre: #3B352E;   --encre-douce: #6B6258;    /* texte */
+  --nuage: #FBF6EC;   --surface: #FFFFFF;        /* fonds */
+  --erreur: #B3261E;  --erreur-fond: #FBE1DE;
+  --f-titre: "Baloo 2", "Trebuchet MS", sans-serif;
+  --f-texte: "Atkinson Hyperlegible", "Segoe UI", Roboto, sans-serif;
+  --f-chiffres: "Atkinson Hyperlegible Mono", ui-monospace, monospace;
+  --rayon: 12px;  --rayon-bouton: 10px;  --tactile: 52px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --renard: #D08A45;  --renard-texte: #D08A45;
+    --sauge: #A9C26A;   --sauge-texte: #A9C26A;
+    --kraft: #4A3F33;
+    --encre: #F0E6D6;   --encre-douce: #B4A897;
+    --nuage: #1A1612;   --surface: #241F1A;
+    --erreur: #FF8F86;  --erreur-fond: #43201D;
+    color-scheme: dark;
+  }
+}
+```
+
+Règles :
+
+- Aucune couleur en dur dans les composants : uniquement ces variables.
+- Un seul bouton principal (fond Renard) par écran.
+- Chaque état a une couleur **et** un libellé écrit.
+- Zones tactiles d'au moins 48 px, boutons d'au moins 52 px de haut.
+- Contraste d'au moins 4,5:1 pour tout texte.
+- Aucun texte sous 13 px ; prix et totaux en police Mono.
+- Pas de dégradés, d'ombres marquées, de fenêtres système (`alert`, `confirm`) : les confirmations se font dans la page.
+- Le logo de l'APE s'affiche seulement sur l'accueil, l'administration et le Carnet de bord. Les personnages du Petit Prince ne sont jamais utilisés dans le nom, l'icône ou les illustrations de l'application.
+
+## Langue et ton
+
+- Interface, messages et documentation en **français**, vouvoiement.
+- Boutons : verbe d'action d'abord (« Encaisser », « Enregistrer le menu »).
+- Erreurs : ce qui se passe et quoi faire, sans jargon technique.
+- Code (classes, méthodes, variables) en anglais ; commentaires en français si nécessaire.
+
+## Façon de travailler
+
+- Avancer par petites étapes, une branche et une pull request par étape.
+- Proposer le plan avant de coder une étape importante.
+- Écrire un test pour la logique sensible : idempotence des commandes, calcul du stock, calcul de la monnaie, numérotation.
+- Avant de terminer une étape : lancer les tests et vérifier l'écran concerné.
+
+## Planning
+
+1. Fin octobre – début novembre : squelette Symfony, entités, migrations, `app:install`, connexion de l'administration, en-têtes de sécurité, appairage des tablettes, puis Caisse et Menu.
+2. Mi-novembre : Cuisine, Arrivées, synchronisation.
+3. Fin novembre : hors ligne (service worker, file IndexedDB), Carnet de bord et export.
+4. Début décembre : répétition générale avec des bénévoles, corrections.
+5. Semaine du 14 décembre : installation, prise en main, marge de sécurité.
