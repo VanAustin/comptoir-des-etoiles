@@ -28,7 +28,15 @@ Prérequis : [Docker Desktop](https://www.docker.com/products/docker-desktop/).
    docker compose exec php bin/console doctrine:migrations:migrate
    ```
 
-4. Ouvrez <http://localhost:8080> dans Chrome.
+4. Créez le premier administrateur :
+
+   ```
+   docker compose exec php bin/console app:install
+   ```
+
+   La commande demande un identifiant et un mot de passe (12 caractères minimum, la saisie est masquée). Elle génère aussi la clé secrète de l'application (`APP_SECRET`) dans le fichier `.env.local`, qui ne doit jamais être partagé ni commité. Aucun compte n'est livré par défaut, et la commande refuse de créer un second administrateur.
+
+5. Ouvrez <http://localhost:8080> dans Chrome.
 
 Toutes les commandes PHP passent par le conteneur :
 
