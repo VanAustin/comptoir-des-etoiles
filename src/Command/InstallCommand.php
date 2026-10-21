@@ -53,10 +53,9 @@ class InstallCommand extends Command
         }
 
         if ($adminCount > 0) {
-            $io->error([
-                'Un administrateur existe déjà : l\'installation a déjà été faite.',
-                'Rien n\'a été modifié.',
-            ]);
+            // Relancer la commande répare un .env.local perdu, sans créer de second compte
+            $this->ensureAppSecret($io);
+            $io->error('Un administrateur existe déjà : l\'installation a déjà été faite, aucun compte n\'est créé.');
 
             return Command::FAILURE;
         }

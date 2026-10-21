@@ -105,6 +105,18 @@ class InstallCommandTest extends KernelTestCase
         self::assertSame(1, $this->adminCount());
     }
 
+    public function testRestoresLostAppSecretWhenAdminExists(): void
+    {
+        $this->runInstall(['camille', self::PASSWORD, self::PASSWORD]);
+        unlink($this->envLocalPath);
+
+        $tester = $this->runInstall([], interactive: false);
+
+        self::assertSame(Command::FAILURE, $tester->getStatusCode());
+        self::assertMatchesRegularExpression('/^APP_SECRET=[0-9a-f]{64}\n$/', (string) file_get_contents($this->envLocalPath));
+        self::assertSame(1, $this->adminCount());
+    }
+
     public function testRefusesNonInteractiveMode(): void
     {
         $tester = $this->runInstall([], interactive: false);
