@@ -2,8 +2,16 @@
 framework:
     secret: '%env(APP_SECRET)%'
 
+    # Jetons CSRF liés à la session, sans JavaScript
+    csrf_protection: true
+
     # Note that the session will be started ONLY if you read or write from it.
-    session: true
+    # L'expiration après 2 heures d'inactivité est gérée par App\EventListener\SessionIdleListener.
+    session:
+        cookie_secure: auto
+        cookie_httponly: true
+        cookie_samesite: lax
+        gc_maxlifetime: 7200
 
     #esi: true
     #fragments: true

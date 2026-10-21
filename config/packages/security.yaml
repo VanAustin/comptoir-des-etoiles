@@ -19,16 +19,26 @@ security:
             lazy: true
             provider: admin_users
 
-            # Activate different ways to authenticate:
-            # https://symfony.com/doc/current/security.html#the-firewall
+            form_login:
+                login_path: app_login
+                check_path: app_login
+                default_target_path: app_admin
+                enable_csrf: true
 
-            # https://symfony.com/doc/current/security/impersonating_user.html
-            # switch_user: true
+            # Déconnexion par formulaire POST avec jeton CSRF
+            logout:
+                path: app_logout
+                target: app_home
+                enable_csrf: true
+
+            # 5 tentatives par tranche de 15 minutes, par identifiant et par IP
+            login_throttling:
+                max_attempts: 5
+                interval: '15 minutes'
 
     # Note: Only the *first* matching rule is applied
     access_control:
-        # - { path: ^/admin, roles: ROLE_ADMIN }
-        # - { path: ^/profile, roles: ROLE_USER }
+        - { path: ^/admin, roles: ROLE_ADMIN }
 
 when@test:
     security:
