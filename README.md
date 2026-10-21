@@ -53,6 +53,17 @@ docker compose exec php bin/phpunit
 
 Pour arrêter le conteneur : `docker compose down`.
 
+## Tester l'API des tablettes avec Bruno
+
+Le dossier `bruno/` contient une collection pour [Bruno](https://www.usebruno.com/), un logiciel gratuit pour envoyer des requêtes à l'API et vérifier les réponses.
+
+1. Installez Bruno (`brew install --cask bruno`, ou depuis le site).
+2. Dans Bruno : « Open Collection », puis choisissez le dossier `bruno/` du projet.
+3. En haut à droite, sélectionnez l'environnement « Local ».
+4. Suivez le déroulé décrit dans la collection (onglet « Docs ») : créez une tablette dans l'administration, recopiez son code dans la variable `pairingCode`, puis lancez les requêtes du dossier « Appairage ».
+
+Chaque requête contient ses tests ; « Run » sur un dossier les lance tous. Le jeton reçu reste en mémoire dans Bruno et n'est jamais écrit dans les fichiers.
+
 Si le port 8080 est déjà utilisé par un autre programme, arrêtez ce programme avant de lancer `docker compose up`.
 
 ## Licence

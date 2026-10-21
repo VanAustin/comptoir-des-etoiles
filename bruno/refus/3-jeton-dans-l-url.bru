@@ -1,0 +1,25 @@
+meta {
+  name: 3. Jeton dans l'URL
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/me?token={{deviceToken}}
+  body: none
+  auth: none
+}
+
+params:query {
+  token: {{deviceToken}}
+}
+
+tests {
+  test("un jeton dans l'URL est ignoré (401)", function () {
+    expect(res.status).to.equal(401);
+  });
+}
+
+docs {
+  Le jeton ne doit jamais être lu dans l'URL (il finirait dans les journaux du serveur et l'historique du navigateur). À lancer après « Appairage / 1. Échanger le code ».
+}

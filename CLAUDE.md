@@ -234,6 +234,7 @@ Règles :
 - Proposer le plan avant de coder une étape importante.
 - Écrire un test pour la logique sensible : idempotence des commandes, calcul du stock, calcul de la monnaie, numérotation.
 - Avant de terminer une étape : lancer les tests et vérifier l'écran concerné.
+- Chaque route de l'API (`/api/…`) a sa requête dans la collection Bruno (`bruno/`), avec des tests sur le code de réponse et le contenu, y compris les cas de refus. La collection ne contient jamais de jeton ni de secret.
 
 ## Planning
 

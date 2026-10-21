@@ -1,0 +1,21 @@
+meta {
+  name: 1. Sans jeton
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/me
+  body: none
+  auth: none
+}
+
+tests {
+  test("refusé (401)", function () {
+    expect(res.status).to.equal(401);
+  });
+
+  test("message en français", function () {
+    expect(res.body.error).to.contain("pas appairée");
+  });
+}

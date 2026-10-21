@@ -1,0 +1,27 @@
+meta {
+  name: 5. Corps sans code
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/pair
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "autre": "chose"
+  }
+}
+
+tests {
+  test("refusé (400)", function () {
+    expect(res.status).to.equal(400);
+  });
+
+  test("message en français", function () {
+    expect(res.body.error).to.contain("Saisissez le code");
+  });
+}
