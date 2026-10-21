@@ -30,15 +30,17 @@ Explicitement exclus : EasyAdmin, Symfony Form, Stimulus, AssetMapper, Webpack E
 
 PHP, Composer et Symfony ne sont **pas** installés sur le Mac : tout tourne dans Docker.
 
-- Une seule image, basée sur **FrankenPHP** (`dunglas/frankenphp`, PHP 8.3 ou plus récent), avec les extensions `pdo_sqlite`, `intl` et `opcache`. Son serveur web intégré (Caddy) fournit le **HTTPS automatique avec une autorité locale**, ce qui permet de tester le service worker dès le développement, et de servir l'application en HTTPS sur le réseau local le jour J en mode portable.
-- Fichiers attendus, et rien de plus : `Dockerfile`, `compose.yaml` (et éventuellement `compose.override.yaml` pour le développement), `Caddyfile` seulement si la configuration par défaut ne suffit pas. Pas de MySQL, pas de Redis, pas de Node.
+- Une seule image, basée sur l'image officielle **`php:8.3-apache`**, avec les extensions `pdo_sqlite` (déjà incluse), `intl` et `opcache`, et Composer copié depuis l'image officielle `composer:2`. FrankenPHP a été écarté : trop de soucis à la mise en place.
+- Apache sert `public/` comme racine, avec `FallbackResource /index.php` dans la configuration du site (fichier copié par le `Dockerfile`). **Pas** de `symfony/apache-pack`.
+- Le site est servi sur **`http://localhost:8080`**. Pas de HTTPS en développement : Chrome autorise le service worker sur `localhost`, ce qui suffit pour développer et tester le mode hors ligne sur le Mac.
+- Fichiers attendus, et rien de plus : `Dockerfile`, `compose.yaml`, et le fichier de configuration Apache du site (par exemple `docker/apache.conf`). Pas de MySQL, pas de Redis, pas de Node.
 - La base SQLite reste dans `var/`, monté en volume : elle survit au redémarrage des conteneurs.
 - **Toutes** les commandes PHP passent par le conteneur, jamais par le PHP du Mac :
   - `docker compose exec php composer …`
   - `docker compose exec php bin/console …`
   - `docker compose exec php bin/phpunit`
 - Le nom du service dans `compose.yaml` est `php`.
-- L'autorité locale de Caddy doit être approuvée une fois sur le Mac (et sur chaque tablette pour le mode portable) ; documenter la procédure dans `README.md`.
+- Le HTTPS pour les tablettes (répétition générale, mode portable) sera traité à l'étape 2, une fois l'application en place. Ne rien prévoir de plus pour l'instant.
 - En production sur un hébergement mutualisé (sans Docker), le même code tourne avec le PHP de l'hébergeur : ne rien faire qui dépende de Docker dans le code de l'application.
 
 ## Architecture
@@ -128,7 +130,8 @@ Usage prévu : une APE, petite échelle. Mais le code est écrit **comme s'il é
 Le service worker, donc le mode hors ligne, **ne fonctionne qu'en HTTPS** (ou sur `localhost`).
 
 - Mode hébergé : HTTPS obligatoire (Let's Encrypt, gratuit chez la plupart des hébergeurs).
-- Mode portable en réseau local : le portable lance le conteneur FrankenPHP, dont Caddy fournit le certificat via son autorité locale. Cette autorité est installée une fois sur chaque tablette ; la procédure est documentée dans `README.md`. Ne jamais désactiver la vérification des certificats ni recourir aux options de Chrome qui traitent un site HTTP comme sécurisé.
+- Développement sur le Mac : `http://localhost:8080` suffit, `localhost` étant considéré comme sécurisé par Chrome.
+- Mode portable en réseau local : solution à définir à l'étape 2 (certificat local installé une fois sur chaque tablette), et à documenter dans `README.md`. Ne jamais désactiver la vérification des certificats ni recourir aux options de Chrome qui traitent un site HTTP comme sécurisé.
 
 ### Données et serveur
 
