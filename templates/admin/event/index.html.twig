@@ -1,0 +1,49 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Événements · Administration{% endblock %}
+
+{% block body %}
+    <div class="section-head">
+        <div>
+            <h1>Événements</h1>
+            <p class="lede">Un seul événement est actif à la fois : c'est lui qu'utilisent les tablettes.</p>
+        </div>
+        <a class="btn btn-primary" href="{{ path('admin_event_new') }}">Créer un événement</a>
+    </div>
+
+    {% if events is empty %}
+        <p class="card empty">Aucun événement pour l'instant. Commencez par créer le prochain, par exemple « Loto de Noël ».</p>
+    {% else %}
+        <div class="tablewrap">
+            <table>
+                <thead>
+                    <tr><th>Événement</th><th>Date</th><th>État</th><th><span class="visually-hidden">Actions</span></th></tr>
+                </thead>
+                <tbody>
+                    {% for event in events %}
+                        <tr>
+                            <td>{{ event.name }}</td>
+                            <td class="num">{{ event.date|date('d/m/Y') }}</td>
+                            <td>
+                                {% if event.active %}
+                                    <span class="pill pill-active">Actif</span>
+                                {% else %}
+                                    <span class="pill">Inactif</span>
+                                {% endif %}
+                            </td>
+                            <td class="actions">
+                                <a class="btn btn-small" href="{{ path('admin_event_edit', {id: event.id}) }}">Modifier</a>
+                                {% if not event.active %}
+                                    <form class="inline-form" method="post" action="{{ path('admin_event_activate', {id: event.id}) }}">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('event-activate-' ~ event.id) }}">
+                                        <button type="submit" class="btn btn-small">Activer</button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+{% endblock %}

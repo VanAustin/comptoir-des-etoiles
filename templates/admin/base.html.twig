@@ -5,6 +5,7 @@
 {% block brand_logo %}<img src="{{ path('app_logo') }}" alt="">{% endblock %}
 
 {% block nav %}
+    <a href="{{ path('app_admin') }}">Administration</a>
     <span class="who">Connecté : {{ app.user.userIdentifier }}</span>
     <form class="inline-form" method="post" action="{{ path('app_logout') }}">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token('logout') }}">
