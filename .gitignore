@@ -1,0 +1,22 @@
+
+###> symfony/framework-bundle ###
+/.env.local
+/.env.local.php
+/.env.*.local
+/config/secrets/prod/prod.decrypt.private.php
+/public/bundles/
+/var/
+/vendor/
+###< symfony/framework-bundle ###
+
+###> comptoir-des-etoiles ###
+# Logo et fichiers déposés par chaque installation (déjà couvert par /var/, gardé explicite)
+/var/uploads/
+# Certificats et clés privées
+*.pem
+*.key
+*.crt
+# Fichiers personnels des éditeurs et outils
+/.idea/
+/.claude/settings.local.json
+###< comptoir-des-etoiles ###
