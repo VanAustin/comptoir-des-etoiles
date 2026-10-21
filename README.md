@@ -22,13 +22,25 @@ Prérequis : [Docker Desktop](https://www.docker.com/products/docker-desktop/).
    docker compose exec php composer install
    ```
 
-3. Ouvrez <http://localhost:8080> dans Chrome.
+3. Créez la base de données (un fichier SQLite dans `var/`) :
+
+   ```
+   docker compose exec php bin/console doctrine:migrations:migrate
+   ```
+
+4. Ouvrez <http://localhost:8080> dans Chrome.
 
 Toutes les commandes PHP passent par le conteneur :
 
 ```
 docker compose exec php composer …
 docker compose exec php bin/console …
+```
+
+Pour lancer les tests :
+
+```
+docker compose exec php bin/phpunit
 ```
 
 Pour arrêter le conteneur : `docker compose down`.
