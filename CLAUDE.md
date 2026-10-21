@@ -172,13 +172,19 @@ Référence complète : document « Charte graphique — Le Comptoir des étoile
 
 ```css
 :root {
-  --renard: #A66927;  --renard-texte: #8A5418;   /* action principale */
+  --renard: #A56726;  --renard-texte: #8A5418;   /* action principale */
   --or: #E2B83A;                                  /* en préparation, numéros */
   --sauge: #7A9438;   --sauge-texte: #4F6B22;    /* prête */
   --kraft: #E1C385;                               /* bordures, tickets */
   --encre: #3B352E;   --encre-douce: #6B6258;    /* texte */
   --nuage: #FBF6EC;   --surface: #FFFFFF;        /* fonds */
   --erreur: #B3261E;  --erreur-fond: #FBE1DE;
+  /* Couleurs dérivées */
+  --renard-encre: #FFFFFF;  /* texte sur Renard */
+  --or-encre: #3B352E;      /* texte sur Or */
+  --or-texte: #7A5A0F;  --or-fond: #FBF0CF;      /* en préparation */
+  --sauge-fond: #EEF3DF;                          /* prête */
+  --papier: #FFFDF8;                              /* tickets, panier */
   --f-titre: "Baloo 2", "Trebuchet MS", sans-serif;
   --f-texte: "Atkinson Hyperlegible", "Segoe UI", Roboto, sans-serif;
   --f-chiffres: "Atkinson Hyperlegible Mono", ui-monospace, monospace;
@@ -192,10 +198,16 @@ Référence complète : document « Charte graphique — Le Comptoir des étoile
     --encre: #F0E6D6;   --encre-douce: #B4A897;
     --nuage: #1A1612;   --surface: #241F1A;
     --erreur: #FF8F86;  --erreur-fond: #43201D;
+    --renard-encre: #1A1612;  --or-encre: #1A1612;
+    --or-texte: #E2B83A;  --or-fond: #3A2F12;
+    --sauge-fond: #2A3319;  --papier: #241F1A;
     color-scheme: dark;
   }
 }
+/* Mêmes valeurs sombres répétées sous :root[data-theme="dark"] pour forcer le thème. */
 ```
+
+La référence est `public/css/tokens.css`. Renard est passé de #A66927 à #A56726 : le texte blanc sur l'ancien Renard n'atteignait que 4,4955:1. Toutes les paires texte / fond de la charte et des couleurs dérivées ont été vérifiées à au moins 4,5:1, en clair et en sombre ; refaire ce calcul avant d'ajouter une couleur.
 
 Règles :
 

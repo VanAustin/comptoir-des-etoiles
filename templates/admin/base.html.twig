@@ -1,0 +1,13 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Administration · Le Comptoir des étoiles{% endblock %}
+
+{% block brand_logo %}<img src="{{ path('app_logo') }}" alt="">{% endblock %}
+
+{% block nav %}
+    <span class="who">Connecté : {{ app.user.userIdentifier }}</span>
+    <form class="inline-form" method="post" action="{{ path('app_logout') }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('logout') }}">
+        <button type="submit" class="btn btn-small">Se déconnecter</button>
+    </form>
+{% endblock %}

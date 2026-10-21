@@ -1,0 +1,16 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+    <section class="home">
+        <img class="logo" src="{{ path('app_logo') }}" alt="Logo de l'association">
+        <h1>Le Comptoir des étoiles</h1>
+        <p class="lede">Caisse, cuisine et appel des commandes pour les événements de l'association.</p>
+
+        <div class="tiles">
+            <a class="card tile" href="{{ path('app_admin') }}">
+                <strong>Administration</strong>
+                <span>Événements, menu, prix, stocks et tablettes.</span>
+            </a>
+        </div>
+    </section>
+{% endblock %}

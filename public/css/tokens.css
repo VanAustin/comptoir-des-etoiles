@@ -1,0 +1,93 @@
+/*
+ * Charte graphique du Comptoir des étoiles.
+ * Chargé en premier sur toutes les pages. Aucune couleur en dur ailleurs :
+ * les composants utilisent uniquement ces variables.
+ * Chaque paire texte / fond a un contraste d'au moins 4,5:1 (vérifié en clair et en sombre).
+ */
+
+@font-face {
+  font-family: "Baloo 2";
+  src: url("../fonts/baloo-2.woff2") format("woff2");
+  font-weight: 400 800;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Atkinson Hyperlegible";
+  src: url("../fonts/atkinson-hyperlegible-400.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Atkinson Hyperlegible";
+  src: url("../fonts/atkinson-hyperlegible-700.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Atkinson Hyperlegible Mono";
+  src: url("../fonts/atkinson-hyperlegible-mono.woff2") format("woff2");
+  font-weight: 200 800;
+  font-display: swap;
+}
+
+:root {
+  /* Charte */
+  --renard: #A56726;  --renard-texte: #8A5418;   /* action principale */
+  --or: #E2B83A;                                  /* en préparation, numéros */
+  --sauge: #7A9438;   --sauge-texte: #4F6B22;    /* prête */
+  --kraft: #E1C385;                               /* bordures, tickets */
+  --encre: #3B352E;   --encre-douce: #6B6258;    /* texte */
+  --nuage: #FBF6EC;   --surface: #FFFFFF;        /* fonds */
+  --erreur: #B3261E;  --erreur-fond: #FBE1DE;
+
+  /* Couleurs dérivées */
+  --renard-encre: #FFFFFF;   /* texte sur fond Renard */
+  --or-encre: #3B352E;       /* texte sur fond Or */
+  --or-texte: #7A5A0F;       /* texte « en préparation » */
+  --or-fond: #FBF0CF;        /* fond « en préparation » */
+  --sauge-fond: #EEF3DF;     /* fond « prête » */
+  --papier: #FFFDF8;         /* tickets, panier */
+
+  --f-titre: "Baloo 2", "Trebuchet MS", sans-serif;
+  --f-texte: "Atkinson Hyperlegible", "Segoe UI", Roboto, sans-serif;
+  --f-chiffres: "Atkinson Hyperlegible Mono", ui-monospace, monospace;
+  --rayon: 12px;  --rayon-bouton: 10px;  --tactile: 52px;
+
+  color-scheme: light;
+}
+
+/* Thème sombre : suit le réglage de l'appareil, sauf si la page force le clair */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --renard: #D08A45;  --renard-texte: #D08A45;
+    --sauge: #A9C26A;   --sauge-texte: #A9C26A;
+    --kraft: #4A3F33;
+    --encre: #F0E6D6;   --encre-douce: #B4A897;
+    --nuage: #1A1612;   --surface: #241F1A;
+    --erreur: #FF8F86;  --erreur-fond: #43201D;
+    --renard-encre: #1A1612;
+    --or-encre: #1A1612;
+    --or-texte: #E2B83A;
+    --or-fond: #3A2F12;
+    --sauge-fond: #2A3319;
+    --papier: #241F1A;
+    color-scheme: dark;
+  }
+}
+
+/* Thème sombre forcé par la page (mêmes valeurs que ci-dessus) */
+:root[data-theme="dark"] {
+  --renard: #D08A45;  --renard-texte: #D08A45;
+  --sauge: #A9C26A;   --sauge-texte: #A9C26A;
+  --kraft: #4A3F33;
+  --encre: #F0E6D6;   --encre-douce: #B4A897;
+  --nuage: #1A1612;   --surface: #241F1A;
+  --erreur: #FF8F86;  --erreur-fond: #43201D;
+  --renard-encre: #1A1612;
+  --or-encre: #1A1612;
+  --or-texte: #E2B83A;
+  --or-fond: #3A2F12;
+  --sauge-fond: #2A3319;
+  --papier: #241F1A;
+  color-scheme: dark;
+}
