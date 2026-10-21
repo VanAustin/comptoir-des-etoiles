@@ -131,3 +131,11 @@ fieldset.field legend { font-size: 14px; font-weight: 700; color: var(--encre-do
 .pairing { text-align: center; }
 .pairing-code { font-size: 56px; font-weight: 700; letter-spacing: .08em; margin: 16px 0 8px; color: var(--encre); }
 .pairing-url { font-size: 18px; color: var(--renard-texte); word-break: break-all; }
+
+/* Page d'appairage de la tablette */
+.pair .code-input { font-size: 32px; letter-spacing: .08em; text-align: center; text-transform: uppercase; min-height: 64px; }
+.pair .btn-primary { width: 100%; }
+.device-info { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 16px 0; text-align: left; }
+.device-info dt { color: var(--encre-douce); font-weight: 700; }
+.device-info dd { margin: 0; font-weight: 700; }
+.unpair { margin-top: 24px; padding-top: 16px; border-top: 1px dashed var(--kraft); }

@@ -19,6 +19,13 @@ class HomeController extends AbstractController
         return $this->render('home.html.twig');
     }
 
+    /** Page ouverte sur la tablette pour saisir le code d'appairage. */
+    #[Route('/appairer', name: 'app_pair', methods: ['GET'])]
+    public function pair(): Response
+    {
+        return $this->render('pair.html.twig');
+    }
+
     /**
      * Logo de l'association : déposé par chaque installation dans var/uploads/,
      * jamais commité. À défaut, le logo générique du dépôt.

@@ -1,0 +1,48 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Appairer cette tablette · Le Comptoir des étoiles{% endblock %}
+
+{% block javascripts %}
+    <script type="module" src="{{ app.request.basePath }}/js/pair.js"></script>
+{% endblock %}
+
+{% block body %}
+    <section class="card form-card pair">
+        <h1>Appairer cette tablette</h1>
+
+        <p id="pair-loading" class="lede" role="status">Vérification de la tablette…</p>
+
+        <div id="pair-form-section" hidden>
+            <p class="lede">Saisissez le code affiché dans l'administration, rubrique Tablettes. Il est valable 10 minutes.</p>
+            <form id="pair-form" novalidate>
+                <div class="field">
+                    <label for="code">Code d'appairage</label>
+                    <input type="text" id="code" name="code" class="code-input num" placeholder="XXXX-XXXX"
+                           maxlength="9" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false"
+                           required aria-describedby="pair-error">
+                </div>
+                <p id="pair-error" class="alert alert-error" role="alert" hidden></p>
+                <button type="submit" class="btn btn-primary">Appairer cette tablette</button>
+            </form>
+        </div>
+
+        <div id="paired-section" hidden>
+            <p class="alert alert-info" role="status">Cette tablette est appairée.</p>
+            <dl class="device-info">
+                <dt>Nom</dt><dd data-info="name"></dd>
+                <dt>Rôle</dt><dd data-info="role"></dd>
+                <dt>Lettre de caisse</dt><dd data-info="tillLetter" class="num"></dd>
+                <dt>Événement</dt><dd data-info="event"></dd>
+            </dl>
+            <p id="paired-offline" class="lede" hidden>Le serveur n'a pas pu confirmer l'appairage pour l'instant : informations enregistrées sur la tablette.</p>
+            <a class="btn btn-primary" href="{{ path('app_home') }}">Continuer</a>
+
+            <div class="unpair">
+                <p class="lede">Pour réutiliser cette tablette pour un autre poste, désappairez-la, puis révoquez-la dans l'administration.</p>
+                <button type="button" id="unpair" class="btn">Désappairer cette tablette</button>
+            </div>
+        </div>
+
+        <noscript><p class="alert alert-error">Cette page a besoin de JavaScript. Ouvrez-la dans Chrome.</p></noscript>
+    </section>
+{% endblock %}
