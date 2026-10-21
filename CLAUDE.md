@@ -60,15 +60,23 @@ PHP, Composer et Symfony ne sont **pas** installés sur le Mac : tout tourne dan
 
 - `Event` : nom, date, actif ou non.
 - `Product` : événement, nom, icône (émoji ou image), catégorie, prix (centimes, entier), stock de départ (nullable = non compté), passe en cuisine (bool), ordre d'affichage, composants si formule.
-- `Order` : UUID (identifiant venu de la tablette), événement, numéro affiché (séquentiel par événement), moyen de paiement (espèces ou carte), montant reçu, état, créé le, modifié le, tablette d'origine.
-- `OrderLine` : commande, produit, libellé et prix figés au moment de la vente, quantité.
-- `Device` : tablette appairée. Nom (« Caisse buvette »), rôle (`caisse`, `cuisine`, `affichage`), empreinte SHA-256 du jeton, événement, créée le, vue pour la dernière fois le, expire le, révoquée le.
+- `Order` : UUID (identifiant venu de la tablette), événement, lettre de caisse et numéro (voir Numérotation), moyen de paiement (espèces ou carte), montant reçu, total recalculé par le serveur, état, créé le, modifié le, tablette d'origine.
+- `OrderLine` : commande, produit, libellé, prix et passage en cuisine figés au moment de la vente, quantité.
+- `Device` : tablette appairée. Nom (« Caisse buvette »), rôle (`caisse`, `cuisine`, `affichage`), lettre de caisse (rôle `caisse` uniquement), empreinte SHA-256 du jeton, empreinte et expiration du code d'appairage, événement, créée le, vue pour la dernière fois le, expire le, révoquée le.
 - `AuditLog` : qui (administrateur ou tablette), quoi (annulation, changement de prix ou de stock, appairage, révocation), quand, valeurs avant et après.
 - `AdminUser` : identifiant, mot de passe haché. Créé uniquement par la commande d'installation.
 
 Montants toujours en centimes (entiers) côté serveur.
 
 États d'une commande : `new` → `prep` → `ready` → `served`, ou `cancelled`. Une commande sans article cuisine passe directement à `served`.
+
+### Numérotation des commandes
+
+Le numéro donné au client est la **lettre de la caisse suivie d'un numéro** : A12, B07. Chaque caisse peut ainsi numéroter seule, même hors ligne, sans risque de doublon avec une autre caisse.
+
+- La lettre est attribuée par le **serveur** lors de l'appairage d'une tablette `caisse`, unique par événement. Les lettres I et O ne sont pas utilisées (confusion avec 1 et 0). Une lettre n'est jamais réattribuée au cours d'un même événement, même après révocation de la tablette.
+- La numérotation de chaque lettre **repart à 1 à chaque événement**.
+- La tablette attribue le numéro suivant au moment de l'encaissement. Le serveur vérifie que la lettre est bien celle de la tablette et que le couple (lettre, numéro) n'existe pas déjà pour l'événement (contrainte d'unicité en base).
 
 ## Écrans
 
@@ -154,7 +162,8 @@ Le service worker, donc le mode hors ligne, **ne fonctionne qu'en HTTPS** (ou su
 - Le logo de l'APE (qui reprend le Petit Prince, protégé en France) **n'est pas commité** dans le dépôt : il est déposé par chaque installation dans `var/uploads/`. Le dépôt ne contient qu'un logo générique.
 - Les droits d'auteur appartiennent à la personne qui porte le projet (pas à l'APE). Le fichier `LICENSE` porte son nom ; l'APE utilise l'application librement, comme tout le monde, au titre de la licence.
 - Projet développé par une seule personne : pas de contributions extérieures acceptées pour l'instant.
-- Ajouter un fichier `SECURITY.md` qui explique comment signaler une faille en privé.
+- Ajouter un fichier `SECURITY.md` qui explique comment signaler une faille en privé (fait).
+- Activer **Private vulnerability reporting** dans les réglages du dépôt GitHub au moment de le rendre public (option indisponible sur un dépôt privé) : c'est le canal de signalement indiqué dans `SECURITY.md`.
 - Documenter l'installation pas à pas dans `README.md`, y compris `app:install` et le certificat local.
 
 ## Charte graphique

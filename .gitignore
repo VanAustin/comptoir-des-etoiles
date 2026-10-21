@@ -20,3 +20,8 @@
 /.idea/
 /.claude/settings.local.json
 ###< comptoir-des-etoiles ###
+
+###> phpunit/phpunit ###
+/phpunit.xml
+/.phpunit.cache/
+###< phpunit/phpunit ###
