@@ -69,7 +69,11 @@ class InstallCommand extends Command
 
         $this->ensureAppSecret($io);
 
-        $io->section('Compte administrateur');
+        $io->section('Création du compte administrateur');
+        $io->text([
+            'Aucun compte n\'existe encore : vous allez en créer un.',
+            'Choisissez l\'identifiant et le mot de passe qui vous serviront à vous connecter à l\'administration.',
+        ]);
         $username = $io->askQuestion($this->usernameQuestion());
         $password = $this->askNewPassword($io);
         if (null === $password) {
@@ -117,7 +121,7 @@ class InstallCommand extends Command
 
     private function usernameQuestion(): Question
     {
-        $question = new Question('Identifiant (lettres, chiffres, point, tiret)');
+        $question = new Question('Choisissez un identifiant (lettres sans accent, chiffres, point, tiret ; par exemple : admin-ape)');
         $question->setMaxAttempts(self::MAX_ATTEMPTS);
         $question->setValidator(static function (?string $value): string {
             $value = trim((string) $value);
@@ -133,7 +137,7 @@ class InstallCommand extends Command
 
     private function askNewPassword(SymfonyStyle $io): ?string
     {
-        $question = new Question(\sprintf('Mot de passe (%d caractères minimum, la saisie est masquée)', self::MIN_PASSWORD_LENGTH));
+        $question = new Question(\sprintf('Choisissez un mot de passe (%d caractères minimum ; rien ne s\'affiche pendant la saisie, c\'est normal)', self::MIN_PASSWORD_LENGTH));
         $question->setHidden(true);
         $question->setMaxAttempts(self::MAX_ATTEMPTS);
         $question->setValidator(static function (?string $value): string {
@@ -149,7 +153,7 @@ class InstallCommand extends Command
         });
         $password = $io->askQuestion($question);
 
-        $confirmation = new Question('Confirmez le mot de passe');
+        $confirmation = new Question('Saisissez à nouveau le même mot de passe');
         $confirmation->setHidden(true);
 
         return hash_equals($password, (string) $io->askQuestion($confirmation)) ? $password : null;
