@@ -1,0 +1,8 @@
+services:
+  php:
+    build: .
+    ports:
+      - "8080:80"
+    volumes:
+      # Le projet entier est monté, var/ (et donc la base SQLite) compris
+      - .:/var/www/html
