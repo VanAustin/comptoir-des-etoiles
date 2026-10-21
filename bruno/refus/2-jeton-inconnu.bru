@@ -1,0 +1,26 @@
+meta {
+  name: 2. Jeton inconnu
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/me
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+}
+
+tests {
+  test("refusé (401)", function () {
+    expect(res.status).to.equal(401);
+  });
+
+  test("le jeton a bien été lu par le serveur", function () {
+    // « pas reconnue » (et non « pas appairée ») prouve qu'Apache transmet l'en-tête Authorization
+    expect(res.body.error).to.contain("pas reconnue");
+  });
+}

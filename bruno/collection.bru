@@ -1,0 +1,16 @@
+docs {
+  # API des tablettes
+
+  Collection pour tester l'API sur http://localhost:8080 (environnement « Local »).
+
+  ## Déroulé
+
+  1. Dans l'administration, activez un événement daté d'aujourd'hui ou plus tard, puis ajoutez une tablette dans « Tablettes ».
+  2. Recopiez le code affiché dans la variable `pairingCode` de l'environnement « Local » (variable secrète : sa valeur reste sur votre ordinateur, hors des fichiers commités).
+  3. Lancez « Appairage / 1. Échanger le code » : le jeton reçu est gardé en mémoire (variable `deviceToken`) pour les requêtes suivantes, jusqu'à la fermeture de Bruno.
+  4. Lancez « Appairage / 2. Qui suis-je ».
+
+  Le dossier « Refus » vérifie que l'API refuse ce qu'elle doit refuser. Chaque requête contient ses propres tests (onglet « Tests »).
+
+  Le jeton n'est jamais enregistré dans les fichiers de la collection.
+}

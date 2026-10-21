@@ -19,6 +19,8 @@
 # Fichiers personnels des éditeurs et outils
 /.idea/
 /.claude/settings.local.json
+# Secrets locaux de Bruno (jamais commités)
+/bruno/.env
 ###< comptoir-des-etoiles ###
 
 ###> phpunit/phpunit ###

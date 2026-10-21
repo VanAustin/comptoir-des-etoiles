@@ -1,0 +1,31 @@
+meta {
+  name: 4. Code invalide
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/pair
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "code": "ABCD-EFGH"
+  }
+}
+
+tests {
+  test("refusé (422)", function () {
+    expect(res.status).to.equal(422);
+  });
+
+  test("message en français", function () {
+    expect(res.body.error).to.contain("pas valide");
+  });
+}
+
+docs {
+  Attention : chaque essai compte dans la limite de 20 tentatives d'appairage par 15 minutes et par adresse IP.
+}

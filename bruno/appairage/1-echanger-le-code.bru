@@ -1,0 +1,54 @@
+meta {
+  name: 1. Échanger le code
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/pair
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "code": "{{pairingCode}}"
+  }
+}
+
+script:post-response {
+  // Jeton gardé en mémoire seulement (pas dans les fichiers) pour les requêtes suivantes
+  if (res.status === 201) {
+    bru.setVar("deviceToken", res.body.token);
+  }
+}
+
+tests {
+  test("le code est accepté (201)", function () {
+    expect(res.status).to.equal(201);
+  });
+
+  test("un jeton de 43 caractères est renvoyé", function () {
+    expect(res.body.token).to.match(/^[A-Za-z0-9_-]{43}$/);
+  });
+
+  test("la tablette et son événement sont décrits", function () {
+    expect(res.body.device).to.have.property("name");
+    expect(res.body.device).to.have.property("role");
+    expect(res.body.device.event).to.have.property("name");
+  });
+
+  test("une tablette caisse reçoit une lettre", function () {
+    if (res.body.device.role === "caisse") {
+      expect(res.body.device.tillLetter).to.match(/^[A-HJ-NP-Z]$/);
+    } else {
+      expect(res.body.device.tillLetter).to.equal(null);
+    }
+  });
+}
+
+docs {
+  Échange le code d'appairage (variable `pairingCode` de l'environnement) contre le jeton de la tablette.
+
+  Le code ne sert qu'une fois : relancer cette requête avec le même code doit échouer (422).
+}

@@ -1,0 +1,36 @@
+meta {
+  name: 2. Qui suis-je
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/me
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{deviceToken}}
+}
+
+tests {
+  test("la tablette est reconnue (200)", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("le rôle est l'un des trois rôles prévus", function () {
+    expect(["caisse", "cuisine", "affichage"]).to.include(res.body.role);
+  });
+
+  test("les en-têtes de sécurité sont présents", function () {
+    expect(res.headers["content-security-policy"]).to.contain("default-src 'self'");
+    expect(res.headers["x-content-type-options"]).to.equal("nosniff");
+  });
+}
+
+docs {
+  Renvoie ce que la tablette sait d'elle-même. Nécessite d'avoir lancé « 1. Échanger le code ».
+
+  Après une révocation depuis l'administration, cette requête doit répondre 401 avec « Cette tablette a été retirée… ».
+}
