@@ -15,4 +15,30 @@ class EventRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, Event::class);
     }
+
+    /** @return list<Event> les plus récents en premier */
+    public function findAllByDateDesc(): array
+    {
+        return $this->findBy([], ['date' => 'DESC', 'id' => 'DESC']);
+    }
+
+    public function findActive(): ?Event
+    {
+        return $this->findOneBy(['active' => true]);
+    }
+
+    /** Un seul événement actif à la fois : activer l'un désactive les autres. */
+    public function activate(Event $event): void
+    {
+        $this->createQueryBuilder('e')
+            ->update()
+            ->set('e.active', ':inactive')
+            ->where('e.id != :id')
+            ->setParameter('inactive', false)
+            ->setParameter('id', $event->getId())
+            ->getQuery()
+            ->execute();
+
+        $event->setActive(true);
+    }
 }

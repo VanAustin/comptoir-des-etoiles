@@ -1,0 +1,34 @@
+{% extends 'admin/base.html.twig' %}
+
+{% set heading = event ? 'Modifier « ' ~ event.name ~ ' »' : 'Créer un événement' %}
+
+{% block title %}{{ heading }} · Administration{% endblock %}
+
+{% block body %}
+    <p><a href="{{ path('admin_event_index') }}">← Retour aux événements</a></p>
+
+    <section class="card form-card">
+        <h1>{{ heading }}</h1>
+
+        {% if errors is not empty %}
+            <p class="alert alert-error" role="alert">Le formulaire contient des erreurs : corrigez les champs signalés.</p>
+        {% endif %}
+
+        <form method="post" novalidate>
+            <div class="field">
+                <label for="name">Nom de l'événement</label>
+                <input type="text" id="name" name="name" value="{{ values.name }}" maxlength="100" required
+                       {% if errors.name is defined %}aria-invalid="true" aria-describedby="name-error"{% endif %}>
+                {% if errors.name is defined %}<p class="field-error" id="name-error">{{ errors.name }}</p>{% endif %}
+            </div>
+            <div class="field">
+                <label for="date">Date</label>
+                <input type="date" id="date" name="date" value="{{ values.date }}" required
+                       {% if errors.date is defined %}aria-invalid="true" aria-describedby="date-error"{% endif %}>
+                {% if errors.date is defined %}<p class="field-error" id="date-error">{{ errors.date }}</p>{% endif %}
+            </div>
+            <input type="hidden" name="_token" value="{{ csrf_token('event-form') }}">
+            <button type="submit" class="btn btn-primary">{{ event ? 'Enregistrer l\'événement' : 'Créer l\'événement' }}</button>
+        </form>
+    </section>
+{% endblock %}

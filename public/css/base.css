@@ -90,3 +90,28 @@ main { padding-block: 24px; max-width: 1100px; margin-inline: auto; }
 .tile strong { display: block; font: 800 19px var(--f-titre); color: var(--renard-texte); }
 .tile span { color: var(--encre-douce); font-weight: 400; }
 .tile[aria-disabled="true"] { opacity: .6; }
+
+/* En-tête de section : titre et bouton principal */
+.section-head { display: flex; justify-content: space-between; align-items: end; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+
+/* Tableaux */
+.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--kraft); border-radius: var(--rayon); }
+table { border-collapse: collapse; width: 100%; }
+th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--kraft); }
+th { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--encre-douce); }
+tbody tr:last-child td { border-bottom: 0; }
+td.actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+
+/* États : toujours une couleur et un libellé écrit */
+.pill { display: inline-block; font-size: 13px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--nuage); color: var(--encre-douce); }
+.pill-active { background: var(--sauge-fond); color: var(--sauge-texte); }
+
+.empty { color: var(--encre-douce); }
+
+/* Formulaires d'administration */
+.form-card { max-width: 520px; }
+.form-card h1 { margin-bottom: 16px; }
+.field-error { margin: 0; color: var(--erreur); font-size: 14px; font-weight: 700; }
+.field input[aria-invalid="true"] { border-color: var(--erreur); }
+
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
