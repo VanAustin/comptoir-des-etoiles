@@ -1,0 +1,12 @@
+{# Page d'erreur de production : aucun détail technique n'est affiché. #}
+{% extends 'base.html.twig' %}
+
+{% block title %}Erreur · Le Comptoir des étoiles{% endblock %}
+
+{% block body %}
+    <section class="card">
+        <h1>{% block error_title %}Un problème est survenu{% endblock %}</h1>
+        <p>{% block error_message %}L'application n'a pas pu traiter votre demande. Réessayez dans un instant ; si le problème continue, prévenez la personne qui gère l'installation.{% endblock %}</p>
+        <p><a class="btn" href="{{ path('app_home') }}">Revenir à l'accueil</a></p>
+    </section>
+{% endblock %}
