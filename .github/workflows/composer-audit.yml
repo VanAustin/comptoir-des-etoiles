@@ -1,0 +1,25 @@
+# Vérifie qu'aucune dépendance PHP n'a de faille de sécurité connue.
+# Lancé à chaque pull request, à chaque fusion sur main, et chaque lundi.
+name: Audit des dépendances
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  composer-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # PHP et Composer sont déjà installés sur les machines de GitHub :
+      # on audite composer.lock sans rien installer.
+      - name: Auditer composer.lock
+        run: composer audit --locked --no-interaction
