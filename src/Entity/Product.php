@@ -28,7 +28,7 @@ class Product
     private ?string $icon = null;
 
     #[ORM\Column(length: 40)]
-    private string $category = '';
+    private string $category = 'Divers';
 
     /** Prix en centimes. */
     #[ORM\Column]
@@ -40,6 +40,13 @@ class Product
 
     #[ORM\Column]
     private bool $goesToKitchen = false;
+
+    /**
+     * Vendu avec consigne : la caisse ajoute automatiquement une consigne
+     * (montant fixé sur l'événement) par article vendu.
+     */
+    #[ORM\Column(options: ['default' => false])]
+    private bool $hasDeposit = false;
 
     #[ORM\Column]
     private int $position = 0;
@@ -140,6 +147,18 @@ class Product
     public function setGoesToKitchen(bool $goesToKitchen): static
     {
         $this->goesToKitchen = $goesToKitchen;
+
+        return $this;
+    }
+
+    public function hasDeposit(): bool
+    {
+        return $this->hasDeposit;
+    }
+
+    public function setHasDeposit(bool $hasDeposit): static
+    {
+        $this->hasDeposit = $hasDeposit;
 
         return $this;
     }

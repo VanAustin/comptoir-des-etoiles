@@ -1,0 +1,132 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Menu · Administration{% endblock %}
+
+{% macro error(errors, field) %}
+    {% if errors[field] is defined %}<p class="field-error">{{ errors[field] }}</p>{% endif %}
+{% endmacro %}
+
+{% block body %}
+    <div class="section-head">
+        <div>
+            <h1>Menu</h1>
+            <p class="lede">
+                Articles de l'événement « {{ event.name }} ».
+                {% if event.depositCents %}Consigne : {{ event.depositCents|euros }} par article « avec consigne ».{% else %}Pas de consigne pour cet événement.{% endif %}
+                <a href="{{ path('admin_event_edit', {id: event.id}) }}">Modifier</a>
+            </p>
+        </div>
+    </div>
+
+    {% if products is empty %}
+        <div class="card empty">
+            <p>Le menu est vide. Ajoutez vos articles ci-dessous, ou chargez le menu d'exemple du Loto pour tester.</p>
+            <form method="post" action="{{ path('admin_menu_example') }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('menu-example') }}">
+                <button type="submit" class="btn">Charger le menu d'exemple du Loto</button>
+            </form>
+        </div>
+    {% else %}
+        {% if row_errors is not empty %}
+            <p class="alert alert-error" role="alert">Rien n'a été enregistré : corrigez les champs signalés en rouge, puis enregistrez à nouveau.</p>
+        {% endif %}
+
+        <form method="post" action="{{ path('admin_menu_save') }}" novalidate>
+            <div class="tablewrap">
+                <table class="menu-table">
+                    <thead>
+                        <tr>
+                            <th>Ordre</th><th>Icône</th><th>Article</th><th>Catégorie</th><th>Prix (€)</th>
+                            <th>Stock de départ</th><th>Cuisine</th><th>Consigne</th><th><span class="visually-hidden">Actions</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in products %}
+                            {% set id = product.id %}
+                            {% set v = row_values[id] %}
+                            {% set e = row_errors[id] ?? {} %}
+                            {% set prefix = 'products[' ~ id ~ ']' %}
+                            <tr{% if e is not empty %} class="row-invalid"{% endif %}>
+                                <td>
+                                    <input type="text" inputmode="numeric" name="{{ prefix }}[position]" value="{{ v.position }}" class="num input-tiny" aria-label="Ordre de {{ product.name }}"{% if e.position is defined %} aria-invalid="true"{% endif %}>
+                                    {{ _self.error(e, 'position') }}
+                                </td>
+                                <td>
+                                    <input type="text" name="{{ prefix }}[icon]" value="{{ v.icon }}" class="input-icon" aria-label="Icône de {{ product.name }}"{% if e.icon is defined %} aria-invalid="true"{% endif %}>
+                                    {{ _self.error(e, 'icon') }}
+                                </td>
+                                <td>
+                                    <input type="text" name="{{ prefix }}[name]" value="{{ v.name }}" maxlength="80" aria-label="Nom de l'article"{% if e.name is defined %} aria-invalid="true"{% endif %}>
+                                    {{ _self.error(e, 'name') }}
+                                </td>
+                                <td>
+                                    <input type="text" name="{{ prefix }}[category]" value="{{ v.category }}" maxlength="40" aria-label="Catégorie de {{ product.name }}"{% if e.category is defined %} aria-invalid="true"{% endif %}>
+                                    {{ _self.error(e, 'category') }}
+                                </td>
+                                <td>
+                                    <input type="text" inputmode="decimal" name="{{ prefix }}[price]" value="{{ v.price }}" class="num input-price" aria-label="Prix de {{ product.name }}"{% if e.price is defined %} aria-invalid="true"{% endif %}>
+                                    {{ _self.error(e, 'price') }}
+                                </td>
+                                <td>
+                                    {% if product.formula %}
+                                        <span class="lede">Formule : {{ product.components|map(c => c.name)|join(', ') }}</span>
+                                    {% else %}
+                                        <input type="text" inputmode="numeric" name="{{ prefix }}[stock]" value="{{ v.stock }}" placeholder="non compté" class="num input-price" aria-label="Stock de départ de {{ product.name }}"{% if e.stock is defined %} aria-invalid="true"{% endif %}>
+                                        {{ _self.error(e, 'stock') }}
+                                    {% endif %}
+                                </td>
+                                <td><input type="checkbox" name="{{ prefix }}[kitchen]" value="1" {{ v.kitchen ? 'checked' }} aria-label="{{ product.name }} passe en cuisine"></td>
+                                <td><input type="checkbox" name="{{ prefix }}[deposit]" value="1" {{ v.deposit ? 'checked' }} aria-label="{{ product.name }} avec consigne"></td>
+                                <td class="actions">
+                                    <a class="btn btn-small" href="{{ path('admin_menu_components', {id: id}) }}">Formule</a>
+                                    <a class="btn btn-small" href="{{ path('admin_menu_remove', {id: id}) }}">Retirer</a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <input type="hidden" name="_token" value="{{ csrf_token('menu-save') }}">
+            <p class="lede">Laissez le stock vide pour un article non compté (café, thé…). Le stock d'une formule se déduit de celui de ses articles.</p>
+            <button type="submit" class="btn btn-primary">Enregistrer le menu</button>
+        </form>
+    {% endif %}
+
+    <section class="card add-product">
+        <h2>Ajouter un article</h2>
+        {% if new_errors is not empty %}
+            <p class="alert alert-error" role="alert">L'article n'a pas été ajouté : corrigez les champs signalés.</p>
+        {% endif %}
+        <form method="post" action="{{ path('admin_menu_add') }}" novalidate class="add-grid">
+            <div class="field">
+                <label for="new-icon">Icône</label>
+                <input type="text" id="new-icon" name="icon" value="{{ new_values.icon }}" class="input-icon" placeholder="🥞"{% if new_errors.icon is defined %} aria-invalid="true"{% endif %}>
+                {{ _self.error(new_errors, 'icon') }}
+            </div>
+            <div class="field">
+                <label for="new-name">Article</label>
+                <input type="text" id="new-name" name="name" value="{{ new_values.name }}" maxlength="80" placeholder="Crêpe sucre"{% if new_errors.name is defined %} aria-invalid="true"{% endif %}>
+                {{ _self.error(new_errors, 'name') }}
+            </div>
+            <div class="field">
+                <label for="new-category">Catégorie</label>
+                <input type="text" id="new-category" name="category" value="{{ new_values.category }}" maxlength="40" placeholder="Sucré"{% if new_errors.category is defined %} aria-invalid="true"{% endif %}>
+                {{ _self.error(new_errors, 'category') }}
+            </div>
+            <div class="field">
+                <label for="new-price">Prix (€)</label>
+                <input type="text" id="new-price" name="price" value="{{ new_values.price }}" inputmode="decimal" class="num" placeholder="1,50"{% if new_errors.price is defined %} aria-invalid="true"{% endif %}>
+                {{ _self.error(new_errors, 'price') }}
+            </div>
+            <div class="field">
+                <label for="new-stock">Stock de départ</label>
+                <input type="text" id="new-stock" name="stock" value="{{ new_values.stock }}" inputmode="numeric" class="num" placeholder="non compté"{% if new_errors.stock is defined %} aria-invalid="true"{% endif %}>
+                {{ _self.error(new_errors, 'stock') }}
+            </div>
+            <label class="check"><input type="checkbox" name="kitchen" value="1" {{ new_values.kitchen ? 'checked' }}> Passe en cuisine</label>
+            <label class="check"><input type="checkbox" name="deposit" value="1" {{ new_values.deposit ? 'checked' }}> Avec consigne</label>
+            <input type="hidden" name="_token" value="{{ csrf_token('menu-add') }}">
+            <button type="submit" class="btn">Ajouter l'article</button>
+        </form>
+    </section>
+{% endblock %}

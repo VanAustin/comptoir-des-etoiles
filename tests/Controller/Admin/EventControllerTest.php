@@ -70,6 +70,20 @@ class EventControllerTest extends WebTestCase
         self::assertSame(0, $this->entityManager->getRepository(Event::class)->count());
     }
 
+    public function testInvalidDepositIsRefused(): void
+    {
+        $crawler = $this->client->request('GET', '/admin/evenements/nouveau');
+        $this->client->submit($crawler->selectButton('Créer l\'événement')->form([
+            'name' => 'Loto de Noël',
+            'date' => '2026-12-18',
+            'deposit' => '-1',
+        ]));
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertStringContainsString('montant en euros', (string) $this->client->getResponse()->getContent());
+        self::assertSame(0, $this->entityManager->getRepository(Event::class)->count());
+    }
+
     public function testCreateRefusesInvalidCsrfToken(): void
     {
         $this->client->request('POST', '/admin/evenements/nouveau', [
@@ -90,17 +104,19 @@ class EventControllerTest extends WebTestCase
         $this->client->submit($crawler->selectButton('Enregistrer l\'événement')->form([
             'name' => 'Loto de Noël',
             'date' => '2026-12-19',
+            'deposit' => '1,50',
         ]));
 
         self::assertResponseRedirects('/admin/evenements');
         $this->entityManager->clear();
         $event = $this->findEvent('Loto de Noël');
         self::assertSame('2026-12-19', $event?->getDate()->format('Y-m-d'));
+        self::assertSame(150, $event->getDepositCents());
 
         $log = $this->entityManager->getRepository(AuditLog::class)->findOneBy(['action' => 'event.update']);
         self::assertSame('admin:camille', $log?->getActor());
-        self::assertSame(['name' => 'Loto', 'date' => '2026-12-18'], $log->getBefore());
-        self::assertSame(['name' => 'Loto de Noël', 'date' => '2026-12-19'], $log->getAfter());
+        self::assertSame(['name' => 'Loto', 'date' => '2026-12-18', 'deposit_cents' => 0], $log->getBefore());
+        self::assertSame(['name' => 'Loto de Noël', 'date' => '2026-12-19', 'deposit_cents' => 150], $log->getAfter());
     }
 
     public function testOnlyOneEventIsActive(): void

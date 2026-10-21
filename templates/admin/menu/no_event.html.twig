@@ -1,0 +1,8 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Menu · Administration{% endblock %}
+
+{% block body %}
+    <h1>Menu</h1>
+    <p class="card empty">Aucun événement n'est actif. Le menu appartient à l'événement actif : <a href="{{ path('admin_event_index') }}">activez d'abord un événement</a>.</p>
+{% endblock %}

@@ -5,6 +5,7 @@ namespace App\Controller\Admin;
 use App\Entity\Event;
 use App\Repository\EventRepository;
 use App\Service\AuditLogger;
+use App\Service\Money;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -17,6 +18,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 class EventController extends AbstractController
 {
     private const NAME_MAX_LENGTH = 100;
+    private const DEPOSIT_MAX_CENTS = 10000;
 
     public function __construct(
         private readonly EventRepository $events,
@@ -36,15 +38,15 @@ class EventController extends AbstractController
     #[Route('/nouveau', name: 'admin_event_new', methods: ['GET', 'POST'])]
     public function new(Request $request): Response
     {
-        $values = ['name' => '', 'date' => ''];
+        $values = ['name' => '', 'date' => '', 'deposit' => '0,00'];
         $errors = [];
 
         if ($request->isMethod('POST')) {
             $this->denyUnlessCsrfValid($request, 'event-form');
-            [$values, $errors, $name, $date] = $this->validate($request);
+            [$values, $errors, $name, $date, $depositCents] = $this->validate($request);
 
             if (!$errors) {
-                $event = new Event($name, $date);
+                $event = (new Event($name, $date))->setDepositCents($depositCents);
                 $this->entityManager->persist($event);
                 $this->auditLogger->log('event.create', 'event:'.$name, after: self::snapshot($event));
                 $this->entityManager->flush();
@@ -64,16 +66,16 @@ class EventController extends AbstractController
     #[Route('/{id<\d+>}/modifier', name: 'admin_event_edit', methods: ['GET', 'POST'])]
     public function edit(Event $event, Request $request): Response
     {
-        $values = ['name' => $event->getName(), 'date' => $event->getDate()->format('Y-m-d')];
+        $values = ['name' => $event->getName(), 'date' => $event->getDate()->format('Y-m-d'), 'deposit' => Money::formatEuros($event->getDepositCents())];
         $errors = [];
 
         if ($request->isMethod('POST')) {
             $this->denyUnlessCsrfValid($request, 'event-form');
-            [$values, $errors, $name, $date] = $this->validate($request);
+            [$values, $errors, $name, $date, $depositCents] = $this->validate($request);
 
             if (!$errors) {
                 $before = self::snapshot($event);
-                $event->setName($name)->setDate($date);
+                $event->setName($name)->setDate($date)->setDepositCents($depositCents);
                 $this->auditLogger->log('event.update', 'event:'.$event->getId().' '.$name, $before, self::snapshot($event));
                 $this->entityManager->flush();
                 $this->addFlash('info', \sprintf('L\'événement « %s » est enregistré.', $name));
@@ -118,7 +120,7 @@ class EventController extends AbstractController
     }
 
     /**
-     * @return array{array{name: string, date: string}, array<string, string>, string, ?\DateTimeImmutable}
+     * @return array{array{name: string, date: string, deposit: string}, array<string, string>, string, ?\DateTimeImmutable, int}
      */
     private function validate(Request $request): array
     {
@@ -126,6 +128,7 @@ class EventController extends AbstractController
         $values = [
             'name' => trim($payload->getString('name')),
             'date' => trim($payload->getString('date')),
+            'deposit' => trim($payload->getString('deposit')),
         ];
         $errors = [];
 
@@ -141,12 +144,19 @@ class EventController extends AbstractController
             $errors['date'] = 'Choisissez la date de l\'événement.';
         }
 
-        return [$values, $errors, $values['name'], $date];
+        // Champ vide : pas de consigne
+        $depositCents = '' === $values['deposit'] ? 0 : Money::parseEuros($values['deposit']);
+        if (null === $depositCents || $depositCents > self::DEPOSIT_MAX_CENTS) {
+            $depositCents = 0;
+            $errors['deposit'] = 'Indiquez un montant en euros, par exemple 1 ou 1,50 (0 si pas de consigne).';
+        }
+
+        return [$values, $errors, $values['name'], $date, $depositCents];
     }
 
     /** @return array<string, mixed> */
     private static function snapshot(Event $event): array
     {
-        return ['name' => $event->getName(), 'date' => $event->getDate()->format('Y-m-d')];
+        return ['name' => $event->getName(), 'date' => $event->getDate()->format('Y-m-d'), 'deposit_cents' => $event->getDepositCents()];
     }
 }
