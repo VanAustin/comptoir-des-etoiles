@@ -16,12 +16,8 @@ export class ApiError extends Error {
   }
 }
 
-/**
- * @param {string} path par exemple "/api/me"
- * @param {{method?: string, body?: object, auth?: boolean}} options
- */
-export async function apiFetch(path, { method = "GET", body, auth = true } = {}) {
-  const headers = { Accept: "application/json" };
+async function send(path, { method = "GET", body, auth = true, headers: extra = {}, cache = "default" }) {
+  const headers = { Accept: "application/json", ...extra };
   if (body !== undefined) {
     headers["Content-Type"] = "application/json";
   }
@@ -32,23 +28,52 @@ export async function apiFetch(path, { method = "GET", body, auth = true } = {})
     }
   }
 
-  let response;
   try {
-    response = await fetch(BASE_PATH + path, {
+    return await fetch(BASE_PATH + path, {
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
+      cache,
       // Les tablettes n'utilisent jamais le cookie de session de l'administration
       credentials: "omit",
     });
   } catch {
     throw new ApiError("Le serveur ne répond pas. Vérifiez la connexion de la tablette, puis réessayez.", 0);
   }
+}
 
+async function read(response) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new ApiError(data.error ?? "Une erreur est survenue. Réessayez dans un instant.", response.status, data);
   }
 
   return data;
+}
+
+/**
+ * @param {string} path par exemple "/api/me"
+ * @param {{method?: string, body?: object, auth?: boolean}} options
+ */
+export async function apiFetch(path, options = {}) {
+  return read(await send(path, options));
+}
+
+/**
+ * Lecture d'une route interrogée en boucle (cuisine, Arrivées). La tablette
+ * renvoie l'empreinte reçue : tant que rien n'a changé, le serveur répond 304
+ * sans contenu, et la fonction renvoie null.
+ *
+ * @param {string} path
+ * @param {string|null} etag empreinte de la réponse précédente
+ * @returns {Promise<{data: object, etag: string|null} | null>}
+ */
+export async function apiPoll(path, etag) {
+  // no-store : le navigateur ne répond pas lui-même 200 depuis son cache, le 304 arrive jusqu'ici
+  const response = await send(path, { headers: etag ? { "If-None-Match": etag } : {}, cache: "no-store" });
+  if (response.status === 304) {
+    return null;
+  }
+
+  return { data: await read(response), etag: response.headers.get("ETag") };
 }

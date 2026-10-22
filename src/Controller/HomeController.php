@@ -33,6 +33,13 @@ class HomeController extends AbstractController
         return $this->render('till.html.twig');
     }
 
+    /** Écran Cuisine : les commandes sont lues par l'API avec le jeton de la tablette. */
+    #[Route('/cuisine', name: 'app_kitchen', methods: ['GET'])]
+    public function kitchen(): Response
+    {
+        return $this->render('kitchen.html.twig');
+    }
+
     /**
      * Logo de l'association : déposé par chaque installation dans var/uploads/,
      * jamais commité. À défaut, le logo générique du dépôt.
