@@ -1,0 +1,35 @@
+meta {
+  name: 10. État non autorisé
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/api/orders/{{kitchenOrderUuid}}/status
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_cuisine}}
+}
+
+body:json {
+  {
+    "status": "cancelled"
+  }
+}
+
+tests {
+  test("refusé (400)", function () {
+    expect(res.status).to.equal(400);
+  });
+
+  test("le message indique les états possibles", function () {
+    expect(res.body.error).to.include("prep, ready, served");
+  });
+}
+
+docs {
+  Une tablette cuisine ne peut pas annuler une commande : l'annulation est réservée à l'administration. Lancez d'abord « Cuisine / 1. Commandes en cours ».
+}

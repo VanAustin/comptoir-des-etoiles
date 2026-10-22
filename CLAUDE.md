@@ -55,7 +55,12 @@ PHP, Composer et Symfony ne sont **pas** installés sur le Mac : tout tourne dan
 - **API JSON** pour les tablettes, sous `/api`, accessible uniquement aux tablettes appairées (voir Sécurité).
 - **Hors ligne** : service worker qui met en cache l'application ; file d'attente des commandes dans IndexedDB, envoyée au retour du réseau.
 - **Idempotence** : chaque commande reçoit un UUID créé sur la tablette. `POST /api/orders` avec un UUID déjà connu ne crée pas de doublon et renvoie la commande existante.
-- **Temps réel** : l'écran cuisine et l'écran Arrivées interrogent le serveur toutes les 2 à 3 secondes (`GET /api/orders?since=<horodatage>`). Pas de Mercure pour l'instant.
+- **Temps réel** : l'écran cuisine (`GET /api/orders`) et l'écran Arrivées (`GET /api/board`) interrogent le serveur toutes les 2 à 3 secondes. Pas de Mercure pour l'instant.
+  - Le serveur renvoie à chaque fois la **liste complète** des commandes en cours (pas de `since`) : une tablette qui a manqué une réponse se recale à la suivante.
+  - Réponse avec empreinte (`ETag`) : la tablette la renvoie dans `If-None-Match`, et le serveur répond 304 sans contenu tant que rien n'a changé (forfait 4G).
+  - Les temps d'attente se calculent sur l'heure du serveur (`serverTime`), jamais sur l'horloge de la tablette.
+  - La cuisine fait avancer une commande avec `POST /api/orders/{uuid}/status` ; redemander l'état actuel ne change rien (deux tablettes cuisine), un autre état non autorisé répond 409 avec l'état actuel.
+  - L'écran Arrivées montre les 12 dernières commandes prêtes et toutes celles en préparation.
 - **Stocks** : le stock restant est calculé à partir des ventes (stock de départ moins quantités vendues des commandes non annulées), jamais stocké comme un compteur décrémenté. Le stock est une **information, jamais une limite** : ni le serveur ni la caisse ne bloquent une vente (stocks de départ approximatifs, ventes hors ligne), et il peut devenir négatif. Une formule décompte les composants figés sur la ligne au moment de la vente ; son stock restant est le nombre de formules encore possibles avec ses composants comptés (stock de chaque composant divisé par sa quantité, le plus petit l'emporte).
 
 ## Modèle de données (point de départ)

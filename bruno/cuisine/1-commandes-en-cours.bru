@@ -1,0 +1,55 @@
+meta {
+  name: 1. Commandes en cours
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/orders
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_cuisine}}
+}
+
+script:post-response {
+  // La plus ancienne commande en cours, pour « 2. Faire avancer la commande »
+  if (res.status === 200 && res.body.orders.length > 0) {
+    bru.setVar("kitchenOrderUuid", res.body.orders[0].uuid);
+    bru.setVar("kitchenOrderStatus", res.body.orders[0].status);
+  }
+}
+
+tests {
+  test("la liste est renvoyée (200)", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.orders).to.be.an("array");
+  });
+
+  test("l'heure du serveur est jointe", function () {
+    expect(res.body.serverTime).to.match(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  test("seulement des commandes en cours, sans montant", function () {
+    res.body.orders.forEach(function (o) {
+      expect(["new", "prep", "ready"]).to.include(o.status);
+      expect(o.kitchenLines).to.be.an("array");
+      expect(o.counterLines).to.be.an("array");
+      expect(o).to.not.have.property("totalCents");
+    });
+  });
+
+  test("une empreinte permet de répondre « rien de neuf »", function () {
+    expect(res.headers.etag).to.be.a("string");
+  });
+}
+
+docs {
+  Liste complète des commandes en cours (nouvelle, en préparation, prête), de la plus ancienne à la plus récente. La tablette cuisine l'interroge toutes les 2 à 3 secondes.
+
+  Avec l'en-tête `If-None-Match` contenant l'empreinte (`ETag`) reçue, le serveur répond 304 sans contenu tant que rien n'a changé.
+
+  Nécessite une tablette **cuisine** appairée et au moins une commande avec un article cuisine (« Caisse / 2. Créer une commande », ou l'écran Caisse).
+}
