@@ -59,8 +59,8 @@ PHP, Composer et Symfony ne sont **pas** installés sur le Mac : tout tourne dan
 
 ## Modèle de données (point de départ)
 
-- `Event` : nom, date, actif ou non.
-- `Product` : événement, nom, icône (émoji ou image), catégorie, prix (centimes, entier), stock de départ (nullable = non compté), passe en cuisine (bool), ordre d'affichage, composants si formule.
+- `Event` : nom, date, actif ou non, montant de la consigne (centimes, 0 = pas de consigne).
+- `Product` : événement, nom, icône (émoji ou image), catégorie, prix (centimes, entier), stock de départ (nullable = non compté), passe en cuisine (bool), avec consigne (bool), ordre d'affichage, composants si formule.
 - `Order` : UUID (identifiant venu de la tablette), événement, lettre de caisse et numéro (voir Numérotation), moyen de paiement (espèces ou carte), montant reçu, total recalculé par le serveur, état, créé le, modifié le, tablette d'origine.
 - `OrderLine` : commande, produit, libellé, prix et passage en cuisine figés au moment de la vente, quantité.
 - `Device` : tablette appairée. Nom (« Caisse buvette »), rôle (`caisse`, `cuisine`, `affichage`), lettre de caisse (rôle `caisse` uniquement), empreinte SHA-256 du jeton, empreinte et expiration du code d'appairage, événement, créée le, vue pour la dernière fois le, expire le, révoquée le.
@@ -68,6 +68,14 @@ PHP, Composer et Symfony ne sont **pas** installés sur le Mac : tout tourne dan
 - `AdminUser` : identifiant, mot de passe haché. Créé uniquement par la commande d'installation.
 
 Montants toujours en centimes (entiers) côté serveur.
+
+### Consigne (écocups, gobelets)
+
+- **Un seul montant par événement**, réglé dans la fiche de l'événement (0 = pas de consigne).
+- Les articles cochés « avec consigne » ajoutent **automatiquement** une ligne « Consigne » par unité vendue. Pour une formule, c'est la case de la formule elle-même qui compte.
+- La caisse a un bouton **« Retour de consigne »** (nombre de gobelets rendus), qui ajoute une ligne négative. Il peut se combiner avec un achat ; si le total est négatif, l'argent est rendu **en espèces uniquement**.
+- Chaque ligne de commande a un **type** : article, consigne ou retour de consigne. Le serveur recalcule tout (montant de la consigne lu sur l'événement, nombre de consignes déduit des articles). Pas de prix négatif saisi ni d'article « −1 € ».
+- La consigne n'est **pas du chiffre d'affaires** : le Carnet de bord affiche le CA hors consignes, puis les consignes encaissées, rendues et le solde (gobelets non rendus), et les espèces attendues en caisse. Pas de comptage des gobelets.
 
 États d'une commande : `new` → `prep` → `ready` → `served`, ou `cancelled`. Une commande sans article cuisine passe directement à `served`.
 
@@ -232,7 +240,8 @@ Règles :
 
 - Avancer par petites étapes, une branche et une pull request par étape.
 - Proposer le plan avant de coder une étape importante.
-- Écrire un test pour la logique sensible : idempotence des commandes, calcul du stock, calcul de la monnaie, numérotation.
+- Écrire un test pour la logique sensible : idempotence des commandes, calcul du stock, calcul de la monnaie, numérotation, consigne.
+- Relire chaque migration générée. Sur SQLite, Doctrine recrée parfois une table entière (copie, suppression, recréation) : avec les clés étrangères actives, supprimer `event` ou `product` efface en cascade les données liées. Préférer `ALTER TABLE … ADD COLUMN` / `DROP COLUMN`, y compris dans `down()`.
 - Avant de terminer une étape : lancer les tests et vérifier l'écran concerné.
 - Chaque route de l'API (`/api/…`) a sa requête dans la collection Bruno (`bruno/`), avec des tests sur le code de réponse et le contenu, y compris les cas de refus. La collection ne contient jamais de jeton ni de secret.
 

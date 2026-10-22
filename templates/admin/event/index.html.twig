@@ -17,13 +17,14 @@
         <div class="tablewrap">
             <table>
                 <thead>
-                    <tr><th>Événement</th><th>Date</th><th>État</th><th><span class="visually-hidden">Actions</span></th></tr>
+                    <tr><th>Événement</th><th>Date</th><th>Consigne</th><th>État</th><th><span class="visually-hidden">Actions</span></th></tr>
                 </thead>
                 <tbody>
                     {% for event in events %}
                         <tr>
                             <td>{{ event.name }}</td>
                             <td class="num">{{ event.date|date('d/m/Y') }}</td>
+                            <td class="num">{{ event.depositCents ? event.depositCents|euros : '—' }}</td>
                             <td>
                                 {% if event.active %}
                                     <span class="pill pill-active">Actif</span>

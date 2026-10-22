@@ -27,6 +27,14 @@
                        {% if errors.date is defined %}aria-invalid="true" aria-describedby="date-error"{% endif %}>
                 {% if errors.date is defined %}<p class="field-error" id="date-error">{{ errors.date }}</p>{% endif %}
             </div>
+            <div class="field">
+                <label for="deposit">Montant de la consigne (€)</label>
+                <input type="text" id="deposit" name="deposit" value="{{ values.deposit }}" inputmode="decimal" class="num input-short"
+                       aria-describedby="deposit-help{% if errors.deposit is defined %} deposit-error{% endif %}"
+                       {% if errors.deposit is defined %}aria-invalid="true"{% endif %}>
+                <p class="field-help" id="deposit-help">Par écocup ou gobelet, ajouté automatiquement aux articles « avec consigne ». 0 si pas de consigne.</p>
+                {% if errors.deposit is defined %}<p class="field-error" id="deposit-error">{{ errors.deposit }}</p>{% endif %}
+            </div>
             <input type="hidden" name="_token" value="{{ csrf_token('event-form') }}">
             <button type="submit" class="btn btn-primary">{{ event ? 'Enregistrer l\'événement' : 'Créer l\'événement' }}</button>
         </form>

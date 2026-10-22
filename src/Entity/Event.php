@@ -23,6 +23,10 @@ class Event
     #[ORM\Column]
     private bool $active = false;
 
+    /** Montant de la consigne (écocup…) en centimes ; 0 = pas de consigne. */
+    #[ORM\Column(options: ['default' => 0])]
+    private int $depositCents = 0;
+
     public function __construct(string $name, \DateTimeImmutable $date)
     {
         $this->name = $name;
@@ -66,6 +70,18 @@ class Event
     public function setActive(bool $active): static
     {
         $this->active = $active;
+
+        return $this;
+    }
+
+    public function getDepositCents(): int
+    {
+        return $this->depositCents;
+    }
+
+    public function setDepositCents(int $depositCents): static
+    {
+        $this->depositCents = $depositCents;
 
         return $this;
     }

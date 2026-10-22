@@ -1,0 +1,22 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Retirer « {{ product.name }} » · Administration{% endblock %}
+
+{% block body %}
+    <p><a href="{{ path('admin_menu') }}">← Retour au menu</a></p>
+
+    <section class="card form-card">
+        <h1>Retirer « {{ product.name }} » du menu ?</h1>
+        <p>L'article disparaîtra des caisses. Les ventes déjà enregistrées restent dans le Carnet de bord.</p>
+        {% if used_as_component %}
+            <p class="alert alert-info">Il sera aussi retiré des formules qui le contiennent.</p>
+        {% endif %}
+        <form method="post">
+            <input type="hidden" name="_token" value="{{ csrf_token('menu-remove-' ~ product.id) }}">
+            <div class="row">
+                <a class="btn" href="{{ path('admin_menu') }}">Garder l'article</a>
+                <button type="submit" class="btn btn-danger">Retirer l'article</button>
+            </div>
+        </form>
+    </section>
+{% endblock %}

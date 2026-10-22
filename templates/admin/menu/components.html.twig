@@ -1,0 +1,38 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Formule « {{ product.name }} » · Administration{% endblock %}
+
+{% block body %}
+    <p><a href="{{ path('admin_menu') }}">← Retour au menu</a></p>
+
+    <section class="card form-card">
+        <h1>Formule « {{ product.name }} »</h1>
+
+        {% if used_as_component %}
+            <p class="alert alert-info">« {{ product.name }} » fait déjà partie d'une formule : il ne peut pas devenir une formule à son tour.</p>
+        {% else %}
+            <p class="lede">Cochez les articles inclus. Vendre la formule décompte une unité du stock de chacun. Ne cochez rien pour un article simple.</p>
+
+            {% if error %}<p class="alert alert-error" role="alert">{{ error }}</p>{% endif %}
+
+            {% if candidates is empty %}
+                <p class="empty">Aucun autre article au menu pour l'instant.</p>
+            {% else %}
+                {% set selected_ids = product.components|map(c => c.id) %}
+                <form method="post" novalidate>
+                    <fieldset class="field">
+                        <legend>Articles inclus</legend>
+                        {% for candidate in candidates %}
+                            <label class="choice">
+                                <input type="checkbox" name="components[]" value="{{ candidate.id }}" {{ candidate.id in selected_ids ? 'checked' }}>
+                                <span>{{ candidate.icon }} {{ candidate.name }}</span>
+                            </label>
+                        {% endfor %}
+                    </fieldset>
+                    <input type="hidden" name="_token" value="{{ csrf_token('menu-components-' ~ product.id) }}">
+                    <button type="submit" class="btn btn-primary">Enregistrer la formule</button>
+                </form>
+            {% endif %}
+        {% endif %}
+    </section>
+{% endblock %}

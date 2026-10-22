@@ -100,7 +100,9 @@ table { border-collapse: collapse; width: 100%; }
 th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--kraft); }
 th { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--encre-douce); }
 tbody tr:last-child td { border-bottom: 0; }
-td.actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+/* Pas de display: flex sur la cellule elle-même : cela casse la mise en page du tableau */
+td.actions { white-space: nowrap; text-align: right; }
+td.actions > * + * { margin-left: 8px; }
 
 /* États : toujours une couleur et un libellé écrit */
 .pill { display: inline-block; font-size: 13px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--nuage); color: var(--encre-douce); }
@@ -139,3 +141,24 @@ fieldset.field legend { font-size: 14px; font-weight: 700; color: var(--encre-do
 .device-info dt { color: var(--encre-douce); font-weight: 700; }
 .device-info dd { margin: 0; font-weight: 700; }
 .unpair { margin-top: 24px; padding-top: 16px; border-top: 1px dashed var(--kraft); }
+.field-help { margin: 0; font-size: 14px; color: var(--encre-douce); }
+.input-short { max-width: 140px; }
+
+/* Menu */
+.menu-table td { vertical-align: top; }
+.menu-table input[type="text"] { width: 100%; min-height: 44px; padding: 6px 8px; border: 1px solid var(--kraft); border-radius: 8px; background: var(--nuage); color: var(--encre); }
+.menu-table input[type="checkbox"], .check input { width: 24px; height: 24px; accent-color: var(--renard); }
+.menu-table input[aria-invalid="true"] { border-color: var(--erreur); }
+.input-tiny { max-width: 64px; }
+.input-icon { max-width: 64px; text-align: center; font-size: 20px; }
+.input-price { max-width: 110px; min-width: 84px; }
+.menu-table td:nth-child(3) input { min-width: 180px; }
+.menu-table td:nth-child(4) input { min-width: 110px; }
+.row-invalid { background: var(--erreur-fond); }
+.menu-table + input + .lede, form > .lede { margin: 12px 0; }
+.add-product { margin-top: 24px; }
+.add-product h2 { margin-bottom: 12px; }
+.add-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0 12px; align-items: end; }
+.check { display: flex; align-items: center; gap: 8px; min-height: 48px; margin-bottom: 16px; font-weight: 700; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn-danger { background: var(--erreur-fond); border-color: var(--erreur); color: var(--erreur); }
