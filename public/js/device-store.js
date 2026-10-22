@@ -1,10 +1,11 @@
-// Appairage de la tablette (jeton et description), rangé dans IndexedDB.
+// Appairage de la tablette (jeton et description) et numérotation de la caisse, rangés dans IndexedDB.
 // Le jeton n'est jamais mis dans une URL, ni dans le stockage local du navigateur.
 
 const DB_NAME = "comptoir-des-etoiles";
 const DB_VERSION = 1;
 const STORE = "device";
 const KEY = "current";
+const NUMBERING_KEY = "numbering";
 
 function openDatabase() {
   return new Promise((resolve, reject) => {
@@ -40,5 +41,22 @@ export function savePairing(pairing) {
 }
 
 export function clearPairing() {
-  return withStore("readwrite", (store) => store.delete(KEY));
+  return withStore("readwrite", (store) => {
+    store.delete(NUMBERING_KEY);
+    return store.delete(KEY);
+  });
+}
+
+/**
+ * Prochain numéro de commande de la caisse. Il n'est valable que pour la même
+ * lettre et le même événement : la numérotation repart à 1 à chaque événement.
+ *
+ * @returns {Promise<{scope: string, next: number} | null>}
+ */
+export async function getNumbering() {
+  return (await withStore("readonly", (store) => store.get(NUMBERING_KEY))) ?? null;
+}
+
+export function saveNumbering(numbering) {
+  return withStore("readwrite", (store) => store.put(numbering, NUMBERING_KEY));
 }

@@ -14,6 +14,7 @@ const codeInput = document.getElementById("code");
 const errorBox = document.getElementById("pair-error");
 const offlineNote = document.getElementById("paired-offline");
 const unpairButton = document.getElementById("unpair");
+const continueLink = document.getElementById("continue");
 
 function showError(message) {
   errorBox.textContent = message;
@@ -39,6 +40,10 @@ function showPaired(device, offline = false) {
     element.textContent = values[element.dataset.info];
   }
   offlineNote.hidden = !offline;
+  // Une caisse continue vers son écran ; cuisine et affichage viendront à l'étape 2
+  if (device.role === "caisse") {
+    continueLink.href = continueLink.dataset.tillUrl;
+  }
   loading.hidden = true;
   formSection.hidden = true;
   pairedSection.hidden = false;
