@@ -1,3 +1,8 @@
+Icônes Lucide (https://lucide.dev) : licence ISC ci-dessous.
+Exceptions : fries.svg, crepe.svg, sausage.svg, lamb.svg et pig.svg ont été dessinées
+pour Le Comptoir des étoiles, dans le style de Lucide ; elles relèvent de la licence
+du projet (AGPL-3.0, fichier LICENSE à la racine du dépôt).
+
 ISC License
 
 Copyright (c) 2026 Lucide Icons and Contributors

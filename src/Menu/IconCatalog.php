@@ -4,7 +4,9 @@ namespace App\Menu;
 
 /**
  * Icônes proposées pour les articles : pictogrammes au trait de la bibliothèque
- * Lucide (licence ISC), copiés dans public/img/icons/ avec leur licence.
+ * Lucide (licence ISC), copiés dans public/img/icons/ avec leur licence, plus
+ * quelques icônes dessinées pour le projet dans le même style, là où Lucide
+ * n'a rien (frites, crêpe, saucisse, agneau, cochon).
  * L'article enregistre la clé (par exemple « pizza »), jamais un chemin.
  *
  * Pour ajouter une icône : copier son fichier SVG depuis lucide-static,
@@ -18,12 +20,16 @@ final class IconCatalog
     /** @var array<string, array<string, string>> groupe → clé → libellé */
     private const GROUPS = [
         'Salé' => [
-            'sandwich' => 'Sandwich, hot-dog',
+            'sandwich' => 'Sandwich',
             'hamburger' => 'Burger',
+            'fries' => 'Frites',
+            'sausage' => 'Saucisse, chipolata, merguez',
             'pizza' => 'Pizza',
             'ham' => 'Jambon',
             'drumstick' => 'Poulet',
             'beef' => 'Viande',
+            'pig' => 'Cochon',
+            'lamb' => 'Agneau',
             'fish' => 'Poisson',
             'egg-fried' => 'Œuf',
             'salad' => 'Salade',
@@ -34,6 +40,7 @@ final class IconCatalog
             'wheat' => 'Pain',
         ],
         'Sucré' => [
+            'crepe' => 'Crêpe',
             'croissant' => 'Viennoiserie',
             'cake-slice' => 'Part de gâteau',
             'cake' => 'Gâteau',
