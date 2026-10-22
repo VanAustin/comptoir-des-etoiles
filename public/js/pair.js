@@ -40,9 +40,10 @@ function showPaired(device, offline = false) {
     element.textContent = values[element.dataset.info];
   }
   offlineNote.hidden = !offline;
-  // Une caisse continue vers son écran ; cuisine et affichage viendront à l'étape 2
-  if (device.role === "caisse") {
-    continueLink.href = continueLink.dataset.tillUrl;
+  // Chaque tablette continue vers l'écran de son rôle (affichage : écran Arrivées, à venir)
+  const screens = { caisse: continueLink.dataset.tillUrl, cuisine: continueLink.dataset.kitchenUrl };
+  if (screens[device.role]) {
+    continueLink.href = screens[device.role];
   }
   loading.hidden = true;
   formSection.hidden = true;

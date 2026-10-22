@@ -60,3 +60,12 @@ export async function getNumbering() {
 export function saveNumbering(numbering) {
   return withStore("readwrite", (store) => store.put(numbering, NUMBERING_KEY));
 }
+
+/** Réglage propre à la tablette (son activé…), gardé d'une ouverture à l'autre. */
+export async function getPreference(name, fallback) {
+  return (await withStore("readonly", (store) => store.get(`pref:${name}`))) ?? fallback;
+}
+
+export function savePreference(name, value) {
+  return withStore("readwrite", (store) => store.put(value, `pref:${name}`));
+}

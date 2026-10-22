@@ -1,0 +1,48 @@
+/* Écran Cuisine : tickets façon papier. Couleurs : uniquement les variables de tokens.css. */
+
+main.kitchen { max-width: 1400px; padding-block: 16px; }
+
+.screen-status { max-width: 520px; margin: 8vh auto 0; text-align: center; }
+.screen-status p { font-weight: 700; margin: 0 0 16px; }
+
+.tickets { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; align-items: start; }
+
+/* Chaque état a une couleur (bordure du haut) et un libellé écrit (pastille) */
+.ticket {
+  display: flex; flex-direction: column; gap: 10px; padding: 14px;
+  background: var(--papier); border: 1px solid var(--kraft); border-top: 6px solid var(--encre-douce);
+  border-radius: 4px 4px var(--rayon) var(--rayon);
+}
+.ticket.prep { border-top-color: var(--or); }
+.ticket.ready { border-top-color: var(--sauge); }
+.ticket.served { border-top-color: var(--kraft); }
+.ticket.late { border-top-color: var(--erreur); }
+
+.tk-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.tk-head .n { font: 800 34px/1 var(--f-titre); }
+.tk-head .t { color: var(--encre-douce); font-weight: 700; }
+.ticket.late .t { color: var(--erreur); }
+
+.pill {
+  align-self: flex-start; padding: 2px 10px; border-radius: 999px; font-size: 14px; font-weight: 700;
+  background: var(--nuage); color: var(--encre-douce);
+}
+.pill.prep { background: var(--or-fond); color: var(--or-texte); }
+.pill.ready, .pill.served { background: var(--sauge-fond); color: var(--sauge-texte); }
+.ticket.late .pill { background: var(--erreur-fond); color: var(--erreur); }
+
+.kitchen-lines { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: 19px; }
+.kitchen-lines li { display: grid; grid-template-columns: auto 1fr; column-gap: 8px; }
+.kitchen-lines small { grid-column: 2; font-size: 15px; color: var(--encre-douce); }
+.counter { margin: 0; font-size: 15px; color: var(--encre-douce); }
+.ticket .alert { margin: 0; }
+
+/* Boutons d'action : couleur de l'état suivant, jamais le bouton principal (un seul par écran) */
+.ticket > .btn { width: 100%; }
+.act-prep { background: var(--or); border-color: var(--or); color: var(--or-encre); }
+.act-ready { background: var(--sauge-fond); border-color: var(--sauge-texte); color: var(--sauge-texte); }
+
+.pending-actions { display: flex; flex-direction: column; gap: 8px; }
+.pending-actions .countdown { margin: 0; font-weight: 700; color: var(--encre-douce); }
+.pending-actions .row { display: flex; gap: 8px; }
+.pending-actions .btn { flex: 1; }

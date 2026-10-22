@@ -1,0 +1,41 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Cuisine · Le Comptoir des étoiles{% endblock %}
+
+{% block stylesheets %}
+    <link rel="stylesheet" href="{{ app.request.basePath }}/css/kitchen.css">
+{% endblock %}
+
+{% block javascripts %}
+    <script type="module" src="{{ app.request.basePath }}/js/kitchen.js"></script>
+{% endblock %}
+
+{% block nav %}
+    <span class="who" id="kitchen-who"></span>
+    <button type="button" class="btn btn-small" id="kitchen-sound" aria-pressed="true" hidden>Son activé</button>
+    <a class="btn btn-small" href="{{ path('app_pair') }}">Tablette</a>
+{% endblock %}
+
+{% block main_class %} kitchen{% endblock %}
+
+{# Aucune donnée dans la page : les commandes viennent de l'API, avec le jeton de la tablette. #}
+{% block body %}
+    <section id="kitchen-status" class="card screen-status">
+        <p id="kitchen-status-text" role="status">Chargement des commandes…</p>
+        <a id="kitchen-status-link" class="btn" href="{{ path('app_pair') }}" hidden>Appairer cette tablette</a>
+        <noscript><p class="alert alert-error">Cette page a besoin de JavaScript. Ouvrez-la dans Chrome.</p></noscript>
+    </section>
+
+    <section id="kitchen-main" hidden>
+        <div class="section-head">
+            <div>
+                <h1>Commandes en cuisine</h1>
+                <p class="lede">Touchez « Je prépare », puis « Prête » : le numéro s'affiche sur l'écran Arrivées. Vous avez 5 secondes pour annuler un appui.</p>
+            </div>
+        </div>
+        <p id="kitchen-sound-hint" class="alert alert-info" hidden>Touchez l'écran une fois pour activer le signal sonore des nouvelles commandes.</p>
+        <p id="kitchen-offline" class="alert alert-error" role="status" hidden></p>
+        <div class="tickets" id="kitchen-tickets"></div>
+        <p id="kitchen-empty" class="card empty" hidden>Aucune commande à préparer. Les nouvelles apparaîtront ici automatiquement.</p>
+    </section>
+{% endblock %}
