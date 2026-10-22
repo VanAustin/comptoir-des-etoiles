@@ -1,0 +1,49 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Arrivées · Le Comptoir des étoiles{% endblock %}
+
+{% block stylesheets %}
+    <link rel="stylesheet" href="{{ app.request.basePath }}/css/arrivals.css">
+{% endblock %}
+
+{% block javascripts %}
+    <script type="module" src="{{ app.request.basePath }}/js/arrivals.js"></script>
+{% endblock %}
+
+{% block nav %}
+    <span class="who" id="arrivals-who"></span>
+    <a class="btn btn-small" href="{{ path('app_pair') }}">Tablette</a>
+{% endblock %}
+
+{% block main_class %} arrivals{% endblock %}
+
+{# Aucune donnée dans la page : les numéros viennent de l'API, avec le jeton de la tablette. #}
+{% block body %}
+    <section id="arrivals-status" class="card screen-status">
+        <p id="arrivals-status-text" role="status">Chargement…</p>
+        <a id="arrivals-status-link" class="btn" href="{{ path('app_pair') }}" hidden>Appairer cette tablette</a>
+        <noscript><p class="alert alert-error">Cette page a besoin de JavaScript. Ouvrez-la dans Chrome.</p></noscript>
+    </section>
+
+    {# Chrome exige un appui avant le plein écran et le son : un seul bouton fait tout #}
+    <section id="arrivals-start" class="card screen-status" hidden>
+        <h1>Écran Arrivées</h1>
+        <p class="lede">Les numéros prêts et en préparation, à afficher face au public. L'écran passe en plein écran et reste allumé.</p>
+        <button type="button" class="btn btn-primary" id="arrivals-start-button">Démarrer l'écran</button>
+    </section>
+
+    <section id="arrivals-board" class="board" hidden>
+        <p id="arrivals-offline" class="offline" role="status" hidden>Connexion perdue : les numéros ne sont peut-être plus à jour.</p>
+        <section class="col col-ready" aria-labelledby="ready-title">
+            <h2 id="ready-title">Prêtes · venez retirer</h2>
+            <div class="nums" id="arrivals-ready" aria-live="polite"></div>
+            <p class="none" id="arrivals-ready-none">Aucune commande prête pour l'instant.</p>
+        </section>
+        <section class="col col-prep" aria-labelledby="prep-title">
+            <h2 id="prep-title">En préparation</h2>
+            <div class="nums" id="arrivals-prep"></div>
+            <p class="none" id="arrivals-prep-none">Aucune commande en préparation.</p>
+        </section>
+        <button type="button" class="btn btn-small sound" id="arrivals-sound" aria-pressed="true">Son activé</button>
+    </section>
+{% endblock %}

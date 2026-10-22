@@ -61,6 +61,7 @@ PHP, Composer et Symfony ne sont **pas** installés sur le Mac : tout tourne dan
   - Les temps d'attente se calculent sur l'heure du serveur (`serverTime`), jamais sur l'horloge de la tablette.
   - La cuisine fait avancer une commande avec `POST /api/orders/{uuid}/status` ; redemander l'état actuel ne change rien (deux tablettes cuisine), un autre état non autorisé répond 409 avec l'état actuel.
   - L'écran Arrivées montre les 12 dernières commandes prêtes et toutes celles en préparation.
+  - Chaque caisse relit le menu toutes les 30 secondes, seulement sur la grille (jamais pendant un paiement) : stocks des autres caisses, prix modifiés, articles retirés.
 - **Stocks** : le stock restant est calculé à partir des ventes (stock de départ moins quantités vendues des commandes non annulées), jamais stocké comme un compteur décrémenté. Le stock est une **information, jamais une limite** : ni le serveur ni la caisse ne bloquent une vente (stocks de départ approximatifs, ventes hors ligne), et il peut devenir négatif. Une formule décompte les composants figés sur la ligne au moment de la vente ; son stock restant est le nombre de formules encore possibles avec ses composants comptés (stock de chaque composant divisé par sa quantité, le plus petit l'emporte).
 
 ## Modèle de données (point de départ)

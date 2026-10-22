@@ -40,6 +40,13 @@ class HomeController extends AbstractController
         return $this->render('kitchen.html.twig');
     }
 
+    /** Écran Arrivées (tablette affichage) : les numéros sont lus par l'API avec le jeton. */
+    #[Route('/arrivees', name: 'app_arrivals', methods: ['GET'])]
+    public function arrivals(): Response
+    {
+        return $this->render('arrivals.html.twig');
+    }
+
     /**
      * Logo de l'association : déposé par chaque installation dans var/uploads/,
      * jamais commité. À défaut, le logo générique du dépôt.
