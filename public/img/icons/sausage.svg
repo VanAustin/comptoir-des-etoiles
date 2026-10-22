@@ -1,0 +1,7 @@
+<!-- Icône dessinée pour Le Comptoir des étoiles, dans le style de Lucide (licence du projet : AGPL-3.0) -->
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="2.5" y="8.75" width="19" height="6.5" rx="3.25" transform="rotate(-35 12 12)" />
+  <path d="m4.2 17.5-2 1.4" />
+  <path d="m19.8 6.5 2-1.4" />
+  <path d="M9.5 12.2a4 4 0 0 1 3.3-2.3" />
+</svg>

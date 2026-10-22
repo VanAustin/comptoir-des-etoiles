@@ -1,4 +1,5 @@
-/* Icônes des articles (Lucide, licence ISC : public/img/icons/LICENSE.txt).
+/* Icônes des articles (Lucide, licence ISC : public/img/icons/LICENSE.txt ; frites, crêpe,
+   saucisse, agneau et cochon dessinées pour le projet).
    Dessinées avec la couleur du texte grâce à un masque : elles suivent le thème clair ou sombre. */
 
 .icon {
@@ -48,6 +49,11 @@
 .icon-gift { -webkit-mask-image: url(../img/icons/gift.svg); mask-image: url(../img/icons/gift.svg); }
 .icon-ticket { -webkit-mask-image: url(../img/icons/ticket.svg); mask-image: url(../img/icons/ticket.svg); }
 .icon-package { -webkit-mask-image: url(../img/icons/package.svg); mask-image: url(../img/icons/package.svg); }
+.icon-fries { -webkit-mask-image: url(../img/icons/fries.svg); mask-image: url(../img/icons/fries.svg); }
+.icon-crepe { -webkit-mask-image: url(../img/icons/crepe.svg); mask-image: url(../img/icons/crepe.svg); }
+.icon-sausage { -webkit-mask-image: url(../img/icons/sausage.svg); mask-image: url(../img/icons/sausage.svg); }
+.icon-lamb { -webkit-mask-image: url(../img/icons/lamb.svg); mask-image: url(../img/icons/lamb.svg); }
+.icon-pig { -webkit-mask-image: url(../img/icons/pig.svg); mask-image: url(../img/icons/pig.svg); }
 
 /* Article sans icône, ou icône inconnue */
 .icon-default { -webkit-mask-image: url(../img/icons/utensils.svg); mask-image: url(../img/icons/utensils.svg); }
