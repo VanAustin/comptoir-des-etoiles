@@ -155,6 +155,14 @@ class Order
         return $this->createdAt;
     }
 
+    /** Heure de l'encaissement sur la tablette, qui peut précéder l'envoi (coupure réseau). */
+    public function setCreatedAt(\DateTimeImmutable $createdAt): static
+    {
+        $this->createdAt = $createdAt;
+
+        return $this;
+    }
+
     public function getUpdatedAt(): \DateTimeImmutable
     {
         return $this->updatedAt;
@@ -170,6 +178,11 @@ class Order
         $this->device = $device;
 
         return $this;
+    }
+
+    public function getChangeCents(): ?int
+    {
+        return null === $this->amountReceivedCents ? null : $this->amountReceivedCents - $this->totalCents;
     }
 
     /** @return Collection<int, OrderLine> */

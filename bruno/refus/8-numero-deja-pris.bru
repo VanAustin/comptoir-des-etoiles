@@ -1,0 +1,44 @@
+meta {
+  name: 8. Numéro déjà pris
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/api/orders
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{deviceToken}}
+}
+
+body:json {
+  {
+    "uuid": "{{conflictUuid}}",
+    "number": 1,
+    "paymentMethod": "cash",
+    "amountReceivedCents": 100000,
+    "lines": [{ "productId": {{productId}}, "quantity": 1 }]
+  }
+}
+
+script:pre-request {
+  // Identifiant neuf : seul le numéro est en conflit
+  bru.setVar("conflictUuid", "8b3c4d5e-6f7a-4b2c-8d3e-" + Date.now().toString(16).padStart(12, "0").slice(-12));
+}
+
+tests {
+  test("refusé (409)", function () {
+    expect(res.status).to.equal(409);
+  });
+
+  test("le prochain numéro libre est indiqué", function () {
+    expect(res.body.nextNumber).to.be.a("number").and.to.be.above(1);
+  });
+}
+
+docs {
+  Réutilise le numéro 1, déjà pris après « Caisse / 2. Créer une commande ». Le serveur refuse et indique le numéro libre suivant.
+}
