@@ -15,7 +15,7 @@ class PairPageTest extends WebTestCase
         self::assertCount(1, $crawler->filterXPath('//form[@id="pair-form"]//input[@id="code"]'));
         self::assertCount(1, $crawler->filterXPath('//script[@type="module" and @src="/js/pair.js"]'));
         // « Continuer » mène chaque tablette à l'écran de son rôle
-        self::assertCount(1, $crawler->filterXPath('//a[@id="continue" and @data-till-url="/caisse" and @data-kitchen-url="/cuisine"]'));
+        self::assertCount(1, $crawler->filterXPath('//a[@id="continue" and @data-till-url="/caisse" and @data-kitchen-url="/cuisine" and @data-arrivals-url="/arrivees"]'));
     }
 
     public function testHomeLinksToPairPage(): void

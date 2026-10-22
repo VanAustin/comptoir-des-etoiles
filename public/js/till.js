@@ -9,6 +9,8 @@ import { formatEuros, parseEuros } from "./money.js";
 import { Cart, MAX_QUANTITY, indexMenu, newUuid } from "./till-cart.js";
 
 const ALL = "Tout";
+/** Relecture du menu : stocks des autres caisses, prix modifiés, articles retirés. */
+const MENU_REFRESH_MS = 30000;
 
 const $ = (id) => document.getElementById(id);
 const views = { status: $("till-status"), main: $("till-main"), pay: $("till-pay"), done: $("till-done") };
@@ -62,12 +64,24 @@ async function start() {
     return;
   }
   await loadMenu({ initial: true });
+  setInterval(refreshMenu, MENU_REFRESH_MS);
+  document.addEventListener("visibilitychange", refreshMenu);
 }
 
-async function loadMenu({ initial = false } = {}) {
+/** Seulement sur la grille : pendant le paiement, la commande ne doit pas changer sous les yeux du caissier. */
+function refreshMenu() {
+  if (menu && !document.hidden && !views.main.hidden && !sending) {
+    loadMenu({ background: true });
+  }
+}
+
+async function loadMenu({ initial = false, background = false } = {}) {
   let data;
   try {
     data = await apiFetch("/api/menu");
+    if (background && (views.main.hidden || sending)) {
+      return; // Paiement commencé entre-temps : la commande ne change pas
+    }
   } catch (error) {
     if (!initial) {
       return; // Le menu déjà affiché reste utilisable
