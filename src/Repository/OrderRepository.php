@@ -4,6 +4,7 @@ namespace App\Repository;
 
 use App\Entity\Event;
 use App\Entity\Order;
+use App\Enum\OrderStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -33,6 +34,33 @@ class OrderRepository extends ServiceEntityRepository
             ->setParameter('letter', $tillLetter)
             ->getQuery()
             ->getSingleScalarResult();
+    }
+
+    /**
+     * Commandes en cours (nouvelle, en préparation, prête), de la plus ancienne
+     * à la plus récente, avec leurs lignes.
+     *
+     * @return list<Order>
+     */
+    public function findOpen(Event $event): array
+    {
+        return $this->createQueryBuilder('o')
+            ->addSelect('l')
+            ->leftJoin('o.lines', 'l')
+            ->where('o.event = :event')
+            ->andWhere('o.status IN (:open)')
+            ->setParameter('event', $event)
+            ->setParameter('open', [OrderStatus::New->value, OrderStatus::Prep->value, OrderStatus::Ready->value])
+            ->orderBy('o.createdAt', 'ASC')
+            ->addOrderBy('o.id', 'ASC')
+            ->addOrderBy('l.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function findOneInEvent(Event $event, string $uuid): ?Order
+    {
+        return $this->findOneBy(['event' => $event, 'uuid' => $uuid]);
     }
 
     public function numberExists(Event $event, string $tillLetter, int $number): bool

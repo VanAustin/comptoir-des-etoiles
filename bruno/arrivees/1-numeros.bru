@@ -1,0 +1,38 @@
+meta {
+  name: 1. Numéros
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/board
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_affichage}}
+}
+
+tests {
+  test("le tableau est renvoyé (200)", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("seulement des numéros, prêtes et en préparation", function () {
+    expect(Object.keys(res.body).sort()).to.eql(["preparing", "ready"]);
+    res.body.ready.concat(res.body.preparing).forEach(function (n) {
+      expect(n).to.match(/^[A-Z]\d+$/);
+    });
+  });
+
+  test("au plus 12 commandes prêtes", function () {
+    expect(res.body.ready.length).to.be.at.most(12);
+  });
+}
+
+docs {
+  Ce que montre l'écran Arrivées : les numéros prêts (le plus récent en premier, 12 au plus) et ceux en préparation. Ni montant, ni article.
+
+  Nécessite une tablette **affichage** appairée.
+}

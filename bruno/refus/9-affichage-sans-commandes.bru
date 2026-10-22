@@ -1,0 +1,29 @@
+meta {
+  name: 9. Un affichage ne lit pas les commandes
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/orders
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_affichage}}
+}
+
+tests {
+  test("refusé (403)", function () {
+    expect(res.status).to.equal(403);
+  });
+
+  test("aucune commande dans la réponse", function () {
+    expect(res.body).to.not.have.property("orders");
+  });
+}
+
+docs {
+  Une tablette **affichage** ne voit que les numéros (« Arrivées / 1. Numéros ») : la liste des commandes, avec leurs articles, lui est refusée.
+}

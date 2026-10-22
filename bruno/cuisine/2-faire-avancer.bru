@@ -1,0 +1,49 @@
+meta {
+  name: 2. Faire avancer la commande
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/orders/{{kitchenOrderUuid}}/status
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_cuisine}}
+}
+
+body:json {
+  {
+    "status": "{{kitchenNextStatus}}"
+  }
+}
+
+script:pre-request {
+  // Étape suivante de la commande lue par « 1. Commandes en cours »
+  const next = { new: "prep", prep: "ready", ready: "served" };
+  bru.setVar("kitchenNextStatus", next[bru.getVar("kitchenOrderStatus")] || "prep");
+}
+
+script:post-response {
+  if (res.status === 200) {
+    bru.setVar("kitchenOrderStatus", res.body.status);
+  }
+}
+
+tests {
+  test("la commande avance (200)", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("elle est à l'étape demandée", function () {
+    expect(res.body.status).to.equal(bru.getVar("kitchenNextStatus"));
+  });
+}
+
+docs {
+  Fait passer la commande lue par « 1. Commandes en cours » à l'étape suivante : nouvelle → en préparation → prête → remise au client.
+
+  Relancez la requête pour avancer encore. Une fois remise au client, la commande quitte la liste : relancez « 1. Commandes en cours » pour en prendre une autre.
+}

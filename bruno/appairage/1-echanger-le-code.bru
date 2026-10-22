@@ -20,6 +20,8 @@ script:post-response {
   // Jeton gardé en mémoire seulement (pas dans les fichiers) pour les requêtes suivantes
   if (res.status === 201) {
     bru.setVar("deviceToken", res.body.token);
+    // Un jeton par rôle (token_caisse, token_cuisine, token_affichage) : appairez une tablette de chaque rôle
+    bru.setVar("token_" + res.body.device.role, res.body.token);
   }
 }
 
