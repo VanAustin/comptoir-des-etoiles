@@ -1,11 +1,18 @@
 /* Écran Cuisine : tickets façon papier. Couleurs : uniquement les variables de tokens.css. */
 
-main.kitchen { max-width: 1400px; padding-block: 16px; }
+main.kitchen { padding-block: 20px; }
 
 .screen-status { max-width: 520px; margin: 8vh auto 0; text-align: center; }
 .screen-status p { font-weight: 700; margin: 0 0 16px; }
 
-.tickets { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; align-items: start; }
+.tickets { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; align-items: start; }
+
+/* Prêtes : à part, sous les commandes à préparer, en plus compact */
+.kitchen-ready { margin-top: 32px; }
+.kitchen-ready h2 { margin-bottom: 14px; color: var(--sauge-texte); }
+.kitchen-ready .tickets { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.kitchen-ready .ticket { gap: 8px; }
+.kitchen-ready .kitchen-lines { font-size: 16px; }
 
 /* Chaque état a une couleur (bordure du haut) et un libellé écrit (pastille) */
 .ticket {

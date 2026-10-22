@@ -136,7 +136,7 @@ class DeviceControllerTest extends WebTestCase
         $content = $this->content();
         self::assertStringContainsString('Appairée', $content);
         self::assertStringContainsString('En attente d&#039;appairage', $content);
-        self::assertMatchesRegularExpression('/<td class="num">A<\/td>/', $content);
+        self::assertMatchesRegularExpression('/<td class="num" data-label="Lettre">A<\/td>/', $content);
     }
 
     private function clickInRow(string $name, string $button): void

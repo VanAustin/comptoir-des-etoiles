@@ -16,6 +16,8 @@
     <a class="btn btn-small" href="{{ path('app_pair') }}">Tablette</a>
 {% endblock %}
 
+{% block body_class %}page-wide{% endblock %}
+
 {% block main_class %} kitchen{% endblock %}
 
 {# Aucune donnée dans la page : les commandes viennent de l'API, avec le jeton de la tablette. #}
@@ -37,5 +39,11 @@
         <p id="kitchen-offline" class="alert alert-error" role="status" hidden></p>
         <div class="tickets" id="kitchen-tickets"></div>
         <p id="kitchen-empty" class="card empty" hidden>Aucune commande à préparer. Les nouvelles apparaîtront ici automatiquement.</p>
+
+        {# Prêtes, en attente du client : à part, pour garder sous les yeux ce qu'il reste à faire #}
+        <section class="kitchen-ready" id="kitchen-ready" aria-labelledby="kitchen-ready-title" hidden>
+            <h2 id="kitchen-ready-title">Prêtes · en attente du client</h2>
+            <div class="tickets" id="kitchen-ready-tickets"></div>
+        </section>
     </section>
 {% endblock %}

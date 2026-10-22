@@ -242,6 +242,9 @@ function renderCart() {
   $("till-lines").replaceChildren(...(rows.length ? rows : [el("p", { class: "empty", text: "Touchez un article pour l'ajouter." })]));
   $("till-add-return").hidden = menu.depositCents === 0 || cart.depositReturns > 0;
   $("till-total").textContent = formatEuros(cart.total(menu));
+  const count = lines.filter((line) => line.kind === "article").reduce((sum, line) => sum + line.quantity, 0);
+  $("till-mini").hidden = cart.isEmpty();
+  $("till-mini-text").textContent = `${count} article${count > 1 ? "s" : ""} · ${formatEuros(cart.total(menu))}`;
   $("till-next").textContent = `N° ${menu.tillLetter}${nextNumber}`;
   $("till-checkout").disabled = cart.isEmpty();
   $("till-clear").disabled = cart.isEmpty();

@@ -16,6 +16,8 @@
     <a class="btn btn-small" href="{{ path('app_pair') }}">Tablette</a>
 {% endblock %}
 
+{% block body_class %}page-wide{% endblock %}
+
 {% block main_class %} till{% endblock %}
 
 {# Aucune donnée dans la page : tout vient de l'API, avec le jeton de la tablette. #}
@@ -32,6 +34,12 @@
             <div class="cats" id="till-cats" role="group" aria-label="Catégories"></div>
             <div class="grid" id="till-grid"></div>
             <p id="till-empty-menu" class="card empty" hidden>Le menu est vide. Ajoutez des articles dans l'administration, rubrique Menu, puis touchez « Tablette » et revenez à la caisse.</p>
+        </div>
+
+        {# Téléphone : rappel de la commande en bas de l'écran, la commande complète est sous la grille #}
+        <div class="cart-mini" id="till-mini" hidden>
+            <span class="num" id="till-mini-text"></span>
+            <a class="btn btn-small" href="#cart-title">Voir la commande</a>
         </div>
 
         <aside class="cart" aria-labelledby="cart-title">

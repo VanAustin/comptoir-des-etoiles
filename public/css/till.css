@@ -1,14 +1,14 @@
 /* Écran Caisse. Couleurs : uniquement les variables de tokens.css. */
 
-main.till { max-width: 1400px; padding-block: 16px; }
+main.till { padding-block: 20px; }
 
 .till-status { max-width: 520px; margin: 8vh auto 0; text-align: center; }
 .till-status p { font-weight: 700; margin: 0 0 16px; }
 
-.pos { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; align-items: start; }
+.pos { display: grid; grid-template-columns: minmax(0, 1fr) clamp(290px, 30vw, 380px); gap: clamp(16px, 2vw, 24px); align-items: start; }
 
 /* Catégories */
-.cats { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.cats { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
 .cats button {
   min-height: 48px; padding: 0 16px; border-radius: 999px;
   border: 1px solid var(--kraft); background: var(--surface); font-weight: 700; cursor: pointer;
@@ -16,7 +16,7 @@ main.till { max-width: 1400px; padding-block: 16px; }
 .cats button[aria-pressed="true"] { background: var(--renard); border-color: var(--renard); color: var(--renard-encre); }
 
 /* Grille d'articles */
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
 .item {
   position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
   min-height: 128px; padding: 14px; text-align: left; cursor: pointer;
@@ -40,7 +40,7 @@ main.till { max-width: 1400px; padding-block: 16px; }
 
 /* Commande en cours */
 .cart {
-  position: sticky; top: 16px; display: flex; flex-direction: column; gap: 12px; padding: 16px;
+  position: sticky; top: 16px; display: flex; flex-direction: column; gap: 14px; padding: clamp(14px, 2vw, 20px);
   background: var(--papier); border: 1px solid var(--kraft); border-radius: var(--rayon);
 }
 .cart-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
@@ -70,7 +70,7 @@ main.till { max-width: 1400px; padding-block: 16px; }
 .row > .btn { flex: 1; }
 
 /* Paiement et confirmation : panneaux dans la page, pas de fenêtre système */
-.panel { max-width: 480px; margin: 4vh auto 0; display: flex; flex-direction: column; gap: 14px; }
+.panel { max-width: 520px; margin: 4vh auto 0; display: flex; flex-direction: column; gap: 16px; }
 .panel h2 { text-align: center; }
 .panel .lede { text-align: center; }
 .big { font: 800 44px/1 var(--f-chiffres); text-align: center; margin: 0; }
@@ -94,12 +94,31 @@ main.till { max-width: 1400px; padding-block: 16px; }
 .ordernum .n { font: 800 120px/1 var(--f-titre); color: var(--renard-texte); margin: 8px 0; }
 .ordernum p { margin: 0; }
 
-@media (max-width: 900px) {
-  .pos { grid-template-columns: 1fr; }
-  .cart { position: static; }
+/* Rappel de la commande : seulement sur téléphone */
+.cart-mini { display: none; }
+
+/* Tablette en portrait : la commande reste à côté de la grille, chaque ligne sur deux rangées */
+@media (max-width: 860px) {
+  .grid { grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: 10px; }
+  .item { min-height: 116px; padding: 12px; }
+  .line { grid-template-columns: 1fr auto; row-gap: 4px; }
+  .line > span:first-child { grid-column: 1 / -1; font-weight: 700; }
 }
-@media (max-width: 620px) {
+/* Téléphone : la grille au-dessus, la commande toujours visible en bas de l'écran */
+@media (max-width: 640px) {
+  .pos { grid-template-columns: 1fr; }
   .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cart { position: static; scroll-margin-top: 16px; }
+  .line { grid-template-columns: 1fr auto auto; }
+  .line > span:first-child { grid-column: auto; }
+  .lines { max-height: none; }
+  .cart-mini:not([hidden]) {
+    position: sticky; bottom: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin-inline: calc(var(--gouttiere) * -1); padding: 10px var(--gouttiere);
+    background: var(--papier); border-top: 2px solid var(--renard); font-weight: 700; font-size: 16px;
+  }
+  .cart-mini > * { white-space: nowrap; }
+  .cash { grid-template-columns: repeat(2, 1fr); }
 }
 @media (prefers-reduced-motion: reduce) {
   .item:active { transform: none; }
