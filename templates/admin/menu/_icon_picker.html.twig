@@ -1,0 +1,24 @@
+{# Choix de l'icône : boutons radio en grille, sans JavaScript. Variables : selected, error. #}
+<fieldset class="field icon-picker">
+    <legend>Icône</legend>
+    {% if error %}<p class="field-error">{{ error }}</p>{% endif %}
+    <div class="icon-grid">
+        <label class="icon-option">
+            <input type="radio" name="icon" value="" {{ selected == '' ? 'checked' }}>
+            <span class="icon icon-default" aria-hidden="true"></span>
+            <span class="icon-label">Sans icône</span>
+        </label>
+    </div>
+    {% for group, icons in icon_groups %}
+        <p class="icon-group">{{ group }}</p>
+        <div class="icon-grid">
+            {% for key, label in icons %}
+                <label class="icon-option">
+                    <input type="radio" name="icon" value="{{ key }}" {{ selected == key ? 'checked' }}>
+                    <span class="{{ icon_class(key) }}" aria-hidden="true"></span>
+                    <span class="icon-label">{{ label }}</span>
+                </label>
+            {% endfor %}
+        </div>
+    {% endfor %}
+</fieldset>

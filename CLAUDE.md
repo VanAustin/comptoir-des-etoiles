@@ -55,14 +55,15 @@ PHP, Composer et Symfony ne sont **pas** installés sur le Mac : tout tourne dan
 - **Hors ligne** : service worker qui met en cache l'application ; file d'attente des commandes dans IndexedDB, envoyée au retour du réseau.
 - **Idempotence** : chaque commande reçoit un UUID créé sur la tablette. `POST /api/orders` avec un UUID déjà connu ne crée pas de doublon et renvoie la commande existante.
 - **Temps réel** : l'écran cuisine et l'écran Arrivées interrogent le serveur toutes les 2 à 3 secondes (`GET /api/orders?since=<horodatage>`). Pas de Mercure pour l'instant.
-- **Stocks** : le stock restant est calculé à partir des ventes (stock de départ moins quantités vendues des commandes non annulées), jamais stocké comme un compteur décrémenté. Le stock est une **information, jamais une limite** : ni le serveur ni la caisse ne bloquent une vente (stocks de départ approximatifs, ventes hors ligne), et il peut devenir négatif. Une formule décompte les composants figés sur la ligne au moment de la vente ; son stock restant est le plus petit de ceux de ses composants comptés.
+- **Stocks** : le stock restant est calculé à partir des ventes (stock de départ moins quantités vendues des commandes non annulées), jamais stocké comme un compteur décrémenté. Le stock est une **information, jamais une limite** : ni le serveur ni la caisse ne bloquent une vente (stocks de départ approximatifs, ventes hors ligne), et il peut devenir négatif. Une formule décompte les composants figés sur la ligne au moment de la vente ; son stock restant est le nombre de formules encore possibles avec ses composants comptés (stock de chaque composant divisé par sa quantité, le plus petit l'emporte).
 
 ## Modèle de données (point de départ)
 
 - `Event` : nom, date, actif ou non, montant de la consigne (centimes, 0 = pas de consigne).
-- `Product` : événement, nom, icône (émoji ou image), catégorie, prix (centimes, entier), stock de départ (nullable = non compté), passe en cuisine (bool), avec consigne (bool), ordre d'affichage, composants si formule.
+- `Product` : événement, nom, icône (clé du catalogue d'icônes, voir Charte), catégorie, prix (centimes, entier), stock de départ (nullable = non compté), passe en cuisine (bool), avec consigne (bool), ordre d'affichage, composants si formule.
+- `ProductComponent` : article inclus dans une formule, avec sa quantité (« 2 crêpes »). Une formule ne contient que des articles simples, jamais une autre formule.
 - `Order` : UUID (identifiant venu de la tablette), événement, lettre de caisse et numéro (voir Numérotation), moyen de paiement (espèces ou carte), montant reçu, total recalculé par le serveur, état, créé le, modifié le, tablette d'origine.
-- `OrderLine` : commande, produit, type (article, consigne, retour de consigne), libellé, prix et passage en cuisine figés au moment de la vente, quantité, composants figés si formule.
+- `OrderLine` : commande, produit, type (article, consigne, retour de consigne), libellé, prix et passage en cuisine figés au moment de la vente, quantité, composants figés si formule (un identifiant d'article par unité : « 2 crêpes » donne deux fois l'identifiant de la crêpe).
 - `Device` : tablette appairée. Nom (« Caisse buvette »), rôle (`caisse`, `cuisine`, `affichage`), lettre de caisse (rôle `caisse` uniquement), empreinte SHA-256 du jeton, empreinte et expiration du code d'appairage, événement, créée le, vue pour la dernière fois le, expire le, révoquée le.
 - `AuditLog` : qui (administrateur ou tablette), quoi (annulation, changement de prix ou de stock, appairage, révocation), quand, valeurs avant et après.
 - `AdminUser` : identifiant, mot de passe haché. Créé uniquement par la commande d'installation.
@@ -95,7 +96,7 @@ Le numéro donné au client est la **lettre de la caisse suivie d'un numéro** :
 | Cuisine | Cuisine | Tickets à préparer, boutons « Je prépare », « Prête », « Remise au client », alerte au-delà de 10 min |
 | Appel client | Arrivées | Numéros prêts et en préparation, très grands, façon tableau d'aéroport |
 | Bilan | Carnet de bord | CA, nombre de commandes, panier moyen, ventes et stock restant par article, historique, annulation, export CSV pour Excel |
-| Administration | Menu | Articles, prix, stocks de départ, passage en cuisine |
+| Administration | Menu | Deux parties, Articles et Formules : tableau de modification rapide (prix, stock, cuisine, consigne, ordre ↑ ↓) et une page par article ou formule (nom, icône, catégorie, composition avec quantités) |
 
 Le prototype validé par l'APE sert de référence pour l'ergonomie : `docs/prototype.html`.
 
@@ -217,6 +218,13 @@ Référence complète : document « Charte graphique — Le Comptoir des étoile
 ```
 
 La référence est `public/css/tokens.css`. Renard est passé de #A66927 à #A56726 : le texte blanc sur l'ancien Renard n'atteignait que 4,4955:1. Toutes les paires texte / fond de la charte et des couleurs dérivées ont été vérifiées à au moins 4,5:1, en clair et en sombre ; refaire ce calcul avant d'ajouter une couleur.
+
+Icônes des articles : pictogrammes au trait de la bibliothèque **Lucide** (licence ISC), choisis dans une grille de l'administration. Pas d'émojis.
+
+- Une sélection de fichiers SVG est copiée dans `public/img/icons/` avec la licence (`LICENSE.txt`) ; aucune dépendance, rien de chargé depuis internet.
+- La liste fait foi dans `src/Menu/IconCatalog.php` ; chaque icône a sa règle dans `public/css/icons.css` (masque CSS, couleur du texte : compatible avec le thème sombre). `IconCatalogTest` vérifie que les trois concordent.
+- Pour ajouter une icône : copier le SVG depuis le paquet `lucide-static`, l'ajouter au catalogue et à `icons.css`.
+- Le serveur n'accepte et ne renvoie que des clés du catalogue ; une icône absente ou inconnue s'affiche avec l'icône par défaut.
 
 Règles :
 

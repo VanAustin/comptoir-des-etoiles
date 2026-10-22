@@ -148,20 +148,52 @@ fieldset.field legend { font-size: 14px; font-weight: 700; color: var(--encre-do
 .input-short { max-width: 140px; }
 
 /* Menu */
-.menu-table td { vertical-align: top; }
+.menu-section { margin-top: 28px; }
+.menu-section .section-head { margin-bottom: 12px; }
+.menu-table td { vertical-align: middle; }
 .menu-table input[type="text"] { width: 100%; min-height: 44px; padding: 6px 8px; border: 1px solid var(--kraft); border-radius: 8px; background: var(--nuage); color: var(--encre); }
 .menu-table input[type="checkbox"], .check input { width: 24px; height: 24px; accent-color: var(--renard); }
 .menu-table input[aria-invalid="true"] { border-color: var(--erreur); }
-.input-tiny { max-width: 64px; }
-.input-icon { max-width: 64px; text-align: center; font-size: 20px; }
 .input-price { max-width: 110px; min-width: 84px; }
-.menu-table td:nth-child(3) input { min-width: 180px; }
-.menu-table td:nth-child(4) input { min-width: 110px; }
 .row-invalid { background: var(--erreur-fond); }
-.menu-table + input + .lede, form > .lede { margin: 12px 0; }
-.add-product { margin-top: 24px; }
-.add-product h2 { margin-bottom: 12px; }
-.add-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0 12px; align-items: end; }
+.product-name { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; }
+.product-name .icon { font-size: 22px; color: var(--renard-texte); }
+.move { display: inline-flex; gap: 4px; }
+.btn-icon { min-height: 48px; width: 48px; padding: 0; font-size: 20px; }
+.menu-save { position: sticky; bottom: 0; margin-top: 20px; padding: 12px 0; background: var(--nuage); border-top: 1px solid var(--kraft); }
+
+/* Page d'un article ou d'une formule */
+.menu-form { max-width: 720px; }
+.field-row { display: flex; gap: 16px; flex-wrap: wrap; }
+.field-row .field { flex: 1 1 180px; }
+.field input[list] { max-width: 100%; }
+.form-actions { display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap; margin-top: 8px; }
+.form-footer { margin: 20px 0 0; padding-top: 16px; border-top: 1px dashed var(--kraft); color: var(--encre-douce); }
+.menu-form .field-help { margin: -8px 0 16px; }
+.menu-form fieldset .field-help { margin: 0 0 8px; }
+
+/* Choix de l'icône : grille de boutons radio */
+.icon-group { margin: 12px 0 6px; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--encre-douce); }
+.icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 6px; }
+.icon-option {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  min-height: 80px; padding: 8px 4px; text-align: center; cursor: pointer;
+  border: 1px solid var(--kraft); border-radius: var(--rayon-bouton); background: var(--surface);
+}
+.icon-option input { position: absolute; opacity: 0; pointer-events: none; }
+.icon-option .icon { font-size: 28px; color: var(--encre); }
+.icon-label { font-size: 13px; line-height: 1.2; color: var(--encre-douce); }
+.icon-option:has(input:checked) { border: 3px solid var(--renard); background: var(--papier); }
+.icon-option:has(input:checked) .icon, .icon-option:has(input:checked) .icon-label { color: var(--renard-texte); font-weight: 700; }
+.icon-option:has(input:focus-visible) { outline: 3px solid var(--or); outline-offset: 2px; }
+
+/* Composition d'une formule */
+.composition-row { display: grid; grid-template-columns: 28px 1fr auto 96px; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px dashed var(--kraft); }
+.composition-row .icon { font-size: 22px; }
+.composition-row label { font-weight: 700; }
+.input-qty { min-height: 48px; padding: 6px 10px; border: 1px solid var(--kraft); border-radius: 8px; background: var(--nuage); color: var(--encre); text-align: center; font-size: 18px; }
+.formula-summary { padding: 10px 12px; border-radius: var(--rayon-bouton); background: var(--or-fond); color: var(--or-texte); }
+.formula-summary strong, .formula-summary span { color: inherit; }
 .check { display: flex; align-items: center; gap: 8px; min-height: 48px; margin-bottom: 16px; font-weight: 700; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; }
 .btn-danger { background: var(--erreur-fond); border-color: var(--erreur); color: var(--erreur); }

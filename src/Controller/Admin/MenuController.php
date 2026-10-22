@@ -4,6 +4,8 @@ namespace App\Controller\Admin;
 
 use App\Entity\Event;
 use App\Entity\Product;
+use App\Entity\ProductComponent;
+use App\Menu\IconCatalog;
 use App\Repository\EventRepository;
 use App\Repository\ProductRepository;
 use App\Service\AuditLogger;
@@ -17,8 +19,14 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
- * Menu de l'événement actif : articles, prix, stocks de départ, passage en cuisine,
- * consigne et formules. Formulaires HTML traités ici, avec CSRF sur chacun.
+ * Menu de l'événement actif, en deux parties : les articles et les formules.
+ *
+ * - Le tableau de la page Menu modifie d'un coup ce qui change souvent
+ *   (prix, stock, cuisine, consigne) et l'ordre d'affichage (boutons ↑ ↓).
+ * - Chaque article et chaque formule a sa page pour le reste (nom, icône,
+ *   catégorie, composition).
+ *
+ * Formulaires HTML traités ici, avec CSRF sur chacun.
  */
 #[IsGranted('ROLE_ADMIN')]
 #[Route('/admin/menu')]
@@ -26,11 +34,9 @@ class MenuController extends AbstractController
 {
     private const NAME_MAX_LENGTH = 80;
     private const CATEGORY_MAX_LENGTH = 40;
-    private const ICON_MAX_LENGTH = 16;
     private const STOCK_MAX = 99999;
-    private const POSITION_MAX = 9999;
     private const DEFAULT_CATEGORY = 'Divers';
-    private const EMPTY_NEW_VALUES = ['icon' => '', 'name' => '', 'category' => '', 'price' => '', 'stock' => '', 'kitchen' => false, 'deposit' => false];
+    private const FORMULA_CATEGORY = 'Formules';
 
     public function __construct(
         private readonly EventRepository $events,
@@ -51,7 +57,10 @@ class MenuController extends AbstractController
         return $this->renderMenu($event);
     }
 
-    /** Enregistre toutes les lignes du tableau d'un coup : tout ou rien. */
+    /**
+     * Enregistre tout le tableau d'un coup (tout ou rien), puis déplace
+     * l'article demandé si l'on a touché ↑ ou ↓ : rien de ce qui a été saisi n'est perdu.
+     */
     #[Route('', name: 'admin_menu_save', methods: ['POST'])]
     public function save(Request $request): Response
     {
@@ -68,7 +77,7 @@ class MenuController extends AbstractController
             if (!\is_array($input)) {
                 continue;
             }
-            [$values, $errors, $clean] = $this->validate($input, $product->isFormula());
+            [$values, $errors, $clean] = $this->validateRow($input, $product->isFormula());
             $rowValues[$product->getId()] = $values;
             if ($errors) {
                 $rowErrors[$product->getId()] = $errors;
@@ -84,106 +93,55 @@ class MenuController extends AbstractController
         $updated = 0;
         foreach ($changes as [$product, $clean]) {
             $before = self::snapshot($product);
-            self::apply($product, $clean);
-            $after = self::snapshot($product);
-            $changed = array_keys(array_diff_assoc(array_map('serialize', $after), array_map('serialize', $before)));
-            if ($changed) {
-                $this->auditLogger->log(
-                    'product.update',
-                    'product:'.$product->getId().' '.$product->getName(),
-                    array_intersect_key($before, array_flip($changed)),
-                    array_intersect_key($after, array_flip($changed)),
-                );
+            $product
+                ->setPriceCents($clean['priceCents'])
+                ->setInitialStock($clean['initialStock'])
+                ->setGoesToKitchen($clean['kitchen'])
+                ->setHasDeposit($clean['deposit']);
+            if ($this->logChanges($product, $before)) {
                 ++$updated;
             }
         }
+
+        $moved = $this->move($event, $request->getPayload()->getString('move'));
         $this->entityManager->flush();
 
-        $this->addFlash('info', match ($updated) {
-            0 => 'Aucune modification à enregistrer.',
-            1 => 'Le menu est enregistré : 1 article modifié.',
-            default => \sprintf('Le menu est enregistré : %d articles modifiés.', $updated),
-        });
-
-        return $this->redirectToRoute('admin_menu');
-    }
-
-    #[Route('/ajouter', name: 'admin_menu_add', methods: ['POST'])]
-    public function add(Request $request): Response
-    {
-        $this->denyUnlessCsrfValid($request, 'menu-add');
-        $event = $this->requireActiveEvent();
-
-        [$values, $errors, $clean] = $this->validate($request->getPayload()->all(), isFormula: false, withPosition: false);
-        if ($errors) {
-            return $this->renderMenu($event, newValues: $values, newErrors: $errors, status: 422);
+        if ($updated > 0 || null === $moved) {
+            $this->addFlash('info', match ($updated) {
+                0 => 'Aucune modification à enregistrer.',
+                1 => 'Le menu est enregistré : 1 article modifié.',
+                default => \sprintf('Le menu est enregistré : %d articles modifiés.', $updated),
+            });
         }
 
-        $product = new Product($event, $clean['name']);
-        self::apply($product, $clean + ['position' => $this->products->nextPosition($event)]);
-        $this->entityManager->persist($product);
-        $this->entityManager->flush();
-        $this->auditLogger->log('product.create', 'product:'.$product->getId().' '.$product->getName(), after: self::snapshot($product));
-        $this->entityManager->flush();
-
-        $this->addFlash('info', \sprintf('« %s » est ajouté au menu.', $product->getName()));
-
-        return $this->redirectToRoute('admin_menu');
+        // Retour à la ligne déplacée, pour enchaîner les ↑ ↓ sans chercher
+        return $this->redirect($this->generateUrl('admin_menu').(null === $moved ? '' : '#produit-'.$moved));
     }
 
-    #[Route('/{id<\d+>}/composants', name: 'admin_menu_components', methods: ['GET', 'POST'])]
-    public function components(Product $product, Request $request): Response
+    #[Route('/article/nouveau', name: 'admin_menu_product_new', methods: ['GET', 'POST'])]
+    public function newProduct(Request $request): Response
+    {
+        $event = $this->requireActiveEvent();
+
+        return $this->editForm($request, $event, new Product($event, ''), isFormula: false);
+    }
+
+    #[Route('/formule/nouvelle', name: 'admin_menu_formula_new', methods: ['GET', 'POST'])]
+    public function newFormula(Request $request): Response
+    {
+        $event = $this->requireActiveEvent();
+        $formula = (new Product($event, ''))->setCategory(self::FORMULA_CATEGORY)->setIcon('star');
+
+        return $this->editForm($request, $event, $formula, isFormula: true);
+    }
+
+    #[Route('/{id<\d+>}/modifier', name: 'admin_menu_edit', methods: ['GET', 'POST'])]
+    public function edit(Product $product, Request $request): Response
     {
         $event = $this->requireActiveEvent();
         $this->denyUnlessInEvent($product, $event);
 
-        $usedAsComponent = $this->products->isUsedAsComponent($product);
-        // Composants possibles : les autres articles, sauf les formules (pas de formule dans une formule)
-        $candidates = array_values(array_filter(
-            $this->products->findForEvent($event),
-            static fn (Product $p) => $p !== $product && !$p->isFormula(),
-        ));
-        $error = null;
-
-        if ($request->isMethod('POST') && !$usedAsComponent) {
-            $this->denyUnlessCsrfValid($request, 'menu-components-'.$product->getId());
-            $selectedIds = array_map('intval', $request->getPayload()->all('components'));
-            $byId = [];
-            foreach ($candidates as $candidate) {
-                $byId[$candidate->getId()] = $candidate;
-            }
-
-            if (array_diff($selectedIds, array_keys($byId))) {
-                $error = 'Un des articles choisis ne peut pas faire partie de cette formule. Rechargez la page, puis réessayez.';
-            } else {
-                $before = self::componentNames($product);
-                foreach ($product->getComponents()->toArray() as $component) {
-                    $product->removeComponent($component);
-                }
-                foreach (array_unique($selectedIds) as $id) {
-                    $product->addComponent($byId[$id]);
-                }
-                // Le stock d'une formule se déduit de celui de ses composants
-                if ($product->isFormula()) {
-                    $product->setInitialStock(null);
-                }
-                $this->auditLogger->log('product.components', 'product:'.$product->getId().' '.$product->getName(), ['components' => $before], ['components' => self::componentNames($product)]);
-                $this->entityManager->flush();
-
-                $this->addFlash('info', $product->isFormula()
-                    ? \sprintf('« %s » est une formule de %d articles.', $product->getName(), $product->getComponents()->count())
-                    : \sprintf('« %s » n\'est plus une formule.', $product->getName()));
-
-                return $this->redirectToRoute('admin_menu');
-            }
-        }
-
-        return $this->render('admin/menu/components.html.twig', [
-            'product' => $product,
-            'candidates' => $candidates,
-            'used_as_component' => $usedAsComponent,
-            'error' => $error,
-        ], new Response(status: $error ? 422 : 200));
+        return $this->editForm($request, $event, $product, $product->isFormula());
     }
 
     #[Route('/{id<\d+>}/retirer', name: 'admin_menu_remove', methods: ['GET', 'POST'])]
@@ -224,73 +182,164 @@ class MenuController extends AbstractController
         return $this->redirectToRoute('admin_menu');
     }
 
+    /** Page d'un article ou d'une formule : création et modification. */
+    private function editForm(Request $request, Event $event, Product $product, bool $isFormula): Response
+    {
+        $isNew = null === $product->getId();
+        $candidates = $isFormula ? $this->componentCandidates($event, $product) : [];
+        $values = self::detailsOf($product) + ['components' => self::quantitiesOf($product, $candidates)];
+        $errors = [];
+
+        if ($request->isMethod('POST')) {
+            $this->denyUnlessCsrfValid($request, 'menu-product-'.($product->getId() ?? 'new'));
+            $input = $request->getPayload()->all();
+            [$values, $errors, $clean] = $this->validateDetails($input, $isFormula);
+            [$values['components'], $componentErrors, $quantities] = $isFormula
+                ? $this->validateComposition($input['components'] ?? [], $candidates)
+                : [[], [], []];
+            $errors += $componentErrors;
+
+            if (!$errors) {
+                $before = $isNew ? null : self::snapshot($product);
+                $product
+                    ->setName($clean['name'])
+                    ->setIcon($clean['icon'])
+                    ->setCategory($clean['category'])
+                    ->setPriceCents($clean['priceCents'])
+                    ->setInitialStock($clean['initialStock'])
+                    ->setGoesToKitchen($clean['kitchen'])
+                    ->setHasDeposit($clean['deposit']);
+                foreach ($candidates as $candidate) {
+                    $product->setComponentQuantity($candidate, $quantities[$candidate->getId()] ?? 0);
+                }
+
+                if ($isNew) {
+                    $product->setPosition($this->products->nextPosition($event));
+                    $this->entityManager->persist($product);
+                    $this->entityManager->flush();
+                    $this->auditLogger->log('product.create', 'product:'.$product->getId().' '.$product->getName(), after: self::snapshot($product));
+                    $this->addFlash('info', \sprintf($isFormula ? 'La formule « %s » est ajoutée au menu.' : '« %s » est ajouté au menu.', $product->getName()));
+                } else {
+                    $this->logChanges($product, $before);
+                    $this->addFlash('info', \sprintf('« %s » est enregistré.', $product->getName()));
+                }
+                $this->entityManager->flush();
+
+                return $this->redirect($this->generateUrl('admin_menu').'#produit-'.$product->getId());
+            }
+        }
+
+        return $this->render($isFormula ? 'admin/menu/formula.html.twig' : 'admin/menu/product.html.twig', [
+            'event' => $event,
+            'product' => $product,
+            'is_new' => $isNew,
+            'values' => $values,
+            'errors' => $errors,
+            'icon_groups' => IconCatalog::groups(),
+            'categories' => $this->categories($event),
+            'candidates_by_category' => self::byCategory($candidates),
+            'used_as_component' => !$isNew && !$isFormula && $this->products->isUsedAsComponent($product),
+        ], new Response(status: $errors ? 422 : 200));
+    }
+
     /**
      * @param array<int, array<string, mixed>>  $rowValues
      * @param array<int, array<string, string>> $rowErrors
-     * @param array<string, mixed>|null         $newValues
-     * @param array<string, string>             $newErrors
      */
-    private function renderMenu(Event $event, array $rowValues = [], array $rowErrors = [], ?array $newValues = null, array $newErrors = [], int $status = 200): Response
+    private function renderMenu(Event $event, array $rowValues = [], array $rowErrors = [], int $status = 200): Response
     {
         $products = $this->products->findForEvent($event);
         foreach ($products as $product) {
-            $rowValues[$product->getId()] ??= self::valuesOf($product);
+            $rowValues[$product->getId()] ??= self::rowOf($product);
         }
 
         return $this->render('admin/menu/index.html.twig', [
             'event' => $event,
-            'products' => $products,
+            'articles' => array_values(array_filter($products, static fn (Product $p) => !$p->isFormula())),
+            'formulas' => array_values(array_filter($products, static fn (Product $p) => $p->isFormula())),
             'row_values' => $rowValues,
             'row_errors' => $rowErrors,
-            'new_values' => $newValues ?? self::EMPTY_NEW_VALUES,
-            'new_errors' => $newErrors,
         ], new Response(status: $status));
     }
 
     /**
+     * Ligne du tableau : prix, stock, cuisine, consigne.
+     *
      * @param array<string, mixed> $input
      *
      * @return array{array<string, mixed>, array<string, string>, array<string, mixed>}
      */
-    private function validate(array $input, bool $isFormula, bool $withPosition = true): array
+    private function validateRow(array $input, bool $isFormula): array
     {
-        $text = static fn (string $key): string => \is_string($input[$key] ?? null) ? trim($input[$key]) : '';
         $values = [
-            'position' => $text('position'),
-            'icon' => $text('icon'),
-            'name' => $text('name'),
-            'category' => $text('category'),
-            'price' => $text('price'),
-            'stock' => $text('stock'),
+            'price' => self::text($input, 'price'),
+            'stock' => self::text($input, 'stock'),
+            'kitchen' => isset($input['kitchen']),
+            'deposit' => isset($input['deposit']),
+        ];
+        $errors = [];
+        $clean = ['kitchen' => $values['kitchen'], 'deposit' => $values['deposit']];
+        self::validatePriceAndStock($values, $isFormula, $errors, $clean);
+
+        return [$values, $errors, $clean];
+    }
+
+    /**
+     * Page de l'article ou de la formule : tous les champs sauf la composition.
+     *
+     * @param array<string, mixed> $input
+     *
+     * @return array{array<string, mixed>, array<string, string>, array<string, mixed>}
+     */
+    private function validateDetails(array $input, bool $isFormula): array
+    {
+        $values = [
+            'name' => self::text($input, 'name'),
+            'icon' => self::text($input, 'icon'),
+            'category' => self::text($input, 'category'),
+            'price' => self::text($input, 'price'),
+            'stock' => $isFormula ? '' : self::text($input, 'stock'),
             'kitchen' => isset($input['kitchen']),
             'deposit' => isset($input['deposit']),
         ];
         $errors = [];
         $clean = [
-            'icon' => '' === $values['icon'] ? null : $values['icon'],
             'name' => $values['name'],
-            'category' => '' === $values['category'] ? self::DEFAULT_CATEGORY : $values['category'],
+            'icon' => '' === $values['icon'] ? null : $values['icon'],
+            'category' => '' === $values['category'] ? ($isFormula ? self::FORMULA_CATEGORY : self::DEFAULT_CATEGORY) : $values['category'],
             'kitchen' => $values['kitchen'],
             'deposit' => $values['deposit'],
         ];
 
         if ('' === $values['name']) {
-            $errors['name'] = 'Indiquez le nom de l\'article.';
+            $errors['name'] = $isFormula ? 'Indiquez le nom de la formule.' : 'Indiquez le nom de l\'article.';
         } elseif (mb_strlen($values['name']) > self::NAME_MAX_LENGTH) {
             $errors['name'] = \sprintf('%d caractères au maximum.', self::NAME_MAX_LENGTH);
         }
-        if (mb_strlen($values['icon']) > self::ICON_MAX_LENGTH) {
-            $errors['icon'] = 'Un émoji suffit.';
+        if (null !== $clean['icon'] && !IconCatalog::has($clean['icon'])) {
+            $errors['icon'] = 'Choisissez une icône dans la liste.';
         }
         if (mb_strlen($values['category']) > self::CATEGORY_MAX_LENGTH) {
             $errors['category'] = \sprintf('%d caractères au maximum.', self::CATEGORY_MAX_LENGTH);
         }
+        self::validatePriceAndStock($values, $isFormula, $errors, $clean);
 
+        return [$values, $errors, $clean];
+    }
+
+    /**
+     * @param array<string, mixed>  $values
+     * @param array<string, string> $errors
+     * @param array<string, mixed>  $clean
+     */
+    private static function validatePriceAndStock(array $values, bool $isFormula, array &$errors, array &$clean): void
+    {
         $clean['priceCents'] = Money::parseEuros($values['price']);
         if (null === $clean['priceCents']) {
             $errors['price'] = 'Prix en euros, par exemple 2,50.';
         }
 
+        // Le stock d'une formule se déduit de celui de ses articles
         if ($isFormula || '' === $values['stock']) {
             $clean['initialStock'] = null;
         } elseif (ctype_digit($values['stock']) && (int) $values['stock'] <= self::STOCK_MAX) {
@@ -298,47 +347,178 @@ class MenuController extends AbstractController
         } else {
             $errors['stock'] = 'Nombre entier, ou vide si non compté.';
         }
-
-        if ($withPosition) {
-            if (ctype_digit($values['position']) && (int) $values['position'] <= self::POSITION_MAX) {
-                $clean['position'] = (int) $values['position'];
-            } else {
-                $errors['position'] = 'Nombre entier.';
-            }
-        }
-
-        return [$values, $errors, $clean];
     }
 
-    /** @param array<string, mixed> $clean */
-    private static function apply(Product $product, array $clean): void
+    /**
+     * @param list<Product> $candidates
+     *
+     * @return array{array<int, string>, array<string, string>, array<int, int>}
+     */
+    private function validateComposition(mixed $input, array $candidates): array
     {
-        $product
-            ->setName($clean['name'])
-            ->setIcon($clean['icon'])
-            ->setCategory($clean['category'])
-            ->setPriceCents($clean['priceCents'])
-            ->setInitialStock($clean['initialStock'])
-            ->setGoesToKitchen($clean['kitchen'])
-            ->setHasDeposit($clean['deposit']);
-        if (isset($clean['position'])) {
-            $product->setPosition($clean['position']);
+        $input = \is_array($input) ? $input : [];
+        $values = [];
+        $quantities = [];
+        $errors = [];
+        $allowed = array_flip(array_map(static fn (Product $p) => $p->getId(), $candidates));
+
+        foreach ($input as $id => $raw) {
+            $raw = \is_string($raw) ? trim($raw) : '';
+            $quantity = '' === $raw ? 0 : (ctype_digit($raw) ? (int) $raw : -1);
+            $values[(int) $id] = $raw;
+            if ($quantity < 0 || $quantity > ProductComponent::MAX_QUANTITY) {
+                $errors['components'] = \sprintf('Quantités : nombres entiers de 0 à %d.', ProductComponent::MAX_QUANTITY);
+            } elseif ($quantity > 0 && !isset($allowed[(int) $id])) {
+                $errors['components'] = 'Un des articles choisis ne peut pas faire partie de cette formule. Rechargez la page, puis réessayez.';
+            } elseif ($quantity > 0) {
+                $quantities[(int) $id] = $quantity;
+            }
         }
+        if (!$errors && [] === $quantities) {
+            $errors['components'] = 'Ajoutez au moins un article à la formule.';
+        }
+
+        return [$values, $errors, $quantities];
+    }
+
+    /**
+     * Déplace un article d'un cran parmi ceux de sa partie (articles ou formules).
+     * Valeur attendue : « 12:up » ou « 12:down ».
+     *
+     * @return int|null l'identifiant déplacé
+     */
+    private function move(Event $event, string $move): ?int
+    {
+        if (!preg_match('/^(\d+):(up|down)$/', $move, $m)) {
+            return null;
+        }
+
+        // Ordre remis à plat (1, 2, 3…) avant d'échanger deux voisins
+        $all = $this->products->findForEvent($event);
+        foreach ($all as $index => $product) {
+            $product->setPosition($index + 1);
+        }
+
+        $target = null;
+        foreach ($all as $product) {
+            if ($product->getId() === (int) $m[1]) {
+                $target = $product;
+            }
+        }
+        if (null === $target) {
+            return null;
+        }
+        $section = array_values(array_filter($all, static fn (Product $p) => $p->isFormula() === $target->isFormula()));
+        $index = array_search($target, $section, true);
+        $neighbour = $section[$index + ('up' === $m[2] ? -1 : 1)] ?? null;
+        if (null !== $neighbour) {
+            $position = $target->getPosition();
+            $target->setPosition($neighbour->getPosition());
+            $neighbour->setPosition($position);
+        }
+
+        return $target->getId();
+    }
+
+    /** Trace dans le journal les champs réellement modifiés. */
+    private function logChanges(Product $product, array $before): bool
+    {
+        $after = self::snapshot($product);
+        $changed = array_keys(array_diff_assoc(array_map('serialize', $after), array_map('serialize', $before)));
+        if (!$changed) {
+            return false;
+        }
+        $this->auditLogger->log(
+            'product.update',
+            'product:'.$product->getId().' '.$product->getName(),
+            array_intersect_key($before, array_flip($changed)),
+            array_intersect_key($after, array_flip($changed)),
+        );
+
+        return true;
+    }
+
+    /**
+     * Articles simples pouvant entrer dans une formule (jamais une autre formule).
+     *
+     * @return list<Product>
+     */
+    private function componentCandidates(Event $event, Product $formula): array
+    {
+        return array_values(array_filter(
+            $this->products->findForEvent($event),
+            static fn (Product $p) => $p !== $formula && !$p->isFormula(),
+        ));
+    }
+
+    /** @return list<string> catégories déjà utilisées, proposées à la saisie */
+    private function categories(Event $event): array
+    {
+        $categories = array_map(static fn (Product $p) => $p->getCategory(), $this->products->findForEvent($event));
+
+        return array_values(array_unique([...$categories, self::DEFAULT_CATEGORY, self::FORMULA_CATEGORY]));
+    }
+
+    /**
+     * @param list<Product> $products
+     *
+     * @return array<string, list<Product>>
+     */
+    private static function byCategory(array $products): array
+    {
+        $groups = [];
+        foreach ($products as $product) {
+            $groups[$product->getCategory()][] = $product;
+        }
+
+        return $groups;
+    }
+
+    /** @param array<string, mixed> $input */
+    private static function text(array $input, string $key): string
+    {
+        return \is_string($input[$key] ?? null) ? trim($input[$key]) : '';
     }
 
     /** @return array<string, mixed> valeurs affichées dans le tableau */
-    private static function valuesOf(Product $product): array
+    private static function rowOf(Product $product): array
     {
         return [
-            'position' => (string) $product->getPosition(),
-            'icon' => (string) $product->getIcon(),
-            'name' => $product->getName(),
-            'category' => $product->getCategory(),
             'price' => Money::formatEuros($product->getPriceCents()),
             'stock' => null === $product->getInitialStock() ? '' : (string) $product->getInitialStock(),
             'kitchen' => $product->goesToKitchen(),
             'deposit' => $product->hasDeposit(),
         ];
+    }
+
+    /** @return array<string, mixed> valeurs affichées dans la page de l'article */
+    private static function detailsOf(Product $product): array
+    {
+        return [
+            'name' => $product->getName(),
+            'icon' => (string) $product->getIcon(),
+            'category' => null === $product->getId() && self::DEFAULT_CATEGORY === $product->getCategory() ? '' : $product->getCategory(),
+            'price' => null === $product->getId() ? '' : Money::formatEuros($product->getPriceCents()),
+            'stock' => null === $product->getInitialStock() ? '' : (string) $product->getInitialStock(),
+            'kitchen' => $product->goesToKitchen(),
+            'deposit' => $product->hasDeposit(),
+        ];
+    }
+
+    /**
+     * @param list<Product> $candidates
+     *
+     * @return array<int, string>
+     */
+    private static function quantitiesOf(Product $formula, array $candidates): array
+    {
+        $quantities = [];
+        foreach ($candidates as $candidate) {
+            $quantity = $formula->componentQuantity($candidate);
+            $quantities[$candidate->getId()] = $quantity > 0 ? (string) $quantity : '';
+        }
+
+        return $quantities;
     }
 
     /** @return array<string, mixed> */
@@ -352,14 +532,8 @@ class MenuController extends AbstractController
             'initial_stock' => $product->getInitialStock(),
             'kitchen' => $product->goesToKitchen(),
             'deposit' => $product->hasDeposit(),
-            'position' => $product->getPosition(),
+            'composition' => $product->describeComposition(),
         ];
-    }
-
-    /** @return list<string> */
-    private static function componentNames(Product $product): array
-    {
-        return array_values(array_map(static fn (Product $c) => $c->getName(), $product->getComponents()->toArray()));
     }
 
     private function requireActiveEvent(): Event

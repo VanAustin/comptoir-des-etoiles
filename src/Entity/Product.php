@@ -52,14 +52,12 @@ class Product
     private int $position = 0;
 
     /**
-     * Composants d'une formule : vendre la formule décompte le stock de chacun d'eux.
+     * Composants d'une formule et leurs quantités : vendre la formule décompte
+     * le stock de chacun d'eux. Vide pour un article simple.
      *
-     * @var Collection<int, Product>
+     * @var Collection<int, ProductComponent>
      */
-    #[ORM\ManyToMany(targetEntity: self::class)]
-    #[ORM\JoinTable(name: 'product_component')]
-    #[ORM\JoinColumn(name: 'formula_id', onDelete: 'CASCADE')]
-    #[ORM\InverseJoinColumn(name: 'component_id', onDelete: 'CASCADE')]
+    #[ORM\OneToMany(targetEntity: ProductComponent::class, mappedBy: 'formula', cascade: ['persist'], orphanRemoval: true)]
     private Collection $components;
 
     public function __construct(Event $event, string $name)
@@ -180,25 +178,67 @@ class Product
         return !$this->components->isEmpty();
     }
 
-    /** @return Collection<int, Product> */
+    /** @return Collection<int, ProductComponent> */
     public function getComponents(): Collection
     {
         return $this->components;
     }
 
-    public function addComponent(self $component): static
+    /**
+     * Fixe la quantité d'un article dans la formule ; 0 le retire.
+     * Une formule ne se contient pas elle-même.
+     */
+    public function setComponentQuantity(self $component, int $quantity): static
     {
-        if ($component !== $this && !$this->components->contains($component)) {
-            $this->components->add($component);
+        if ($component === $this) {
+            return $this;
+        }
+        foreach ($this->components as $existing) {
+            if ($existing->getComponent() === $component) {
+                if ($quantity > 0) {
+                    $existing->setQuantity($quantity);
+                } else {
+                    $this->components->removeElement($existing);
+                }
+
+                return $this;
+            }
+        }
+        if ($quantity > 0) {
+            $this->components->add(new ProductComponent($this, $component, $quantity));
         }
 
         return $this;
     }
 
+    public function addComponent(self $component, int $quantity = 1): static
+    {
+        return $this->setComponentQuantity($component, $quantity);
+    }
+
     public function removeComponent(self $component): static
     {
-        $this->components->removeElement($component);
+        return $this->setComponentQuantity($component, 0);
+    }
 
-        return $this;
+    /** Quantité d'un article dans la formule ; 0 s'il n'en fait pas partie. */
+    public function componentQuantity(self $component): int
+    {
+        foreach ($this->components as $existing) {
+            if ($existing->getComponent() === $component) {
+                return $existing->getQuantity();
+            }
+        }
+
+        return 0;
+    }
+
+    /** « 2 × Crêpe sucre, 1 × Soda » */
+    public function describeComposition(): string
+    {
+        return implode(', ', array_map(
+            static fn (ProductComponent $c): string => $c->getQuantity().' × '.$c->getComponent()->getName(),
+            $this->components->toArray(),
+        ));
     }
 }

@@ -94,13 +94,19 @@ export class Cart {
   /**
    * Stock restant affiché, panier en cours déduit (information seulement :
    * un article épuisé reste vendable). null = non compté.
+   * Composants d'une formule : [{productId, quantity}].
    */
   remainingStock(menu, product) {
     const used = new Map();
+    const use = (id, quantity) => used.set(id, (used.get(id) ?? 0) + quantity);
     for (const [id, quantity] of this.quantities) {
       const sold = menu.byId.get(id);
-      for (const part of sold.components.length ? sold.components : [id]) {
-        used.set(part, (used.get(part) ?? 0) + quantity);
+      if (sold.components.length) {
+        for (const part of sold.components) {
+          use(part.productId, part.quantity * quantity);
+        }
+      } else {
+        use(id, quantity);
       }
     }
     const left = (id) => {
@@ -110,8 +116,12 @@ export class Cart {
     if (!product.components.length) {
       return left(product.id);
     }
-    const counted = product.components.map(left).filter((stock) => stock !== null);
-    return counted.length ? Math.min(...counted) : null;
+    // Nombre de formules encore possibles avec les articles comptés
+    const possible = product.components
+      .map((part) => ({ stock: left(part.productId), quantity: part.quantity }))
+      .filter((part) => part.stock !== null)
+      .map((part) => Math.floor(part.stock / part.quantity));
+    return possible.length ? Math.min(...possible) : null;
   }
 }
 

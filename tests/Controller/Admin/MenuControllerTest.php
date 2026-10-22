@@ -6,6 +6,7 @@ use App\Entity\AdminUser;
 use App\Entity\AuditLog;
 use App\Entity\Event;
 use App\Entity\Product;
+use App\Menu\IconCatalog;
 use App\Tests\FixturesTrait;
 use App\Tests\ResetDatabaseTrait;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -49,7 +50,10 @@ class MenuControllerTest extends WebTestCase
         $formula = $this->findProduct('Menu Loto');
         self::assertSame(550, $formula->getPriceCents());
         self::assertNull($formula->getInitialStock());
-        self::assertEqualsCanonicalizing(['Hot-dog', 'Soda canette', 'Crêpe sucre'], $formula->getComponents()->map(static fn (Product $p) => $p->getName())->toArray());
+        self::assertSame('1 × Hot-dog, 1 × Soda canette, 1 × Crêpe sucre', $formula->describeComposition());
+        foreach ($this->productRepository()->findAll() as $product) {
+            self::assertTrue(IconCatalog::has($product->getIcon()), $product->getName().' : icône du catalogue');
+        }
 
         // Une seconde fois : refusé, le menu n'est pas vide
         $this->client->request('POST', '/admin/menu/exemple', ['_token' => $token]);
@@ -62,24 +66,26 @@ class MenuControllerTest extends WebTestCase
         $this->createProduct('Café', 100, position: 4);
 
         $crawler = $this->client->request('GET', '/admin/menu');
-        $this->client->submit($crawler->selectButton('Ajouter l\'article')->form([
-            'icon' => '🥤',
+        $this->client->click($crawler->selectLink('Ajouter un article')->link());
+        self::assertResponseIsSuccessful();
+        $this->client->submitForm('Ajouter l\'article', [
             'name' => ' Soda ',
+            'icon' => 'cup-soda',
             'category' => '',
             'price' => '2,5',
             'stock' => '',
-            'kitchen' => false,
             'deposit' => true,
-        ]));
+        ]);
 
-        self::assertResponseRedirects('/admin/menu');
         $soda = $this->findProduct('Soda');
+        self::assertResponseRedirects('/admin/menu#produit-'.$soda->getId());
         self::assertSame(250, $soda->getPriceCents());
+        self::assertSame('cup-soda', $soda->getIcon());
         self::assertNull($soda->getInitialStock());
         self::assertSame('Divers', $soda->getCategory());
         self::assertFalse($soda->goesToKitchen());
         self::assertTrue($soda->hasDeposit());
-        self::assertSame(5, $soda->getPosition());
+        self::assertSame(5, $soda->getPosition(), 'ajouté à la fin du menu');
         self::assertSame(1, $this->auditCount('product.create'));
     }
 
@@ -87,12 +93,12 @@ class MenuControllerTest extends WebTestCase
     {
         self::createEvent();
 
-        $crawler = $this->client->request('GET', '/admin/menu');
-        $this->client->submit($crawler->selectButton('Ajouter l\'article')->form([
+        $this->client->request('GET', '/admin/menu/article/nouveau');
+        $this->client->submitForm('Ajouter l\'article', [
             'name' => '',
             'price' => '2,505',
             'stock' => '-3',
-        ]));
+        ]);
 
         self::assertResponseStatusCodeSame(422);
         $content = $this->content();
@@ -100,6 +106,218 @@ class MenuControllerTest extends WebTestCase
         self::assertStringContainsString('Prix en euros', $content);
         self::assertStringContainsString('Nombre entier, ou vide', $content);
         self::assertSame(0, $this->productRepository()->count());
+    }
+
+    public function testIconMustComeFromTheCatalog(): void
+    {
+        self::createEvent();
+
+        $this->client->request('POST', '/admin/menu/article/nouveau', [
+            '_token' => $this->tokenOnPage('/admin/menu/article/nouveau'),
+            'name' => 'Thé',
+            'icon' => '🍵',
+            'price' => '1',
+        ]);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertStringContainsString('Choisissez une icône dans la liste', $this->content());
+        self::assertSame(0, $this->productRepository()->count());
+    }
+
+    public function testCategoriesAlreadyUsedAreSuggested(): void
+    {
+        self::createEvent();
+        $this->createProduct('Café', 100)->setCategory('Boissons chaudes');
+        self::entityManager()->flush();
+
+        $crawler = $this->client->request('GET', '/admin/menu/article/nouveau');
+
+        self::assertCount(1, $crawler->filterXPath('//datalist[@id="categories"]/option[@value="Boissons chaudes"]'));
+    }
+
+    public function testEditProductTracesChanges(): void
+    {
+        self::createEvent();
+        $cafe = $this->createProduct('Café', 100);
+
+        $this->client->request('GET', '/admin/menu/'.$cafe->getId().'/modifier');
+        $this->client->submitForm('Enregistrer l\'article', ['name' => 'Café long', 'icon' => 'coffee']);
+
+        self::assertResponseRedirects('/admin/menu#produit-'.$cafe->getId());
+        $cafe = $this->findProduct('Café long');
+        self::assertSame('coffee', $cafe->getIcon());
+        $log = self::entityManager()->getRepository(AuditLog::class)->findOneBy(['action' => 'product.update']);
+        self::assertSame(['name' => 'Café', 'icon' => null], $log->getBefore());
+        self::assertSame(['name' => 'Café long', 'icon' => 'coffee'], $log->getAfter());
+    }
+
+    public function testCreateFormulaWithQuantities(): void
+    {
+        self::createEvent();
+        $crepe = $this->createProduct('Crêpe sucre', 150, stock: 70);
+        $soda = $this->createProduct('Soda', 150, stock: 96);
+        $this->createProduct('Café', 100);
+
+        $crawler = $this->client->request('GET', '/admin/menu');
+        $this->client->click($crawler->selectLink('Créer une formule')->link());
+        self::assertResponseIsSuccessful();
+        $this->client->submitForm('Créer la formule', [
+            'name' => 'Goûter',
+            'price' => '4',
+            'components['.$crepe->getId().']' => '2',
+            'components['.$soda->getId().']' => '1',
+        ]);
+
+        $formula = $this->findProduct('Goûter');
+        self::assertResponseRedirects('/admin/menu#produit-'.$formula->getId());
+        self::assertSame('2 × Crêpe sucre, 1 × Soda', $formula->describeComposition());
+        self::assertSame('Formules', $formula->getCategory());
+        self::assertSame('star', $formula->getIcon());
+        self::assertNull($formula->getInitialStock());
+        self::assertSame('2 × Crêpe sucre, 1 × Soda', self::entityManager()->getRepository(AuditLog::class)->findOneBy(['action' => 'product.create'])->getAfter()['composition']);
+
+        // Modifier la composition : une crêpe de plus, plus de soda
+        $this->client->request('GET', '/admin/menu/'.$formula->getId().'/modifier');
+        $this->client->submitForm('Enregistrer la formule', [
+            'components['.$crepe->getId().']' => '3',
+            'components['.$soda->getId().']' => '',
+        ]);
+        self::assertSame('3 × Crêpe sucre', $this->findProduct('Goûter')->describeComposition());
+    }
+
+    public function testFormulaCompositionIsValidated(): void
+    {
+        self::createEvent();
+        $crepe = $this->createProduct('Crêpe sucre', 150);
+        $menu = $this->createProduct('Menu', 450);
+        $menu->addComponent(self::entityManager()->find(Product::class, $crepe->getId()));
+        self::entityManager()->flush();
+        $url = '/admin/menu/formule/nouvelle';
+
+        $cases = [
+            'aucun article' => [[], 'au moins un article'],
+            'quantité trop grande' => [[$crepe->getId() => '21'], 'de 0 à 20'],
+            'quantité négative' => [[$crepe->getId() => '-1'], 'de 0 à 20'],
+            'formule dans une formule' => [[$menu->getId() => '1'], 'ne peut pas faire partie'],
+            'article d\'un autre événement' => [[999999 => '1'], 'ne peut pas faire partie'],
+        ];
+        foreach ($cases as $case => [$components, $message]) {
+            $this->client->request('POST', $url, [
+                '_token' => $this->tokenOnPage($url),
+                'name' => 'Formule test',
+                'price' => '5',
+                'components' => $components,
+            ]);
+            self::assertResponseStatusCodeSame(422, $case);
+            self::assertStringContainsString($message, $this->content(), $case);
+        }
+
+        self::assertNull($this->productRepository()->findOneBy(['name' => 'Formule test']));
+    }
+
+    public function testFormulaPageOnlyOffersSimpleArticles(): void
+    {
+        self::createEvent();
+        $crepe = $this->createProduct('Crêpe sucre', 150);
+        $menu = $this->createProduct('Menu', 450);
+        $menu->addComponent(self::entityManager()->find(Product::class, $crepe->getId()));
+        self::entityManager()->flush();
+
+        $crawler = $this->client->request('GET', '/admin/menu/formule/nouvelle');
+
+        self::assertCount(1, $crawler->filterXPath('//input[@name="components['.$crepe->getId().']"]'));
+        self::assertCount(0, $crawler->filterXPath('//input[@name="components['.$menu->getId().']"]'));
+    }
+
+    public function testMenuShowsArticlesAndFormulasSeparately(): void
+    {
+        self::createEvent();
+        $crepe = $this->createProduct('Crêpe sucre', 150);
+        $menu = $this->createProduct('Goûter', 300);
+        $menu->addComponent(self::entityManager()->find(Product::class, $crepe->getId()), 2);
+        self::entityManager()->flush();
+
+        $crawler = $this->client->request('GET', '/admin/menu');
+
+        $sections = $crawler->filterXPath('//section[contains(@class, "menu-section")]');
+        self::assertStringContainsString('Crêpe sucre', $sections->eq(0)->text());
+        self::assertStringNotContainsString('Goûter', $sections->eq(0)->text());
+        self::assertStringContainsString('Goûter', $sections->eq(1)->text());
+        self::assertStringContainsString('2 × Crêpe sucre', $sections->eq(1)->text());
+        // Pas de stock pour une formule dans le tableau
+        self::assertCount(0, $crawler->filterXPath('//input[@name="products['.$menu->getId().'][stock]"]'));
+    }
+
+    public function testMoveKeepsUnsavedChanges(): void
+    {
+        self::createEvent();
+        $crepe = $this->createProduct('Crêpe sucre', 150, position: 1);
+        $cafe = $this->createProduct('Café', 100, position: 2);
+        $the = $this->createProduct('Thé', 100, position: 3);
+
+        $crawler = $this->client->request('GET', '/admin/menu');
+        $form = $crawler->filterXPath('//button[@name="move" and @value="'.$the->getId().':up"]')->form();
+        $form['products['.$crepe->getId().'][price]'] = '1,80';
+        $this->client->submit($form);
+
+        self::assertResponseRedirects('/admin/menu#produit-'.$the->getId());
+        $names = array_map(static fn (Product $p) => $p->getName(), $this->orderedProducts());
+        self::assertSame(['Crêpe sucre', 'Thé', 'Café'], $names);
+        self::assertSame(180, $this->findProduct('Crêpe sucre')->getPriceCents(), 'la saisie n\'est pas perdue');
+    }
+
+    public function testMoveStaysWithinItsSection(): void
+    {
+        self::createEvent();
+        $crepe = $this->createProduct('Crêpe sucre', 150, position: 1);
+        $menu = $this->createProduct('Goûter', 300, position: 2);
+        $menu->addComponent(self::entityManager()->find(Product::class, $crepe->getId()));
+        self::entityManager()->flush();
+        $cafe = $this->createProduct('Café', 100, position: 3);
+
+        // Le café monte au-dessus de la crêpe, pas de la formule
+        $this->client->request('POST', '/admin/menu', [
+            '_token' => $this->tokenOnPage('/admin/menu', '/admin/menu'),
+            'move' => $cafe->getId().':up',
+        ]);
+
+        $names = array_map(static fn (Product $p) => $p->getName(), $this->orderedProducts());
+        self::assertSame(['Café', 'Goûter', 'Crêpe sucre'], $names);
+    }
+
+    public function testEveryFormRequiresCsrfToken(): void
+    {
+        self::createEvent();
+        $cafe = $this->createProduct('Café', 100);
+        $id = $cafe->getId();
+
+        $requests = [
+            ['/admin/menu', ['products' => [$id => ['price' => '1']]]],
+            ['/admin/menu', ['move' => $id.':down']],
+            ['/admin/menu/article/nouveau', ['name' => 'Thé', 'price' => '1']],
+            ['/admin/menu/formule/nouvelle', ['name' => 'Menu', 'price' => '1', 'components' => [$id => '1']]],
+            ['/admin/menu/'.$id.'/modifier', ['name' => 'Piraté', 'price' => '1']],
+            ['/admin/menu/'.$id.'/retirer', []],
+            ['/admin/menu/exemple', []],
+        ];
+        foreach ($requests as [$url, $data]) {
+            $this->client->request('POST', $url, $data + ['_token' => 'jeton-invalide']);
+            self::assertResponseStatusCodeSame(403, $url);
+        }
+
+        self::assertSame(1, $this->productRepository()->count());
+        self::assertSame('Café', $this->findProduct('Café')->getName());
+    }
+
+    public function testProductOfAnotherEventCannotBeEdited(): void
+    {
+        $other = self::createEvent('Halloween', active: false);
+        $bonbons = $this->createProduct('Bonbons', 100, event: $other);
+        self::createEvent('Loto de Noël');
+
+        $this->client->request('GET', '/admin/menu/'.$bonbons->getId().'/modifier');
+
+        self::assertResponseStatusCodeSame(404);
     }
 
     public function testSaveMenuTracesOnlyChangedFields(): void
@@ -156,53 +374,10 @@ class MenuControllerTest extends WebTestCase
 
         $this->client->request('POST', '/admin/menu', [
             '_token' => $this->tokenOnPage('/admin/menu', '/admin/menu'),
-            'products' => [$otherProduct->getId() => ['position' => '1', 'name' => 'Piraté', 'price' => '0', 'stock' => '']],
+            'products' => [$otherProduct->getId() => ['price' => '0', 'stock' => '']],
         ]);
 
-        self::assertSame('Bonbons', $this->findProductById($otherProduct->getId())->getName());
-    }
-
-    public function testFormulaComponents(): void
-    {
-        self::createEvent();
-        $hotdog = $this->createProduct('Hot-dog', 300, stock: 80);
-        $soda = $this->createProduct('Soda', 150, stock: 96);
-        $menu = $this->createProduct('Menu', 450, stock: 10);
-
-        $this->client->request('POST', '/admin/menu/'.$menu->getId().'/composants', [
-            '_token' => $this->tokenOnPage('/admin/menu/'.$menu->getId().'/composants'),
-            'components' => [(string) $hotdog->getId(), (string) $soda->getId()],
-        ]);
-
-        self::assertResponseRedirects('/admin/menu');
-        $menu = $this->findProduct('Menu');
-        self::assertTrue($menu->isFormula());
-        self::assertNull($menu->getInitialStock(), 'Le stock d\'une formule se déduit de ses composants');
-        self::assertSame(1, $this->auditCount('product.components'));
-
-        // Un composant ne peut pas devenir une formule
-        $this->client->request('GET', '/admin/menu/'.$hotdog->getId().'/composants');
-        self::assertStringContainsString('fait déjà partie d\'une formule', $this->content());
-    }
-
-    public function testFormulaCannotContainItselfOrAnotherFormula(): void
-    {
-        self::createEvent();
-        $hotdog = $this->createProduct('Hot-dog', 300);
-        $menu = $this->createProduct('Menu', 450);
-        $menu->addComponent($hotdog);
-        self::entityManager()->flush();
-        $maxi = $this->createProduct('Maxi menu', 600);
-
-        foreach ([$maxi->getId(), $menu->getId()] as $forbiddenId) {
-            $this->client->request('POST', '/admin/menu/'.$maxi->getId().'/composants', [
-                '_token' => $this->tokenOnPage('/admin/menu/'.$maxi->getId().'/composants'),
-                'components' => [(string) $forbiddenId],
-            ]);
-            self::assertResponseStatusCodeSame(422);
-        }
-
-        self::assertFalse($this->findProduct('Maxi menu')->isFormula());
+        self::assertSame(100, $this->findProductById($otherProduct->getId())->getPriceCents());
     }
 
     public function testRemoveProductAfterConfirmation(): void
@@ -230,28 +405,6 @@ class MenuControllerTest extends WebTestCase
         $this->client->request('GET', '/admin/menu/'.$bonbons->getId().'/retirer');
 
         self::assertResponseStatusCodeSame(404);
-    }
-
-    public function testEveryFormRequiresCsrfToken(): void
-    {
-        self::createEvent();
-        $cafe = $this->createProduct('Café', 100);
-        $id = $cafe->getId();
-
-        $requests = [
-            ['/admin/menu', ['products' => [$id => ['name' => 'X', 'price' => '1', 'position' => '1']]]],
-            ['/admin/menu/ajouter', ['name' => 'Thé', 'price' => '1']],
-            ['/admin/menu/'.$id.'/composants', ['components' => []]],
-            ['/admin/menu/'.$id.'/retirer', []],
-            ['/admin/menu/exemple', []],
-        ];
-        foreach ($requests as [$url, $data]) {
-            $this->client->request('POST', $url, $data + ['_token' => 'jeton-invalide']);
-            self::assertResponseStatusCodeSame(403, $url);
-        }
-
-        self::assertSame(1, $this->productRepository()->count());
-        self::assertSame('Café', $this->findProduct('Café')->getName());
     }
 
     public function testDepositAmountIsShown(): void
@@ -282,6 +435,14 @@ class MenuControllerTest extends WebTestCase
         $form = null === $formAction ? '//form[not(@action)]' : \sprintf('//form[@action="%s"]', $formAction);
 
         return $crawler->filterXPath($form.'//input[@name="_token"]')->attr('value');
+    }
+
+    /** @return list<Product> */
+    private function orderedProducts(): array
+    {
+        self::entityManager()->clear();
+
+        return $this->productRepository()->findBy([], ['position' => 'ASC', 'id' => 'ASC']);
     }
 
     private function productRepository(): \Doctrine\ORM\EntityRepository

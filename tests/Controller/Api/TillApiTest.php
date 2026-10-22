@@ -95,7 +95,11 @@ class TillApiTest extends WebTestCase
         self::assertSame(55, $byName['Soda']['remainingStock']);
         self::assertNull($byName['Café']['remainingStock']);
         self::assertSame(28, $byName['Menu Loto']['remainingStock'], 'formule : plus petit stock de ses composants');
-        self::assertSame([$this->ids['Hot-dog'], $this->ids['Soda'], $this->ids['Crêpe sucre']], $byName['Menu Loto']['components']);
+        self::assertSame([
+            ['productId' => $this->ids['Hot-dog'], 'quantity' => 1],
+            ['productId' => $this->ids['Soda'], 'quantity' => 1],
+            ['productId' => $this->ids['Crêpe sucre'], 'quantity' => 1],
+        ], $byName['Menu Loto']['components']);
         self::assertTrue($byName['Soda']['hasDeposit']);
         self::assertSame(150, $byName['Soda']['priceCents']);
     }
@@ -363,6 +367,39 @@ class TillApiTest extends WebTestCase
 
         self::assertSame(29, $this->stockOf('Crêpe sucre'));
         self::assertSame(39, $this->stockOf('Hot-dog'));
+    }
+
+    public function testFormulaQuantitiesCountInStock(): void
+    {
+        // Une formule « 2 crêpes + 1 soda »
+        $em = self::entityManager();
+        $crepe = $em->find(Product::class, $this->ids['Crêpe sucre']);
+        $duo = $this->product('Duo de crêpes', 350);
+        $duo->addComponent($crepe, 2)->addComponent($em->find(Product::class, $this->ids['Soda']));
+        $em->flush();
+        $duoId = $duo->getId();
+
+        $this->post(['lines' => [['productId' => $duoId, 'quantity' => 3]]] + $this->order());
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame(30 - 6, $this->stockOf('Crêpe sucre'));
+        self::assertSame(60 - 3, $this->stockOf('Soda'));
+        self::assertSame(12, $this->stockOf('Duo de crêpes'), '24 crêpes restantes, 2 par formule');
+        $line = $em->getRepository(Order::class)->findOneBy([])->getLines()->first();
+        self::assertSame([$this->ids['Crêpe sucre'], $this->ids['Crêpe sucre'], $this->ids['Soda']], $line->getComponentIds());
+    }
+
+    public function testMenuOnlySendsKnownIcons(): void
+    {
+        $em = self::entityManager();
+        $em->find(Product::class, $this->ids['Café'])->setIcon('coffee');
+        $em->find(Product::class, $this->ids['Soda'])->setIcon('🥤');
+        $em->flush();
+
+        $icons = array_column($this->getMenu()['products'], 'icon', 'name');
+
+        self::assertSame('coffee', $icons['Café']);
+        self::assertNull($icons['Soda']);
     }
 
     public function testRemovedProductKeepsItsSalesInHistory(): void

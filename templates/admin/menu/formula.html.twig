@@ -1,0 +1,90 @@
+{% extends 'admin/base.html.twig' %}
+{% import 'admin/menu/_macros.html.twig' as m %}
+
+{% set title = is_new ? 'Créer une formule' : 'Modifier la formule « ' ~ product.name ~ ' »' %}
+{% block title %}{{ title }} · Administration{% endblock %}
+
+{% block javascripts %}
+    <script type="module" src="{{ app.request.basePath }}/js/admin-formula.js"></script>
+{% endblock %}
+
+{% block body %}
+    <p><a href="{{ path('admin_menu') }}">← Retour au menu</a></p>
+
+    <section class="card form-card menu-form">
+        <h1>{{ title }}</h1>
+        <p class="lede">Une formule regroupe plusieurs articles vendus ensemble à un prix donné. Vendre la formule décompte le stock de chacun de ses articles.</p>
+        {% if errors is not empty %}
+            <p class="alert alert-error" role="alert">La formule n'est pas enregistrée : corrigez les champs signalés.</p>
+        {% endif %}
+
+        {% if candidates_by_category is empty %}
+            <p class="card empty">Ajoutez d'abord des articles au menu : une formule se compose d'articles existants. <a href="{{ path('admin_menu_product_new') }}">Ajouter un article</a></p>
+        {% else %}
+        <form method="post" novalidate>
+            <div class="field">
+                <label for="name">Nom de la formule</label>
+                <input type="text" id="name" name="name" value="{{ values.name }}" maxlength="80" placeholder="Menu Loto" required{{ m.invalid(errors, 'name') }}>
+                {{ m.error(errors, 'name') }}
+            </div>
+
+            <fieldset class="field composition" aria-describedby="composition-help">
+                <legend>Articles inclus</legend>
+                <p class="field-help" id="composition-help">Indiquez combien de chaque article la formule contient. Laissez vide les articles qui n'en font pas partie.</p>
+                {{ m.error(errors, 'components') }}
+                {% for category, candidates in candidates_by_category %}
+                    <p class="icon-group">{{ category }}</p>
+                    {% for candidate in candidates %}
+                        <div class="composition-row">
+                            <span class="{{ icon_class(candidate.icon) }}" aria-hidden="true"></span>
+                            <label for="component-{{ candidate.id }}">{{ candidate.name }}</label>
+                            <span class="num lede">{{ candidate.priceCents|euros }}</span>
+                            <input type="number" id="component-{{ candidate.id }}" name="components[{{ candidate.id }}]" value="{{ values.components[candidate.id] ?? '' }}"
+                                   min="0" max="20" step="1" inputmode="numeric" class="num input-qty" placeholder="0"
+                                   data-price-cents="{{ candidate.priceCents }}" data-kitchen="{{ candidate.goesToKitchen ? '1' : '0' }}">
+                        </div>
+                    {% endfor %}
+                {% endfor %}
+            </fieldset>
+
+            <div class="field-row">
+                <div class="field">
+                    <label for="price">Prix de la formule (€)</label>
+                    <input type="text" id="price" name="price" value="{{ values.price }}" inputmode="decimal" class="num" placeholder="5,50"{{ m.invalid(errors, 'price') }}>
+                    {{ m.error(errors, 'price') }}
+                </div>
+            </div>
+            <p class="field-help formula-summary" id="formula-summary" hidden>
+                Prix des articles achetés séparément : <strong class="num" id="separate-price"></strong>.
+                <span id="saving"></span>
+            </p>
+
+            {{ include('admin/menu/_icon_picker.html.twig', {selected: values.icon, error: errors.icon ?? null}) }}
+
+            <div class="field">
+                <label for="category">Catégorie</label>
+                <input type="text" id="category" name="category" value="{{ values.category }}" maxlength="40" list="categories" placeholder="Formules"{{ m.invalid(errors, 'category') }}>
+                <datalist id="categories">
+                    {% for category in categories %}<option value="{{ category }}"></option>{% endfor %}
+                </datalist>
+                {{ m.error(errors, 'category') }}
+            </div>
+
+            <label class="check"><input type="checkbox" id="kitchen" name="kitchen" value="1" {{ values.kitchen ? 'checked' }}> Passe en cuisine</label>
+            <p class="field-help">Coché automatiquement quand vous ajoutez un article préparé en cuisine.</p>
+            <label class="check"><input type="checkbox" name="deposit" value="1" {{ values.deposit ? 'checked' }}> Avec consigne{% if event.depositCents %} ({{ event.depositCents|euros }}){% endif %}</label>
+            <p class="field-help">Pour une formule, c'est cette case qui compte, pas celles de ses articles.</p>
+
+            <input type="hidden" name="_token" value="{{ csrf_token('menu-product-' ~ (product.id ?? 'new')) }}">
+            <div class="form-actions">
+                <a class="btn" href="{{ path('admin_menu') }}">Annuler</a>
+                <button type="submit" class="btn btn-primary">{{ is_new ? 'Créer la formule' : 'Enregistrer la formule' }}</button>
+            </div>
+        </form>
+        {% endif %}
+
+        {% if not is_new %}
+            <p class="form-footer"><a href="{{ path('admin_menu_remove', {id: product.id}) }}">Retirer cette formule du menu</a></p>
+        {% endif %}
+    </section>
+{% endblock %}

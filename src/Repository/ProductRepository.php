@@ -41,7 +41,7 @@ class ProductRepository extends ServiceEntityRepository
         return (bool) $this->createQueryBuilder('f')
             ->select('COUNT(f.id)')
             ->innerJoin('f.components', 'c')
-            ->where('c = :product')
+            ->where('c.component = :product')
             ->setParameter('product', $product)
             ->getQuery()
             ->getSingleScalarResult();
