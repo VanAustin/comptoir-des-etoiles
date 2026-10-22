@@ -1,0 +1,28 @@
+meta {
+  name: 5. Remise au client
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/till/orders/{{readyOrderUuid}}/served
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_caisse}}
+}
+
+tests {
+  test("la commande est remise (200)", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.status).to.equal("served");
+  });
+}
+
+docs {
+  Le client récupère au comptoir une commande prête. Relancer la requête ne change rien (200).
+
+  Il faut une commande prête : faites-la avancer avec « Cuisine / 2. Faire avancer la commande » jusqu'à « ready », puis lancez « 4. Suivi des commandes ». Une commande pas encore prête est refusée (409).
+}

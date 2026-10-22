@@ -7,13 +7,14 @@ import { getNumbering, getPairing, saveNumbering } from "./device-store.js";
 import { el } from "./dom.js";
 import { formatEuros, parseEuros } from "./money.js";
 import { Cart, MAX_QUANTITY, indexMenu, newUuid } from "./till-cart.js";
+import { TillTracking } from "./till-tracking.js";
 
 const ALL = "Tout";
 /** Relecture du menu : stocks des autres caisses, prix modifiés, articles retirés. */
 const MENU_REFRESH_MS = 30000;
 
 const $ = (id) => document.getElementById(id);
-const views = { status: $("till-status"), main: $("till-main"), pay: $("till-pay"), done: $("till-done") };
+const views = { status: $("till-status"), main: $("till-main"), pay: $("till-pay"), track: $("till-track-view"), done: $("till-done") };
 
 const cart = new Cart();
 let menu = null;
@@ -24,6 +25,26 @@ const payment = { method: "cash", receivedCents: null, exact: false };
 /** Dernière tentative d'envoi : renvoyée avec le même UUID si rien n'a changé (pas de doublon). */
 let attempt = null;
 let sending = false;
+
+/** Vue affichée avant d'ouvrir le suivi, pour y revenir. */
+let beforeTracking = "main";
+const tracking = new TillTracking({
+  onOpen: () => {
+    if (!views.track.hidden || sending) {
+      return;
+    }
+    beforeTracking = Object.keys(views).find((key) => !views[key].hidden) ?? "main";
+    show("track");
+    $("track-search").focus();
+  },
+  onClose: () => {
+    show(beforeTracking);
+    if (beforeTracking === "main") {
+      render();
+    }
+  },
+  onFatal: (error) => showStatus(error.message, { pairLink: true }),
+});
 
 function show(name) {
   for (const [key, view] of Object.entries(views)) {
@@ -64,6 +85,7 @@ async function start() {
     return;
   }
   await loadMenu({ initial: true });
+  tracking.start();
   setInterval(refreshMenu, MENU_REFRESH_MS);
   document.addEventListener("visibilitychange", refreshMenu);
 }
@@ -349,6 +371,7 @@ async function submitOrder() {
     attempt = null;
     await setNextNumber(order.number + 1);
     showDone(order);
+    tracking.refresh();
     cart.clear();
     loadMenu(); // Stocks à jour pour la commande suivante
   } catch (error) {
@@ -400,6 +423,14 @@ function showDone(order) {
   $("done-lede").textContent = kitchen ? "Commande enregistrée, envoyée en cuisine" : "Commande enregistrée";
   $("done-number").textContent = order.displayNumber;
   $("done-help").textContent = kitchen ? "Donnez ce numéro au client." : "À servir directement au comptoir.";
+  // Commandes déjà en cuisine avant celle-ci : de quoi annoncer l'attente au client
+  const ahead = kitchen ? tracking.waitingInKitchen(order.uuid) : null;
+  $("done-queue").hidden = ahead === null;
+  if (ahead !== null) {
+    $("done-queue").textContent = ahead === 0
+      ? "Aucune commande avant celle-ci en cuisine."
+      : `${ahead} commande${ahead > 1 ? "s" : ""} avant celle-ci en cuisine.`;
+  }
 
   const change = order.changeCents;
   $("done-change").hidden = !change;

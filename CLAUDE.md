@@ -60,6 +60,7 @@ PHP, Composer et Symfony ne sont **pas** installés sur le Mac : tout tourne dan
   - Les temps d'attente se calculent sur l'heure du serveur (`serverTime`), jamais sur l'horloge de la tablette.
   - La cuisine fait avancer une commande avec `POST /api/orders/{uuid}/status` ; redemander l'état actuel ne change rien (deux tablettes cuisine), un autre état non autorisé répond 409 avec l'état actuel.
   - L'écran Arrivées montre les 12 dernières commandes prêtes et toutes celles en préparation.
+  - La caisse suit les commandes en cours (`GET /api/till/orders`, toutes les 5 secondes) : résumé dans l'en-tête, panneau « Suivi » avec recherche par numéro, et nombre de commandes avant la nouvelle en cuisine.
   - Chaque caisse relit le menu toutes les 30 secondes, seulement sur la grille (jamais pendant un paiement) : stocks des autres caisses, prix modifiés, articles retirés.
 - **Stocks** : le stock restant est calculé à partir des ventes (stock de départ moins quantités vendues des commandes non annulées), jamais stocké comme un compteur décrémenté. Le stock est une **information, jamais une limite** : ni le serveur ni la caisse ne bloquent une vente (stocks de départ approximatifs, ventes hors ligne), et il peut devenir négatif. Une formule décompte les composants figés sur la ligne au moment de la vente ; son stock restant est le nombre de formules encore possibles avec ses composants comptés (stock de chaque composant divisé par sa quantité, le plus petit l'emporte).
 
@@ -129,7 +130,7 @@ Usage prévu : une APE, petite échelle. Mais le code est écrit **comme s'il é
 - La tablette échange ce code contre un **jeton** aléatoire (32 octets, `random_bytes`). Le serveur n'en garde que l'empreinte SHA-256. La tablette le conserve et l'envoie dans l'en-tête `Authorization: Bearer`.
 - Le jeton expire à la fin de l'événement (par défaut le lendemain à 6 h) et peut être révoqué à tout moment depuis l'administration.
 - Chaque rôle n'accède qu'à ce dont il a besoin :
-  - `caisse` : lire le menu et les stocks, créer des commandes.
+  - `caisse` : lire le menu et les stocks, créer des commandes, suivre les commandes en cours (numéros et états seulement) et remettre au client une commande prête (`POST /api/till/orders/{uuid}/served`, au comptoir de la buvette).
   - `cuisine` : lire les commandes en cours, faire avancer leur état.
   - `affichage` : lire uniquement les numéros et leur état, rien d'autre (pas de montants, pas d'articles).
 - Limitation de débit par tablette sur l'API (par exemple 120 requêtes par minute), pour encaisser l'interrogation toutes les 2 à 3 secondes sans permettre d'abus.
