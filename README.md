@@ -53,6 +53,16 @@ docker compose exec php bin/phpunit
 
 Pour arrêter le conteneur : `docker compose down`.
 
+## Consulter la base de données (Adminer)
+
+Adminer est un outil web proche de phpMyAdmin, qui sait lire la base SQLite du projet. Il démarre avec `docker compose up -d`.
+
+1. Ouvrez <http://localhost:8082> : le type de base (SQLite) et le fichier (`/var/db/data_dev.db`) sont déjà remplis.
+2. Mot de passe : `comptoir` (laissez « Utilisateur » vide).
+3. Cliquez sur une table à gauche, puis sur « Afficher les données ».
+
+Adminer n'est accessible que depuis votre ordinateur et n'existe qu'en développement. Préférez la consultation : une modification faite ici contourne les vérifications de l'application et l'historique des changements. Pour modifier un prix, un stock ou une icône, passez par l'administration.
+
 ## Tester l'API des tablettes avec Bruno
 
 Le dossier `bruno/` contient une collection pour [Bruno](https://www.usebruno.com/), un logiciel gratuit pour envoyer des requêtes à l'API et vérifier les réponses.
@@ -64,7 +74,7 @@ Le dossier `bruno/` contient une collection pour [Bruno](https://www.usebruno.co
 
 Chaque requête contient ses tests ; « Run » sur un dossier les lance tous. Le jeton reçu reste en mémoire dans Bruno et n'est jamais écrit dans les fichiers.
 
-Si le port 8080 est déjà utilisé par un autre programme, arrêtez ce programme avant de lancer `docker compose up`.
+Si le port 8080 ou 8082 est déjà utilisé par un autre programme, arrêtez ce programme avant de lancer `docker compose up`.
 
 ## Licence
 

@@ -6,3 +6,15 @@ services:
     volumes:
       # Le projet entier est monté, var/ (et donc la base SQLite) compris
       - .:/var/www/html
+
+  # Consultation de la base en développement, façon phpMyAdmin : http://localhost:8082
+  # Accessible depuis ce Mac uniquement ; n'existe pas en production.
+  adminer:
+    image: adminer:5.5.1
+    ports:
+      - "127.0.0.1:8082:8080"
+    environment:
+      ADMINER_PASSWORD: comptoir
+    volumes:
+      - ./var:/var/db
+      - ./docker/adminer/login.php:/var/www/html/plugins-enabled/login.php:ro
