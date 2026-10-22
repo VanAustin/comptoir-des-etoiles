@@ -12,6 +12,7 @@
 
 {% block nav %}
     <span class="who" id="till-who"></span>
+    <button type="button" class="btn btn-small track-summary" id="till-track" hidden>Suivi</button>
     <a class="btn btn-small" href="{{ path('app_pair') }}">Tablette</a>
 {% endblock %}
 
@@ -86,10 +87,31 @@
         </div>
     </section>
 
+    <section id="till-track-view" class="card panel track" aria-labelledby="track-title" hidden>
+        <div class="track-head">
+            <h2 id="track-title">Suivi des commandes</h2>
+            <button type="button" class="btn" id="track-close">Revenir à la caisse</button>
+        </div>
+        <div class="field">
+            <label for="track-search">Rechercher un numéro</label>
+            <input type="text" id="track-search" autocomplete="off" autocapitalize="characters" class="num" placeholder="A12">
+        </div>
+        <p id="track-offline" class="alert alert-error" role="status" hidden>Connexion perdue : le suivi n'est peut-être plus à jour.</p>
+
+        <h3>Prêtes · à remettre au client</h3>
+        <ul class="track-list" id="track-ready"></ul>
+        <p class="empty" id="track-ready-none">Aucune commande prête.</p>
+
+        <h3>En cuisine</h3>
+        <ul class="track-list" id="track-kitchen"></ul>
+        <p class="empty" id="track-kitchen-none">Rien en cuisine.</p>
+    </section>
+
     <section id="till-done" class="card panel ordernum" aria-labelledby="done-lede" hidden>
         <p class="lede" id="done-lede"></p>
         <p class="n num" id="done-number"></p>
         <p id="done-help"></p>
+        <p class="lede" id="done-queue" hidden></p>
         <div class="change" id="done-change" hidden>
             <span id="done-change-label"></span><span class="num" id="done-change-amount"></span>
         </div>
