@@ -23,7 +23,7 @@ main.till { max-width: 1400px; padding-block: 16px; }
   background: var(--surface); border: 1px solid var(--kraft); border-radius: var(--rayon);
 }
 .item:active { transform: scale(.97); }
-.item .emo { font-size: 34px; line-height: 1; }
+.item > .icon { font-size: 34px; color: var(--renard-texte); }
 .item .nm { font-weight: 700; line-height: 1.2; }
 .item .pr { margin-top: auto; font-weight: 700; font-size: 17px; }
 .item .stk {

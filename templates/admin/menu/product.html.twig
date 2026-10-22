@@ -1,0 +1,66 @@
+{% extends 'admin/base.html.twig' %}
+{% import 'admin/menu/_macros.html.twig' as m %}
+
+{% set title = is_new ? 'Ajouter un article' : 'Modifier « ' ~ product.name ~ ' »' %}
+{% block title %}{{ title }} · Administration{% endblock %}
+
+{% block body %}
+    <p><a href="{{ path('admin_menu') }}">← Retour au menu</a></p>
+
+    <section class="card form-card menu-form">
+        <h1>{{ title }}</h1>
+        {% if errors is not empty %}
+            <p class="alert alert-error" role="alert">L'article n'est pas enregistré : corrigez les champs signalés.</p>
+        {% endif %}
+
+        <form method="post" novalidate>
+            <div class="field">
+                <label for="name">Nom</label>
+                <input type="text" id="name" name="name" value="{{ values.name }}" maxlength="80" placeholder="Crêpe sucre" required{{ m.invalid(errors, 'name') }}>
+                {{ m.error(errors, 'name') }}
+            </div>
+
+            {{ include('admin/menu/_icon_picker.html.twig', {selected: values.icon, error: errors.icon ?? null}) }}
+
+            <div class="field">
+                <label for="category">Catégorie</label>
+                <input type="text" id="category" name="category" value="{{ values.category }}" maxlength="40" list="categories" placeholder="Divers" aria-describedby="category-help"{{ m.invalid(errors, 'category') }}>
+                <datalist id="categories">
+                    {% for category in categories %}<option value="{{ category }}"></option>{% endfor %}
+                </datalist>
+                <p class="field-help" id="category-help">Les articles sont regroupés par catégorie sur la caisse. Choisissez-en une existante ou tapez-en une nouvelle.</p>
+                {{ m.error(errors, 'category') }}
+            </div>
+
+            <div class="field-row">
+                <div class="field">
+                    <label for="price">Prix (€)</label>
+                    <input type="text" id="price" name="price" value="{{ values.price }}" inputmode="decimal" class="num" placeholder="1,50"{{ m.invalid(errors, 'price') }}>
+                    {{ m.error(errors, 'price') }}
+                </div>
+                <div class="field">
+                    <label for="stock">Stock de départ</label>
+                    <input type="text" id="stock" name="stock" value="{{ values.stock }}" inputmode="numeric" class="num" placeholder="non compté" aria-describedby="stock-help"{{ m.invalid(errors, 'stock') }}>
+                    {{ m.error(errors, 'stock') }}
+                </div>
+            </div>
+            <p class="field-help" id="stock-help">Laissez le stock vide pour un article non compté (café, thé…). Le stock sert d'information : il ne bloque jamais une vente.</p>
+
+            <label class="check"><input type="checkbox" name="kitchen" value="1" {{ values.kitchen ? 'checked' }}> Passe en cuisine</label>
+            <label class="check"><input type="checkbox" name="deposit" value="1" {{ values.deposit ? 'checked' }}> Avec consigne{% if event.depositCents %} ({{ event.depositCents|euros }}){% endif %}</label>
+
+            <input type="hidden" name="_token" value="{{ csrf_token('menu-product-' ~ (product.id ?? 'new')) }}">
+            <div class="form-actions">
+                <a class="btn" href="{{ path('admin_menu') }}">Annuler</a>
+                <button type="submit" class="btn btn-primary">{{ is_new ? 'Ajouter l\'article' : 'Enregistrer l\'article' }}</button>
+            </div>
+        </form>
+
+        {% if not is_new %}
+            <p class="form-footer">
+                {% if used_as_component %}Cet article fait partie d'au moins une formule. {% endif %}
+                <a href="{{ path('admin_menu_remove', {id: product.id}) }}">Retirer cet article du menu</a>
+            </p>
+        {% endif %}
+    </section>
+{% endblock %}

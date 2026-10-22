@@ -1,0 +1,53 @@
+/* Icônes des articles (Lucide, licence ISC : public/img/icons/LICENSE.txt).
+   Dessinées avec la couleur du texte grâce à un masque : elles suivent le thème clair ou sombre. */
+
+.icon {
+  display: inline-block; width: 1em; height: 1em; flex: none; background-color: currentColor;
+  -webkit-mask: center / contain no-repeat; mask: center / contain no-repeat;
+}
+.icon-sandwich { -webkit-mask-image: url(../img/icons/sandwich.svg); mask-image: url(../img/icons/sandwich.svg); }
+.icon-hamburger { -webkit-mask-image: url(../img/icons/hamburger.svg); mask-image: url(../img/icons/hamburger.svg); }
+.icon-pizza { -webkit-mask-image: url(../img/icons/pizza.svg); mask-image: url(../img/icons/pizza.svg); }
+.icon-ham { -webkit-mask-image: url(../img/icons/ham.svg); mask-image: url(../img/icons/ham.svg); }
+.icon-drumstick { -webkit-mask-image: url(../img/icons/drumstick.svg); mask-image: url(../img/icons/drumstick.svg); }
+.icon-beef { -webkit-mask-image: url(../img/icons/beef.svg); mask-image: url(../img/icons/beef.svg); }
+.icon-fish { -webkit-mask-image: url(../img/icons/fish.svg); mask-image: url(../img/icons/fish.svg); }
+.icon-egg-fried { -webkit-mask-image: url(../img/icons/egg-fried.svg); mask-image: url(../img/icons/egg-fried.svg); }
+.icon-salad { -webkit-mask-image: url(../img/icons/salad.svg); mask-image: url(../img/icons/salad.svg); }
+.icon-carrot { -webkit-mask-image: url(../img/icons/carrot.svg); mask-image: url(../img/icons/carrot.svg); }
+.icon-soup { -webkit-mask-image: url(../img/icons/soup.svg); mask-image: url(../img/icons/soup.svg); }
+.icon-cooking-pot { -webkit-mask-image: url(../img/icons/cooking-pot.svg); mask-image: url(../img/icons/cooking-pot.svg); }
+.icon-popcorn { -webkit-mask-image: url(../img/icons/popcorn.svg); mask-image: url(../img/icons/popcorn.svg); }
+.icon-wheat { -webkit-mask-image: url(../img/icons/wheat.svg); mask-image: url(../img/icons/wheat.svg); }
+.icon-croissant { -webkit-mask-image: url(../img/icons/croissant.svg); mask-image: url(../img/icons/croissant.svg); }
+.icon-cake-slice { -webkit-mask-image: url(../img/icons/cake-slice.svg); mask-image: url(../img/icons/cake-slice.svg); }
+.icon-cake { -webkit-mask-image: url(../img/icons/cake.svg); mask-image: url(../img/icons/cake.svg); }
+.icon-cupcake { -webkit-mask-image: url(../img/icons/cupcake.svg); mask-image: url(../img/icons/cupcake.svg); }
+.icon-cookie { -webkit-mask-image: url(../img/icons/cookie.svg); mask-image: url(../img/icons/cookie.svg); }
+.icon-donut { -webkit-mask-image: url(../img/icons/donut.svg); mask-image: url(../img/icons/donut.svg); }
+.icon-dessert { -webkit-mask-image: url(../img/icons/dessert.svg); mask-image: url(../img/icons/dessert.svg); }
+.icon-ice-cream-cone { -webkit-mask-image: url(../img/icons/ice-cream-cone.svg); mask-image: url(../img/icons/ice-cream-cone.svg); }
+.icon-popsicle { -webkit-mask-image: url(../img/icons/popsicle.svg); mask-image: url(../img/icons/popsicle.svg); }
+.icon-candy { -webkit-mask-image: url(../img/icons/candy.svg); mask-image: url(../img/icons/candy.svg); }
+.icon-lollipop { -webkit-mask-image: url(../img/icons/lollipop.svg); mask-image: url(../img/icons/lollipop.svg); }
+.icon-apple { -webkit-mask-image: url(../img/icons/apple.svg); mask-image: url(../img/icons/apple.svg); }
+.icon-cherry { -webkit-mask-image: url(../img/icons/cherry.svg); mask-image: url(../img/icons/cherry.svg); }
+.icon-banana { -webkit-mask-image: url(../img/icons/banana.svg); mask-image: url(../img/icons/banana.svg); }
+.icon-coffee { -webkit-mask-image: url(../img/icons/coffee.svg); mask-image: url(../img/icons/coffee.svg); }
+.icon-cup-soda { -webkit-mask-image: url(../img/icons/cup-soda.svg); mask-image: url(../img/icons/cup-soda.svg); }
+.icon-glass-water { -webkit-mask-image: url(../img/icons/glass-water.svg); mask-image: url(../img/icons/glass-water.svg); }
+.icon-citrus { -webkit-mask-image: url(../img/icons/citrus.svg); mask-image: url(../img/icons/citrus.svg); }
+.icon-milk { -webkit-mask-image: url(../img/icons/milk.svg); mask-image: url(../img/icons/milk.svg); }
+.icon-beer { -webkit-mask-image: url(../img/icons/beer.svg); mask-image: url(../img/icons/beer.svg); }
+.icon-wine { -webkit-mask-image: url(../img/icons/wine.svg); mask-image: url(../img/icons/wine.svg); }
+.icon-bottle-wine { -webkit-mask-image: url(../img/icons/bottle-wine.svg); mask-image: url(../img/icons/bottle-wine.svg); }
+.icon-martini { -webkit-mask-image: url(../img/icons/martini.svg); mask-image: url(../img/icons/martini.svg); }
+.icon-utensils { -webkit-mask-image: url(../img/icons/utensils.svg); mask-image: url(../img/icons/utensils.svg); }
+.icon-chef-hat { -webkit-mask-image: url(../img/icons/chef-hat.svg); mask-image: url(../img/icons/chef-hat.svg); }
+.icon-star { -webkit-mask-image: url(../img/icons/star.svg); mask-image: url(../img/icons/star.svg); }
+.icon-gift { -webkit-mask-image: url(../img/icons/gift.svg); mask-image: url(../img/icons/gift.svg); }
+.icon-ticket { -webkit-mask-image: url(../img/icons/ticket.svg); mask-image: url(../img/icons/ticket.svg); }
+.icon-package { -webkit-mask-image: url(../img/icons/package.svg); mask-image: url(../img/icons/package.svg); }
+
+/* Article sans icône, ou icône inconnue */
+.icon-default { -webkit-mask-image: url(../img/icons/utensils.svg); mask-image: url(../img/icons/utensils.svg); }

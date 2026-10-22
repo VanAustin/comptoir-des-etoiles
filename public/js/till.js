@@ -150,7 +150,8 @@ function productButton(product) {
     attrs: { type: "button", "aria-label": label },
     on: { click: () => addProduct(product.id) },
   }, [
-    el("span", { class: "emo", text: product.icon || "🍽️", attrs: { "aria-hidden": "true" } }),
+    // Clé d'icône validée par le serveur (catalogue), sinon l'icône par défaut
+    el("span", { class: `icon icon-${product.icon ?? "default"}`, attrs: { "aria-hidden": "true" } }),
     el("span", { class: "nm", text: product.name }),
     el("span", { class: "pr num", text: formatEuros(product.priceCents) }),
     stockBadge,

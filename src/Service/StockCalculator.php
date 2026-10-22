@@ -45,14 +45,17 @@ class StockCalculator
             }
         }
 
-        // Une formule : le plus petit stock restant parmi ses composants comptés
+        // Une formule : nombre de formules encore possibles avec les composants comptés
         foreach ($products as $product) {
             if ($product->isFormula()) {
-                $counted = array_filter(
-                    array_map(static fn (Product $c): ?int => $remaining[$c->getId()] ?? null, $product->getComponents()->toArray()),
-                    static fn (?int $stock): bool => null !== $stock,
-                );
-                $remaining[$product->getId()] = [] === $counted ? null : min($counted);
+                $possible = [];
+                foreach ($product->getComponents() as $component) {
+                    $left = $remaining[$component->getComponent()->getId()] ?? null;
+                    if (null !== $left) {
+                        $possible[] = (int) floor($left / $component->getQuantity());
+                    }
+                }
+                $remaining[$product->getId()] = [] === $possible ? null : min($possible);
             }
         }
 

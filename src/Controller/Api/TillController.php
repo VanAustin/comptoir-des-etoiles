@@ -6,6 +6,8 @@ use App\Entity\Device;
 use App\Entity\Order;
 use App\Entity\OrderLine;
 use App\Entity\Product;
+use App\Entity\ProductComponent;
+use App\Menu\IconCatalog;
 use App\Repository\OrderRepository;
 use App\Repository\ProductRepository;
 use App\Service\OrderPlacement;
@@ -42,12 +44,16 @@ class TillController extends AbstractController
             'products' => array_map(static fn (Product $p): array => [
                 'id' => $p->getId(),
                 'name' => $p->getName(),
-                'icon' => $p->getIcon(),
+                // Clé d'icône du catalogue, ou null : la caisse affiche alors l'icône par défaut
+                'icon' => IconCatalog::has($p->getIcon()) ? $p->getIcon() : null,
                 'category' => $p->getCategory(),
                 'priceCents' => $p->getPriceCents(),
                 'goesToKitchen' => $p->goesToKitchen(),
                 'hasDeposit' => $p->hasDeposit(),
-                'components' => array_values(array_map(static fn (Product $c): int => (int) $c->getId(), $p->getComponents()->toArray())),
+                'components' => array_values(array_map(static fn (ProductComponent $c): array => [
+                    'productId' => $c->getComponent()->getId(),
+                    'quantity' => $c->getQuantity(),
+                ], $p->getComponents()->toArray())),
                 // Information seulement : un stock épuisé ne bloque pas la vente
                 'remainingStock' => $remaining[$p->getId()] ?? null,
             ], $list),

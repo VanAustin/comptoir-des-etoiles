@@ -44,8 +44,8 @@ class OrderLine
     private bool $goesToKitchen;
 
     /**
-     * Composants d'une formule au moment de la vente (identifiants d'articles) :
-     * le stock reste juste même si la formule est modifiée ensuite.
+     * Composants d'une formule au moment de la vente (un identifiant d'article
+     * par unité) : le stock reste juste même si la formule est modifiée ensuite.
      *
      * @var list<int>|null
      */
@@ -68,7 +68,12 @@ class OrderLine
     {
         $line = new self($order, LineKind::Article, $product, $product->getName(), $product->getPriceCents(), $quantity, $product->goesToKitchen());
         if ($product->isFormula()) {
-            $line->componentIds = array_values(array_map(static fn (Product $c): int => (int) $c->getId(), $product->getComponents()->toArray()));
+            // Un identifiant par unité : « 2 crêpes » figé comme [crêpe, crêpe]
+            $ids = [];
+            foreach ($product->getComponents() as $component) {
+                array_push($ids, ...array_fill(0, $component->getQuantity(), (int) $component->getComponent()->getId()));
+            }
+            $line->componentIds = $ids;
         }
 
         return $line;

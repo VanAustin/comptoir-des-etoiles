@@ -12,20 +12,20 @@ use Doctrine\ORM\EntityManagerInterface;
  */
 class ExampleMenu
 {
-    /** [clé, icône, nom, catégorie, prix en centimes, stock de départ, cuisine, composants] */
+    /** [clé, icône (voir IconCatalog), nom, catégorie, prix en centimes, stock de départ, cuisine, composants] */
     private const ITEMS = [
-        ['croque', '🥪', 'Croque-monsieur', 'Salé', 300, 60, true, []],
-        ['hotdog', '🌭', 'Hot-dog', 'Salé', 300, 80, true, []],
-        ['pizza', '🍕', 'Part de pizza', 'Salé', 250, 48, true, []],
-        ['crepe-sucre', '🥞', 'Crêpe sucre', 'Sucré', 150, 70, true, []],
-        ['crepe-choco', '🍫', 'Crêpe chocolat', 'Sucré', 200, 70, true, []],
-        ['gateau', '🍰', 'Part de gâteau', 'Sucré', 150, 40, false, []],
-        ['soda', '🥤', 'Soda canette', 'Boissons', 150, 96, false, []],
-        ['jus', '🧃', 'Jus de fruits', 'Boissons', 100, 60, false, []],
-        ['eau', '💧', 'Eau 50 cl', 'Boissons', 100, 48, false, []],
-        ['cafe', '☕', 'Café', 'Boissons', 100, null, false, []],
-        ['chocolat', '♨️', 'Chocolat chaud', 'Boissons', 150, null, false, []],
-        ['menu-loto', '⭐', 'Menu Loto', 'Formules', 550, null, true, ['hotdog', 'soda', 'crepe-sucre']],
+        ['croque', 'sandwich', 'Croque-monsieur', 'Salé', 300, 60, true, []],
+        ['hotdog', 'sandwich', 'Hot-dog', 'Salé', 300, 80, true, []],
+        ['pizza', 'pizza', 'Part de pizza', 'Salé', 250, 48, true, []],
+        ['crepe-sucre', 'dessert', 'Crêpe sucre', 'Sucré', 150, 70, true, []],
+        ['crepe-choco', 'dessert', 'Crêpe chocolat', 'Sucré', 200, 70, true, []],
+        ['gateau', 'cake-slice', 'Part de gâteau', 'Sucré', 150, 40, false, []],
+        ['soda', 'cup-soda', 'Soda canette', 'Boissons', 150, 96, false, []],
+        ['jus', 'citrus', 'Jus de fruits', 'Boissons', 100, 60, false, []],
+        ['eau', 'glass-water', 'Eau 50 cl', 'Boissons', 100, 48, false, []],
+        ['cafe', 'coffee', 'Café', 'Boissons', 100, null, false, []],
+        ['chocolat', 'coffee', 'Chocolat chaud', 'Boissons', 150, null, false, []],
+        ['menu-loto', 'star', 'Menu Loto', 'Formules', 550, null, true, ['hotdog', 'soda', 'crepe-sucre']],
     ];
 
     public function __construct(
