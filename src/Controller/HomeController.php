@@ -26,6 +26,13 @@ class HomeController extends AbstractController
         return $this->render('pair.html.twig');
     }
 
+    /** Écran Caisse : la page ne contient aucune donnée, le menu est lu par l'API avec le jeton. */
+    #[Route('/caisse', name: 'app_till', methods: ['GET'])]
+    public function till(): Response
+    {
+        return $this->render('till.html.twig');
+    }
+
     /**
      * Logo de l'association : déposé par chaque installation dans var/uploads/,
      * jamais commité. À défaut, le logo générique du dépôt.

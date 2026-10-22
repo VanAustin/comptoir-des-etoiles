@@ -5,10 +5,14 @@ import { getPairing } from "./device-store.js";
 const BASE_PATH = document.documentElement.dataset.basePath ?? "";
 
 export class ApiError extends Error {
-  /** @param {number} status 0 si le serveur n'a pas répondu */
-  constructor(message, status) {
+  /**
+   * @param {number} status 0 si le serveur n'a pas répondu
+   * @param {object} data corps de la réponse (par exemple nextNumber sur un conflit de numéro)
+   */
+  constructor(message, status, data = {}) {
     super(message);
     this.status = status;
+    this.data = data;
   }
 }
 
@@ -43,7 +47,7 @@ export async function apiFetch(path, { method = "GET", body, auth = true } = {})
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new ApiError(data.error ?? "Une erreur est survenue. Réessayez dans un instant.", response.status);
+    throw new ApiError(data.error ?? "Une erreur est survenue. Réessayez dans un instant.", response.status, data);
   }
 
   return data;

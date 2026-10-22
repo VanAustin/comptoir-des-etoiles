@@ -23,7 +23,7 @@
             </div>
         </header>
 
-        <main class="wrap">
+        <main class="wrap{% block main_class %}{% endblock %}">
             {% for type, messages in app.flashes(['info', 'error']) %}
                 {% for message in messages %}
                     <p class="alert alert-{{ type }}" role="status">{{ message }}</p>

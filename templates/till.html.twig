@@ -1,0 +1,98 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Caisse · Le Comptoir des étoiles{% endblock %}
+
+{% block stylesheets %}
+    <link rel="stylesheet" href="{{ app.request.basePath }}/css/till.css">
+{% endblock %}
+
+{% block javascripts %}
+    <script type="module" src="{{ app.request.basePath }}/js/till.js"></script>
+{% endblock %}
+
+{% block nav %}
+    <span class="who" id="till-who"></span>
+    <a class="btn btn-small" href="{{ path('app_pair') }}">Tablette</a>
+{% endblock %}
+
+{% block main_class %} till{% endblock %}
+
+{# Aucune donnée dans la page : tout vient de l'API, avec le jeton de la tablette. #}
+{% block body %}
+    <section id="till-status" class="card till-status">
+        <p id="till-status-text" role="status">Chargement du menu…</p>
+        <a id="till-status-link" class="btn" href="{{ path('app_pair') }}" hidden>Appairer cette tablette</a>
+        <button type="button" id="till-status-retry" class="btn" hidden>Réessayer</button>
+        <noscript><p class="alert alert-error">Cette page a besoin de JavaScript. Ouvrez-la dans Chrome.</p></noscript>
+    </section>
+
+    <section id="till-main" class="pos" hidden>
+        <div>
+            <div class="cats" id="till-cats" role="group" aria-label="Catégories"></div>
+            <div class="grid" id="till-grid"></div>
+            <p id="till-empty-menu" class="card empty" hidden>Le menu est vide. Ajoutez des articles dans l'administration, rubrique Menu, puis touchez « Tablette » et revenez à la caisse.</p>
+        </div>
+
+        <aside class="cart" aria-labelledby="cart-title">
+            <div class="cart-head">
+                <h2 id="cart-title">Commande en cours</h2>
+                <span class="next-number num" id="till-next"></span>
+            </div>
+            <div class="lines" id="till-lines"></div>
+            <button type="button" class="btn btn-small" id="till-add-return" hidden>Retour de consigne</button>
+            <p id="till-cart-error" class="alert alert-error" role="alert" hidden></p>
+            <div class="total"><span>Total</span><span class="num" id="till-total"></span></div>
+            <div class="row">
+                <button type="button" class="btn" id="till-clear">Vider</button>
+                <button type="button" class="btn btn-primary" id="till-checkout">Encaisser</button>
+            </div>
+        </aside>
+    </section>
+
+    <section id="till-pay" class="card panel" aria-labelledby="pay-title" hidden>
+        <h2 id="pay-title">Paiement</h2>
+        <p class="big num" id="pay-total"></p>
+
+        <div class="row segmented" role="group" aria-label="Moyen de paiement">
+            <button type="button" class="btn" data-method="cash" aria-pressed="true">Espèces</button>
+            <button type="button" class="btn" data-method="card" aria-pressed="false">Carte bancaire</button>
+        </div>
+
+        <div id="pay-cash">
+            <div class="cash" role="group" aria-label="Montant reçu">
+                <button type="button" data-exact aria-pressed="false">Compte juste</button>
+                <button type="button" data-cents="500" aria-pressed="false" class="num">5 €</button>
+                <button type="button" data-cents="1000" aria-pressed="false" class="num">10 €</button>
+                <button type="button" data-cents="2000" aria-pressed="false" class="num">20 €</button>
+                <button type="button" data-cents="5000" aria-pressed="false" class="num">50 €</button>
+            </div>
+            <div class="field">
+                <label for="pay-other">Autre montant reçu (€)</label>
+                <input type="text" id="pay-other" inputmode="decimal" autocomplete="off" class="num" placeholder="100">
+            </div>
+            <p class="lede" id="pay-cash-help">Touchez le billet donné par le client.</p>
+        </div>
+        <p class="lede" id="pay-card-help" hidden>Passez la carte sur votre terminal, puis validez ici une fois le paiement accepté.</p>
+        <p class="lede" id="pay-refund-help" hidden>Le client rend des gobelets : rendez-lui l'argent en espèces.</p>
+
+        <div class="change" id="pay-change" hidden>
+            <span id="pay-change-label"></span><span class="num" id="pay-change-amount"></span>
+        </div>
+        <p id="pay-error" class="alert alert-error" role="alert" hidden></p>
+
+        <div class="row">
+            <button type="button" class="btn" id="pay-back">Retour</button>
+            <button type="button" class="btn btn-primary" id="pay-confirm">Valider la commande</button>
+        </div>
+    </section>
+
+    <section id="till-done" class="card panel ordernum" aria-labelledby="done-lede" hidden>
+        <p class="lede" id="done-lede"></p>
+        <p class="n num" id="done-number"></p>
+        <p id="done-help"></p>
+        <div class="change" id="done-change" hidden>
+            <span id="done-change-label"></span><span class="num" id="done-change-amount"></span>
+        </div>
+        <button type="button" class="btn btn-primary" id="done-next">Commande suivante</button>
+    </section>
+{% endblock %}

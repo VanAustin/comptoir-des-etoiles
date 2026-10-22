@@ -2,6 +2,9 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
+/* L'attribut hidden l'emporte toujours, même sur un display: flex ou grid */
+[hidden] { display: none !important; }
+
 html, body { height: 100%; }
 
 body {
