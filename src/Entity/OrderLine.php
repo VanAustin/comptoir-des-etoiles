@@ -2,7 +2,9 @@
 
 namespace App\Entity;
 
+use App\Enum\LineKind;
 use App\Repository\OrderLineRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
@@ -26,6 +28,9 @@ class OrderLine
     #[ORM\JoinColumn(onDelete: 'SET NULL')]
     private ?Product $product;
 
+    #[ORM\Column(length: 20, enumType: LineKind::class, options: ['default' => 'article'])]
+    private LineKind $kind = LineKind::Article;
+
     #[ORM\Column(length: 80)]
     private string $label;
 
@@ -38,15 +43,47 @@ class OrderLine
     #[ORM\Column]
     private bool $goesToKitchen;
 
-    public function __construct(Order $order, Product $product, int $quantity)
+    /**
+     * Composants d'une formule au moment de la vente (identifiants d'articles) :
+     * le stock reste juste même si la formule est modifiée ensuite.
+     *
+     * @var list<int>|null
+     */
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    private ?array $componentIds = null;
+
+    private function __construct(Order $order, LineKind $kind, ?Product $product, string $label, int $unitPriceCents, int $quantity, bool $goesToKitchen)
     {
         $this->order = $order;
+        $this->kind = $kind;
         $this->product = $product;
-        $this->label = $product->getName();
-        $this->unitPriceCents = $product->getPriceCents();
-        $this->goesToKitchen = $product->goesToKitchen();
+        $this->label = $label;
+        $this->unitPriceCents = $unitPriceCents;
         $this->quantity = $quantity;
+        $this->goesToKitchen = $goesToKitchen;
         $order->addLine($this);
+    }
+
+    public static function article(Order $order, Product $product, int $quantity): self
+    {
+        $line = new self($order, LineKind::Article, $product, $product->getName(), $product->getPriceCents(), $quantity, $product->goesToKitchen());
+        if ($product->isFormula()) {
+            $line->componentIds = array_values(array_map(static fn (Product $c): int => (int) $c->getId(), $product->getComponents()->toArray()));
+        }
+
+        return $line;
+    }
+
+    /** Une consigne par article « avec consigne » vendu. */
+    public static function deposit(Order $order, int $depositCents, int $quantity): self
+    {
+        return new self($order, LineKind::Deposit, null, 'Consigne', $depositCents, $quantity, false);
+    }
+
+    /** Gobelets rendus : ligne négative. */
+    public static function depositReturn(Order $order, int $depositCents, int $quantity): self
+    {
+        return new self($order, LineKind::DepositReturn, null, 'Retour de consigne', -$depositCents, $quantity, false);
     }
 
     public function getId(): ?int
@@ -62,6 +99,11 @@ class OrderLine
     public function getProduct(): ?Product
     {
         return $this->product;
+    }
+
+    public function getKind(): LineKind
+    {
+        return $this->kind;
     }
 
     public function getLabel(): string
@@ -82,6 +124,12 @@ class OrderLine
     public function goesToKitchen(): bool
     {
         return $this->goesToKitchen;
+    }
+
+    /** @return list<int>|null */
+    public function getComponentIds(): ?array
+    {
+        return $this->componentIds;
     }
 
     public function getTotalCents(): int

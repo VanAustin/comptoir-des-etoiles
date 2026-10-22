@@ -1,0 +1,27 @@
+meta {
+  name: 6. Commande sans jeton
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/orders
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "uuid": "6f1c2a0e-3b4d-4e5f-8a9b-0c1d2e3f4a5b",
+    "number": 1,
+    "paymentMethod": "cash",
+    "amountReceivedCents": 500,
+    "lines": [{ "productId": 1, "quantity": 1 }]
+  }
+}
+
+tests {
+  test("refusé (401)", function () {
+    expect(res.status).to.equal(401);
+  });
+}

@@ -1,0 +1,39 @@
+meta {
+  name: 7. Quantité hors limite
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/orders
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{deviceToken}}
+}
+
+body:json {
+  {
+    "uuid": "7a2b3c4d-5e6f-4a1b-9c2d-3e4f5a6b7c8d",
+    "number": 99999,
+    "paymentMethod": "cash",
+    "amountReceivedCents": 100000,
+    "lines": [{ "productId": {{productId}}, "quantity": 100 }]
+  }
+}
+
+tests {
+  test("refusé (422)", function () {
+    expect(res.status).to.equal(422);
+  });
+
+  test("message en français", function () {
+    expect(res.body.error).to.contain("entre 1 et 99");
+  });
+}
+
+docs {
+  Nécessite une tablette caisse appairée et d'avoir lancé « Caisse / 1. Menu ».
+}

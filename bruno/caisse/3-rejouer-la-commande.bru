@@ -1,0 +1,41 @@
+meta {
+  name: 3. Rejouer la même commande
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/orders
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{deviceToken}}
+}
+
+body:json {
+  {
+    "uuid": "{{orderUuid}}",
+    "number": {{nextNumber}},
+    "paymentMethod": "card",
+    "lines": [{ "productId": {{productId}}, "quantity": 9 }]
+  }
+}
+
+tests {
+  test("la commande existante est renvoyée (200, pas 201)", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("c'est bien la commande d'origine, sans doublon", function () {
+    expect(res.body.displayNumber).to.equal(bru.getVar("lastDisplayNumber"));
+    expect(res.body.paymentMethod).to.equal("cash");
+  });
+}
+
+docs {
+  Renvoie la commande précédente avec le même identifiant, comme le ferait une caisse dont le réseau a coupé avant la réponse.
+
+  Le contenu est volontairement différent : le serveur doit renvoyer la commande d'origine sans en créer une nouvelle. Lancez d'abord « 2. Créer une commande ».
+}

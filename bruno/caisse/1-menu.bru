@@ -1,0 +1,52 @@
+meta {
+  name: 1. Menu
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/menu
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{deviceToken}}
+}
+
+script:post-response {
+  // Gardés en mémoire pour les requêtes suivantes
+  if (res.status === 200 && res.body.products.length > 0) {
+    bru.setVar("productId", res.body.products[0].id);
+    bru.setVar("nextNumber", res.body.lastNumber + 1);
+  }
+}
+
+tests {
+  test("le menu est renvoyé (200)", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("la lettre de la caisse et le dernier numéro sont indiqués", function () {
+    expect(res.body.tillLetter).to.match(/^[A-HJ-NP-Z]$/);
+    expect(res.body.lastNumber).to.be.a("number");
+  });
+
+  test("le menu contient au moins un article", function () {
+    expect(res.body.products).to.be.an("array").that.is.not.empty;
+  });
+
+  test("chaque article a un prix en centimes et un stock (null = non compté)", function () {
+    res.body.products.forEach(function (p) {
+      expect(p.priceCents).to.be.a("number");
+      expect(p).to.have.property("remainingStock");
+      expect(p.components).to.be.an("array");
+    });
+  });
+}
+
+docs {
+  Menu de l'événement, stocks restants et dernier numéro de commande de la caisse.
+
+  Nécessite une tablette **caisse** appairée (« Appairage / 1. Échanger le code ») et un menu non vide. Une tablette cuisine ou affichage reçoit 403.
+}

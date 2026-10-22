@@ -1,0 +1,73 @@
+meta {
+  name: 2. Créer une commande
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/orders
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{deviceToken}}
+}
+
+body:json {
+  {
+    "uuid": "{{orderUuid}}",
+    "number": {{nextNumber}},
+    "paymentMethod": "cash",
+    "amountReceivedCents": 100000,
+    "lines": [{ "productId": {{productId}}, "quantity": 2 }],
+    "depositReturns": 0,
+    "totalCents": 1
+  }
+}
+
+script:pre-request {
+  // Nouvel identifiant à chaque envoi, comme le fait la caisse
+  const hex = "0123456789abcdef";
+  let uuid = "";
+  for (let i = 0; i < 36; i++) {
+    if ([8, 13, 18, 23].includes(i)) uuid += "-";
+    else if (i === 14) uuid += "4";
+    else if (i === 19) uuid += hex[8 + Math.floor(Math.random() * 4)];
+    else uuid += hex[Math.floor(Math.random() * 16)];
+  }
+  bru.setVar("orderUuid", uuid);
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("lastDisplayNumber", res.body.displayNumber);
+    bru.setVar("nextNumber", res.body.number + 1);
+  }
+}
+
+tests {
+  test("la commande est créée (201)", function () {
+    expect(res.status).to.equal(201);
+  });
+
+  test("le numéro affiché est la lettre suivie du numéro", function () {
+    expect(res.body.displayNumber).to.match(/^[A-HJ-NP-Z]\d+$/);
+  });
+
+  test("le total envoyé (1 centime) est ignoré et recalculé", function () {
+    const sum = res.body.lines.reduce(function (s, l) { return s + l.totalCents; }, 0);
+    expect(res.body.totalCents).to.equal(sum);
+    expect(res.body.totalCents).to.not.equal(1);
+  });
+
+  test("la monnaie est calculée par le serveur", function () {
+    expect(res.body.changeCents).to.equal(100000 - res.body.totalCents);
+  });
+}
+
+docs {
+  Encaisse 2 exemplaires du premier article du menu, payés 1 000 € en espèces.
+
+  Le corps contient un faux total (`"totalCents": 1`) : le serveur doit l'ignorer. Lancez d'abord « 1. Menu ».
+}

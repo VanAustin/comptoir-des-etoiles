@@ -55,14 +55,14 @@ PHP, Composer et Symfony ne sont **pas** installés sur le Mac : tout tourne dan
 - **Hors ligne** : service worker qui met en cache l'application ; file d'attente des commandes dans IndexedDB, envoyée au retour du réseau.
 - **Idempotence** : chaque commande reçoit un UUID créé sur la tablette. `POST /api/orders` avec un UUID déjà connu ne crée pas de doublon et renvoie la commande existante.
 - **Temps réel** : l'écran cuisine et l'écran Arrivées interrogent le serveur toutes les 2 à 3 secondes (`GET /api/orders?since=<horodatage>`). Pas de Mercure pour l'instant.
-- **Stocks** : le stock restant est calculé à partir des ventes (stock de départ moins quantités vendues des commandes non annulées), jamais stocké comme un compteur décrémenté.
+- **Stocks** : le stock restant est calculé à partir des ventes (stock de départ moins quantités vendues des commandes non annulées), jamais stocké comme un compteur décrémenté. Le stock est une **information, jamais une limite** : ni le serveur ni la caisse ne bloquent une vente (stocks de départ approximatifs, ventes hors ligne), et il peut devenir négatif. Une formule décompte les composants figés sur la ligne au moment de la vente ; son stock restant est le plus petit de ceux de ses composants comptés.
 
 ## Modèle de données (point de départ)
 
 - `Event` : nom, date, actif ou non, montant de la consigne (centimes, 0 = pas de consigne).
 - `Product` : événement, nom, icône (émoji ou image), catégorie, prix (centimes, entier), stock de départ (nullable = non compté), passe en cuisine (bool), avec consigne (bool), ordre d'affichage, composants si formule.
 - `Order` : UUID (identifiant venu de la tablette), événement, lettre de caisse et numéro (voir Numérotation), moyen de paiement (espèces ou carte), montant reçu, total recalculé par le serveur, état, créé le, modifié le, tablette d'origine.
-- `OrderLine` : commande, produit, libellé, prix et passage en cuisine figés au moment de la vente, quantité.
+- `OrderLine` : commande, produit, type (article, consigne, retour de consigne), libellé, prix et passage en cuisine figés au moment de la vente, quantité, composants figés si formule.
 - `Device` : tablette appairée. Nom (« Caisse buvette »), rôle (`caisse`, `cuisine`, `affichage`), lettre de caisse (rôle `caisse` uniquement), empreinte SHA-256 du jeton, empreinte et expiration du code d'appairage, événement, créée le, vue pour la dernière fois le, expire le, révoquée le.
 - `AuditLog` : qui (administrateur ou tablette), quoi (annulation, changement de prix ou de stock, appairage, révocation), quand, valeurs avant et après.
 - `AdminUser` : identifiant, mot de passe haché. Créé uniquement par la commande d'installation.
@@ -73,7 +73,7 @@ Montants toujours en centimes (entiers) côté serveur.
 
 - **Un seul montant par événement**, réglé dans la fiche de l'événement (0 = pas de consigne).
 - Les articles cochés « avec consigne » ajoutent **automatiquement** une ligne « Consigne » par unité vendue. Pour une formule, c'est la case de la formule elle-même qui compte.
-- La caisse a un bouton **« Retour de consigne »** (nombre de gobelets rendus), qui ajoute une ligne négative. Il peut se combiner avec un achat ; si le total est négatif, l'argent est rendu **en espèces uniquement**.
+- La caisse a un bouton **« Retour de consigne »** (nombre de gobelets rendus), qui ajoute une ligne négative. Il peut se combiner avec un achat, payé en espèces ou par carte ; si le total est nul ou négatif, l'argent est rendu **en espèces uniquement**.
 - Chaque ligne de commande a un **type** : article, consigne ou retour de consigne. Le serveur recalcule tout (montant de la consigne lu sur l'événement, nombre de consignes déduit des articles). Pas de prix négatif saisi ni d'article « −1 € ».
 - La consigne n'est **pas du chiffre d'affaires** : le Carnet de bord affiche le CA hors consignes, puis les consignes encaissées, rendues et le solde (gobelets non rendus), et les espèces attendues en caisse. Pas de comptage des gobelets.
 
@@ -85,7 +85,7 @@ Le numéro donné au client est la **lettre de la caisse suivie d'un numéro** :
 
 - La lettre est attribuée par le **serveur** lors de l'appairage d'une tablette `caisse`, unique par événement. Les lettres I et O ne sont pas utilisées (confusion avec 1 et 0). Une lettre n'est jamais réattribuée au cours d'un même événement, même après révocation de la tablette.
 - La numérotation de chaque lettre **repart à 1 à chaque événement**.
-- La tablette attribue le numéro suivant au moment de l'encaissement. Le serveur vérifie que la lettre est bien celle de la tablette et que le couple (lettre, numéro) n'existe pas déjà pour l'événement (contrainte d'unicité en base).
+- La tablette attribue le numéro suivant au moment de l'encaissement. Le serveur prend la lettre dans le jeton de la tablette (jamais dans la requête) et vérifie que le couple (lettre, numéro) n'existe pas déjà pour l'événement (contrainte d'unicité en base). En cas de conflit, il répond 409 avec le prochain numéro libre (`nextNumber`), que la caisse reprend. `GET /api/menu` indique le dernier numéro utilisé (`lastNumber`), pour qu'une caisse réinstallée reprenne au bon endroit.
 
 ## Écrans
 
