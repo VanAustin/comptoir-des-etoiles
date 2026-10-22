@@ -34,6 +34,7 @@ PHP, Composer et Symfony ne sont **pas** installés sur le Mac : tout tourne dan
 - Apache sert `public/` comme racine, avec `FallbackResource /index.php` dans la configuration du site (fichier copié par le `Dockerfile`). **Pas** de `symfony/apache-pack`.
 - Le site est servi sur **`http://localhost:8080`**. Pas de HTTPS en développement : Chrome autorise le service worker sur `localhost`, ce qui suffit pour développer et tester le mode hors ligne sur le Mac.
 - Fichiers attendus, et rien de plus : `Dockerfile`, `compose.yaml`, et le fichier de configuration Apache du site (par exemple `docker/apache.conf`). Pas de MySQL, pas de Redis, pas de Node.
+- Seul service en plus de `php` : **Adminer** (image officielle `adminer`, version fixée), pour consulter la base SQLite comme dans phpMyAdmin, sur `http://localhost:8082`. Développement uniquement, lié à `127.0.0.1`, mot de passe `comptoir` (exigé par Adminer pour SQLite) ; sa configuration tient dans `docker/adminer/login.php`. Rien dans l'application n'en dépend.
 - La base SQLite reste dans `var/`, monté en volume : elle survit au redémarrage des conteneurs.
 - **Toutes** les commandes PHP passent par le conteneur, jamais par le PHP du Mac :
   - `docker compose exec php composer …`
