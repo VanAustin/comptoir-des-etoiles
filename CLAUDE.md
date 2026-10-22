@@ -9,7 +9,7 @@ Premier événement réel : **Loto du 18 décembre 2026**. Répétition généra
 - **Budget : 0 €.** Aucun service payant, aucun matériel à acheter.
 - **Léger et maintenable, avec le moins de dépendances possible.** Le projet sera repris par des parents bénévoles. Ne jamais ajouter de dépendance Composer ou JavaScript sans le demander d'abord.
 - **Tablettes Android, navigateur Chrome.** L'application est installable (PWA) depuis le navigateur.
-- **Réseau incertain.** Le jour J, les tablettes se connectent soit à un hébergement en ligne via le partage 4G d'un téléphone, soit à un portable qui fait tourner Symfony sur le réseau local du partage de connexion. Le même code doit fonctionner dans les deux cas.
+- **Réseau incertain.** Le jour J, les tablettes se connectent à un serveur en ligne (HTTPS), via le partage 4G d'un téléphone ou le Wi-Fi de la salle. Pas de portable sur place : le mode « serveur sur un portable en réseau local » est abandonné (tablettes personnelles des parents, aucun certificat à leur faire installer). Une coupure est couverte par le mode hors ligne.
 - **Aucune commande ne doit être perdue**, même pendant une coupure réseau.
 
 ## Stack
@@ -41,9 +41,8 @@ PHP, Composer et Symfony ne sont **pas** installés sur le Mac : tout tourne dan
   - `docker compose exec php bin/console …`
   - `docker compose exec php bin/phpunit`
 - Le nom du service dans `compose.yaml` est `php`.
-- Le HTTPS pour les tablettes (répétition générale, mode portable) sera traité à l'étape 2, une fois l'application en place. Ne rien prévoir de plus pour l'instant.
 - En production sur un hébergement mutualisé (sans Docker), le même code tourne avec le PHP de l'hébergeur : ne rien faire qui dépende de Docker dans le code de l'application.
-- Apache ne transmet pas l'en-tête `Authorization` à PHP par défaut. `docker/apache.conf` le fait avec `SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1` ; sur un hébergement Apache, prévoir la même règle (fichier `.htaccess` dans `public/`), sinon aucune tablette ne peut s'authentifier. À documenter dans `README.md` avec l'installation.
+- Apache ne transmet pas l'en-tête `Authorization` à PHP par défaut. `docker/apache.conf` le fait avec `SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1` ; sur un serveur Apache sans Docker, c'est `public/.htaccess` (avec la redirection vers le HTTPS), sinon aucune tablette ne peut s'authentifier. Exemple Nginx : `docs/deploiement/nginx.conf`. Installation décrite dans `README.md`.
 
 ## Architecture
 
@@ -154,9 +153,9 @@ Usage prévu : une APE, petite échelle. Mais le code est écrit **comme s'il é
 
 Le service worker, donc le mode hors ligne, **ne fonctionne qu'en HTTPS** (ou sur `localhost`).
 
-- Mode hébergé : HTTPS obligatoire (Let's Encrypt, gratuit chez la plupart des hébergeurs).
+- En ligne : HTTPS obligatoire (Let's Encrypt, gratuit chez la plupart des hébergeurs), HTTP redirigé vers HTTPS par `public/.htaccess`. Derrière un proxy qui assure le HTTPS, `SYMFONY_TRUSTED_PROXIES` dans `.env.local`, sinon ni HSTS ni cookies sécurisés.
 - Développement sur le Mac : `http://localhost:8080` suffit, `localhost` étant considéré comme sécurisé par Chrome.
-- Mode portable en réseau local : solution à définir à l'étape 2 (certificat local installé une fois sur chaque tablette), et à documenter dans `README.md`. Ne jamais désactiver la vérification des certificats ni recourir aux options de Chrome qui traitent un site HTTP comme sécurisé.
+- Pas de mode portable en réseau local (abandonné, voir Contraintes). Ne jamais désactiver la vérification des certificats ni recourir aux options de Chrome qui traitent un site HTTP comme sécurisé.
 
 ### Données et serveur
 
@@ -181,7 +180,7 @@ Le service worker, donc le mode hors ligne, **ne fonctionne qu'en HTTPS** (ou su
 - Projet développé par une seule personne : pas de contributions extérieures acceptées pour l'instant.
 - Ajouter un fichier `SECURITY.md` qui explique comment signaler une faille en privé (fait).
 - Activer **Private vulnerability reporting** dans les réglages du dépôt GitHub au moment de le rendre public (option indisponible sur un dépôt privé) : c'est le canal de signalement indiqué dans `SECURITY.md`.
-- Documenter l'installation pas à pas dans `README.md`, y compris `app:install` et le certificat local.
+- Documenter l'installation pas à pas dans `README.md`, y compris `app:install` (fait : « Installer sur un serveur »).
 
 ## Charte graphique
 
