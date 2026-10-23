@@ -48,34 +48,61 @@ class LogbookExportTest extends WebTestCase
 
     public function testExportIsReservedToTheAdministration(): void
     {
-        $this->client->request('GET', '/admin/carnet/export/ventes');
+        $this->client->request('GET', '/admin/carnet/export/commandes');
 
         self::assertResponseRedirects('/login');
     }
 
-    public function testSalesExportOpensInFrenchExcel(): void
+    public function testOrdersExportOpensInFrenchExcel(): void
     {
         $this->login();
         $this->place(['Crêpe' => 2, 'Soda' => 1], cash: 1000, note: '+33 6 00 00 00 00');
-        $this->place([], cash: 0, returns: 1);
 
-        $csv = $this->download('/admin/carnet/export/ventes');
+        $csv = $this->download('/admin/carnet/export/commandes');
 
         self::assertResponseHeaderSame('Content-Type', 'text/csv; charset=UTF-8');
-        self::assertSame('attachment; filename=carnet-loto-de-noel-2026-12-18-ventes.csv', $this->client->getResponse()->headers->get('Content-Disposition'));
+        self::assertSame('attachment; filename=carnet-loto-de-noel-2026-12-18-commandes.csv', $this->client->getResponse()->headers->get('Content-Disposition'));
         self::assertStringContainsString('no-store', (string) $this->client->getResponse()->headers->get('Cache-Control'));
-        self::assertStringStartsWith("\u{FEFF}Numéro;Caisse;Date;Heure;État;Paiement;Type de ligne;Article;", $csv, 'BOM pour les accents, point-virgule');
+        self::assertStringStartsWith("\u{FEFF}Numéro;Caisse;Date;Heure;Paiement;Articles;", $csv, 'BOM pour les accents, point-virgule');
         self::assertStringEndsWith("\r\n", $csv);
 
-        $rows = $this->rows($csv);
-        self::assertCount(5, $rows, 'en-tête + crêpes, soda, consigne + retour de consigne');
-        self::assertSame(['A1', 'A'], \array_slice($rows[1], 0, 2));
-        self::assertMatchesRegularExpression('#^\d{2}/\d{2}/\d{4}$#', $rows[1][2]);
-        self::assertMatchesRegularExpression('#^\d{2}:\d{2}$#', $rows[1][3]);
-        self::assertSame(['Article', 'Crêpe "maison"', '2', '2,00', '4,00', '6,50', '10,00', '3,50', ''], \array_slice($rows[1], 6, 9));
-        self::assertSame('Consigne', $rows[3][6]);
-        self::assertSame(['Retour de consigne', 'Retour de consigne', '1', '-1,00', '-1,00', '-1,00'], \array_slice($rows[4], 6, 6), 'un montant négatif reste un nombre');
-        self::assertSame("'+33 6 00 00 00 00", $rows[1][15], 'texte commençant par + neutralisé');
+        $row = $this->rows($csv)[1];
+        self::assertSame(['A1', 'A'], \array_slice($row, 0, 2));
+        self::assertMatchesRegularExpression('#^\d{2}/\d{2}/\d{4}$#', $row[2]);
+        self::assertMatchesRegularExpression('#^\d{2}:\d{2}$#', $row[3]);
+        // 2 crêpes (4,00) + 1 soda (1,50) + 1 consigne (1,00) = 6,50 ; 10,00 reçus, 3,50 rendus
+        self::assertSame(['Espèces', '2 × Crêpe "maison", 1 × Soda', '5,50', '1,00', '0,00', '6,50', '10,00', '3,50', ''], \array_slice($row, 4, 9));
+        self::assertSame("'+33 6 00 00 00 00", $row[13], 'texte commençant par + neutralisé');
+    }
+
+    /** Signalé à l'usage : les montants de la commande répétés sur chaque ligne faussaient les sommes. */
+    public function testEveryAmountColumnAddsUpWithoutDoubleCounting(): void
+    {
+        $this->login();
+        // Comme D1 : 2 articles à 4,00 € et 2 gobelets rendus, payé par carte : 6,00 €
+        $this->place(['Crêpe' => 2], card: true, returns: 2);
+        $this->place(['Crêpe' => 1, 'Soda' => 2], cash: 1000);
+        $this->place([], cash: 0, returns: 1);
+        $cancelled = $this->place(['Crêpe' => 5], cash: 2000);
+        self::entityManager()->find(Order::class, $cancelled->getId())->setStatus(OrderStatus::Cancelled);
+        self::entityManager()->flush();
+
+        $orders = $this->rows($this->download('/admin/carnet/export/commandes'));
+        $lines = $this->rows($this->download('/admin/carnet/export/lignes'));
+
+        self::assertSame(['A1', 'A2', 'A3'], array_column(\array_slice($orders, 1), 0), 'une ligne par commande, annulée exclue');
+        // Chiffre d'affaires : 4,00 + 5,00 = 9,00 ; consignes : 2,00 encaissées, 3,00 rendues ; total : 2,00 + 7,00 − 1,00 = 8,00
+        self::assertSame(900, $this->sum($orders, 'Chiffre d\'affaires (€)'));
+        self::assertSame(200, $this->sum($orders, 'Consignes encaissées (€)'));
+        self::assertSame(300, $this->sum($orders, 'Consignes rendues (€)'));
+        self::assertSame(800, $this->sum($orders, 'Total encaissé (€)'));
+        foreach (\array_slice($orders, 1) as $row) {
+            self::assertSame(self::cents($row[9]), self::cents($row[6]) + self::cents($row[7]) - self::cents($row[8]), 'CA + consignes − rendues = total, commande '.$row[0]);
+        }
+
+        self::assertNotContains('Total commande (€)', $lines[0], 'le détail ne répète aucun montant de commande');
+        self::assertSame(800, $this->sum($lines, 'Total ligne (€)'), 'le détail se somme au même total');
+        self::assertNotContains('A4', array_column($lines, 0));
     }
 
     public function testCellsThatLookLikeFormulasAreNeutralised(): void
@@ -83,21 +110,12 @@ class LogbookExportTest extends WebTestCase
         $this->login();
         $this->place(['Piège' => 1], cash: 100);
 
-        $csv = $this->download('/admin/carnet/export/ventes');
+        $csv = $this->download('/admin/carnet/export/lignes');
 
         self::assertStringContainsString(';"\'=HYPERLINK(""http://exemple.test"")";', $csv);
         self::assertStringNotContainsString(';=HYPERLINK', $csv);
-        self::assertSame('\'=HYPERLINK("http://exemple.test")', $this->rows($csv)[1][7]);
-    }
-
-    public function testCancelledOrdersAreExportedWithTheirStatus(): void
-    {
-        $this->login();
-        $order = $this->place(['Crêpe' => 1], cash: 200);
-        self::entityManager()->find(Order::class, $order->getId())->setStatus(OrderStatus::Cancelled);
-        self::entityManager()->flush();
-
-        self::assertSame('Annulée', $this->rows($this->download('/admin/carnet/export/ventes'))[1][4]);
+        self::assertSame('\'=HYPERLINK("http://exemple.test")', $this->rows($csv)[1][6]);
+        self::assertStringNotContainsString(';=HYPERLINK', $this->download('/admin/carnet/export/commandes'));
     }
 
     public function testArticlesExportSummarisesSalesAndStock(): void
@@ -120,6 +138,21 @@ class LogbookExportTest extends WebTestCase
         $this->client->request('GET', '/admin/carnet/export/tout');
 
         self::assertResponseStatusCodeSame(404);
+    }
+
+    /** @param list<list<string>> $rows */
+    private function sum(array $rows, string $column): int
+    {
+        $index = array_search($column, $rows[0], true);
+        self::assertIsInt($index, 'colonne '.$column);
+
+        return array_sum(array_map(static fn (array $row): int => self::cents($row[$index]), \array_slice($rows, 1)));
+    }
+
+    /** « -1,50 » → -150, comme Excel lit la cellule */
+    private static function cents(string $value): int
+    {
+        return '' === $value ? 0 : (int) round((float) str_replace(',', '.', $value) * 100);
     }
 
     private function login(): void
@@ -153,13 +186,13 @@ class LogbookExportTest extends WebTestCase
     }
 
     /** @param array<string, int> $items */
-    private function place(array $items, ?int $cash = null, int $returns = 0, ?string $note = null): Order
+    private function place(array $items, ?int $cash = null, int $returns = 0, ?string $note = null, bool $card = false): Order
     {
         $payload = [
             'uuid' => \sprintf('%08x-0000-4000-8000-%012x', random_int(0, 0xFFFFFFFF), ++$this->number),
             'number' => $this->number,
-            'paymentMethod' => 'cash',
-            'amountReceivedCents' => $cash,
+            'paymentMethod' => $card ? 'card' : 'cash',
+            'amountReceivedCents' => $card ? null : $cash,
             'lines' => array_map(fn (string $name, int $q) => ['productId' => $this->ids[$name], 'quantity' => $q], array_keys($items), $items),
             'depositReturns' => $returns,
             'note' => $note,

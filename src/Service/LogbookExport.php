@@ -2,9 +2,10 @@
 
 namespace App\Service;
 
-use App\Controller\Admin\LogbookController;
 use App\Entity\Event;
+use App\Entity\Order;
 use App\Enum\LineKind;
+use App\Enum\OrderStatus;
 use App\Enum\PaymentMethod;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
@@ -27,38 +28,96 @@ final class LogbookExport
     ) {
     }
 
-    /** Une ligne par ligne de commande, commandes annulées comprises (colonne État). */
-    public function sales(Event $event): string
+    /**
+     * Journal des commandes : une ligne par commande non annulée. Chaque colonne de montant
+     * se somme telle quelle ; le chiffre d'affaires (articles) est séparé des consignes.
+     * Pour chaque ligne : chiffre d'affaires + consignes encaissées − consignes rendues = total encaissé.
+     */
+    public function orders(Event $event): string
     {
-        $timezone = new \DateTimeZone($this->timezone);
-        $rows = [['Numéro', 'Caisse', 'Date', 'Heure', 'État', 'Paiement', 'Type de ligne', 'Article', 'Quantité', 'Prix unitaire (€)', 'Total ligne (€)', 'Total commande (€)', 'Reçu (€)', 'Rendu (€)', 'Écart de caisse (€)', 'Remarque']];
+        $rows = [['Numéro', 'Caisse', 'Date', 'Heure', 'Paiement', 'Articles', 'Chiffre d\'affaires (€)', 'Consignes encaissées (€)', 'Consignes rendues (€)', 'Total encaissé (€)', 'Reçu en espèces (€)', 'Rendu (€)', 'Écart de caisse (€)', 'Remarque']];
 
-        foreach (array_reverse($this->logbook->summarize($event)['orders']) as $order) {
+        foreach ($this->activeOrders($event) as $order) {
+            $revenue = $depositsIn = $depositsOut = 0;
+            $articles = [];
+            foreach ($order->getLines() as $line) {
+                match ($line->getKind()) {
+                    LineKind::Article => $revenue += $line->getTotalCents(),
+                    LineKind::Deposit => $depositsIn += $line->getTotalCents(),
+                    LineKind::DepositReturn => $depositsOut -= $line->getTotalCents(),
+                };
+                if (LineKind::Article === $line->getKind()) {
+                    $articles[] = $line->getQuantity().' × '.$line->getLabel();
+                }
+            }
             $change = $order->getChangeCents();
-            $createdAt = $order->getCreatedAt()->setTimezone($timezone);
+            $rows[] = [
+                ...$this->orderColumns($order),
+                self::text(implode(', ', $articles)),
+                self::euros($revenue),
+                self::euros($depositsIn),
+                self::euros($depositsOut),
+                self::euros($order->getTotalCents()),
+                self::euros($order->getAmountReceivedCents()),
+                null !== $change && $change > 0 ? self::euros($change) : '',
+                null !== $change && $change < 0 ? self::euros(-$change) : '',
+                self::text((string) $order->getNote()),
+            ];
+        }
+
+        return self::csv($rows);
+    }
+
+    /**
+     * Détail des lignes : une ligne par article, consigne ou retour de consigne des commandes
+     * non annulées. Aucun montant de commande répété : la somme de « Total ligne » égale le
+     * total encaissé.
+     */
+    public function lines(Event $event): string
+    {
+        $rows = [['Numéro', 'Caisse', 'Date', 'Heure', 'Paiement', 'Type de ligne', 'Article', 'Quantité', 'Prix unitaire (€)', 'Total ligne (€)']];
+
+        foreach ($this->activeOrders($event) as $order) {
             foreach ($order->getLines() as $line) {
                 $rows[] = [
-                    self::text($order->getDisplayNumber()),
-                    self::text($order->getTillLetter()),
-                    $createdAt->format('d/m/Y'),
-                    $createdAt->format('H:i'),
-                    LogbookController::STATUS_LABELS[$order->getStatus()->value],
-                    PaymentMethod::Card === $order->getPaymentMethod() ? 'Carte' : 'Espèces',
+                    ...$this->orderColumns($order),
                     self::LINE_KINDS[$line->getKind()->value],
                     self::text($line->getLabel()),
                     (string) $line->getQuantity(),
                     self::euros($line->getUnitPriceCents()),
                     self::euros($line->getTotalCents()),
-                    self::euros($order->getTotalCents()),
-                    self::euros($order->getAmountReceivedCents()),
-                    null !== $change && $change > 0 ? self::euros($change) : '',
-                    null !== $change && $change < 0 ? self::euros(-$change) : '',
-                    self::text((string) $order->getNote()),
                 ];
             }
         }
 
         return self::csv($rows);
+    }
+
+    /**
+     * Commandes non annulées, de la plus ancienne à la plus récente. Une commande annulée
+     * fausserait les sommes : elle reste consultable dans le Carnet de bord et le journal.
+     *
+     * @return list<Order>
+     */
+    private function activeOrders(Event $event): array
+    {
+        $orders = array_filter($this->logbook->summarize($event)['orders'], static fn (Order $o): bool => OrderStatus::Cancelled !== $o->getStatus());
+
+        return array_reverse(array_values($orders));
+    }
+
+    /** @return list<string> numéro, caisse, date, heure (heure locale de l'événement), paiement */
+    private function orderColumns(Order $order): array
+    {
+        $createdAt = $order->getCreatedAt()->setTimezone(new \DateTimeZone($this->timezone));
+
+        return [
+            self::text($order->getDisplayNumber()),
+            self::text($order->getTillLetter()),
+            $createdAt->format('d/m/Y'),
+            $createdAt->format('H:i'),
+            PaymentMethod::Card === $order->getPaymentMethod() ? 'Carte' : 'Espèces',
+        ];
     }
 
     /** Synthèse par article : de quoi ajuster les courses du prochain événement. */
@@ -80,7 +139,7 @@ final class LogbookExport
         return self::csv($rows);
     }
 
-    /** « Loto de Noël » du 18/12/2026 → carnet-loto-de-noel-2026-12-18-ventes.csv */
+    /** « Loto de Noël » du 18/12/2026 → carnet-loto-de-noel-2026-12-18-commandes.csv */
     public static function filename(Event $event, string $kind): string
     {
         $name = strtolower((string) preg_replace('/[^A-Za-z0-9]+/', '-', (string) iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $event->getName())));

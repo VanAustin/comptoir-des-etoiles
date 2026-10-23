@@ -253,6 +253,8 @@ fieldset.field legend { font-size: 14px; font-weight: 700; color: var(--encre-do
 .kpi span { font-size: 14px; font-weight: 700; color: var(--encre-douce); }
 .kpi strong { font-size: 28px; }
 .kpi small { font-size: 14px; color: var(--encre-douce); }
+.logbook-exports { align-items: center; margin-bottom: 20px; }
+.logbook-exports .lede { margin: 0; }
 .logbook-section { margin-top: 36px; }
 .logbook-section h2 { margin-bottom: 4px; }
 .logbook-section .lede { margin-bottom: 14px; }

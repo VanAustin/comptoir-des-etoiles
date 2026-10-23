@@ -79,8 +79,8 @@ class LogbookController extends AbstractController
         ]);
     }
 
-    /** Exports pour Excel : les ventes ligne par ligne, ou la synthèse par article. */
-    #[Route('/export/{kind<ventes|articles>}', name: 'admin_logbook_export', methods: ['GET'])]
+    /** Exports pour Excel : journal des commandes, détail des lignes, ou bilan par article. */
+    #[Route('/export/{kind<commandes|lignes|articles>}', name: 'admin_logbook_export', methods: ['GET'])]
     public function export(string $kind, Request $request, LogbookExport $export): Response
     {
         $event = $this->selectedEvent($request, $this->events->findAllByDateDesc());
@@ -88,7 +88,11 @@ class LogbookController extends AbstractController
             throw $this->createNotFoundException('Aucun événement.');
         }
 
-        $response = new Response('ventes' === $kind ? $export->sales($event) : $export->articles($event));
+        $response = new Response(match ($kind) {
+            'commandes' => $export->orders($event),
+            'lignes' => $export->lines($event),
+            default => $export->articles($event),
+        });
         $response->headers->set('Content-Type', 'text/csv; charset=UTF-8');
         $response->headers->set('Content-Disposition', $response->headers->makeDisposition(ResponseHeaderBag::DISPOSITION_ATTACHMENT, LogbookExport::filename($event, $kind)));
         // Données de l'association : jamais gardées par un cache intermédiaire
