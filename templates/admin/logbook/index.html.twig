@@ -1,0 +1,187 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Carnet de bord · Administration{% endblock %}
+
+{% macro pill(status, labels) %}
+    {% set classes = {new: '', prep: 'prep', ready: 'ready', served: 'served', cancelled: 'pill-revoked'} %}
+    <span class="pill {{ classes[status] }}">{{ labels[status] }}</span>
+{% endmacro %}
+
+{% block body %}
+    <div class="section-head">
+        <div>
+            <h1>Carnet de bord</h1>
+            <p class="lede">« {{ event.name }} », {{ event.date|date('d/m/Y') }}{{ event.active ? ' · événement actif' }}. Les commandes annulées ne comptent dans aucun chiffre.</p>
+        </div>
+        <div class="row">
+            <form method="get" class="row logbook-event">
+                <label class="visually-hidden" for="evenement">Événement</label>
+                <select name="evenement" id="evenement">
+                    {% for e in events %}
+                        <option value="{{ e.id }}"{{ e.id == event.id ? ' selected' }}>{{ e.name }} ({{ e.date|date('d/m/Y') }})</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-small">Afficher</button>
+            </form>
+            <a class="btn btn-small" href="{{ path('admin_logbook', {evenement: event.id}) }}">Actualiser</a>
+        </div>
+    </div>
+
+    {% if shortfalls is not empty %}
+        <div class="alert alert-error" role="status">
+            Écart de caisse : {% for s in shortfalls %}{{ s.order.displayNumber }} (il manque {{ s.missing|euros }}){{ not loop.last ? ', ' }}{% endfor %}.
+            Commandes encaissées sans réseau à un prix qui a changé depuis : comptez-les à part en fin de soirée.
+        </div>
+    {% endif %}
+
+    <div class="kpis">
+        <div class="card kpi"><span>Chiffre d'affaires</span><strong class="num">{{ totals.revenue|euros }}</strong><small>hors consignes</small></div>
+        <div class="card kpi"><span>Commandes</span><strong class="num">{{ totals.orders }}</strong><small>{{ totals.cancelled }} annulée{{ totals.cancelled > 1 ? 's' }}</small></div>
+        <div class="card kpi"><span>Panier moyen</span><strong class="num">{{ totals.basket is null ? '—' : totals.basket|euros }}</strong><small>par commande avec articles</small></div>
+        <div class="card kpi"><span>Espèces</span><strong class="num">{{ totals.cashAmount|euros }}</strong><small>{{ totals.cashCount }} commande{{ totals.cashCount > 1 ? 's' }}</small></div>
+        <div class="card kpi"><span>Carte</span><strong class="num">{{ totals.cardAmount|euros }}</strong><small>{{ totals.cardCount }} commande{{ totals.cardCount > 1 ? 's' }}</small></div>
+        {% if event.depositCents > 0 or totals.depositsIn > 0 %}
+            <div class="card kpi">
+                <span>Consignes</span><strong class="num">{{ totals.depositBalance|euros }}</strong>
+                <small>{{ totals.depositsIn|euros }} encaissées, {{ totals.depositsOut|euros }} rendues{% if totals.cupsNotReturned is not null %} · {{ totals.cupsNotReturned }} gobelet{{ totals.cupsNotReturned > 1 ? 's' }} non rendu{{ totals.cupsNotReturned > 1 ? 's' }}{% endif %}</small>
+            </div>
+        {% endif %}
+    </div>
+
+    <section class="logbook-section" aria-labelledby="tills-title">
+        <h2 id="tills-title">Par caisse</h2>
+        <p class="lede">Espèces attendues dans chaque caisse en fin de soirée, hors fond de caisse : consignes comprises, monnaie rendue déduite.</p>
+        {% if tills is empty %}
+            <p class="card empty">Aucune commande pour l'instant.</p>
+        {% else %}
+            <div class="tablewrap">
+                <table class="stack-table">
+                    <thead><tr><th>Caisse</th><th>Commandes</th><th>Espèces attendues</th><th>Carte</th><th>Écart</th></tr></thead>
+                    <tbody>
+                        {% for letter, till in tills %}
+                            <tr>
+                                <td class="stack-title num">Caisse {{ letter }}</td>
+                                <td class="num" data-label="Commandes">{{ till.orders }}</td>
+                                <td class="num" data-label="Espèces attendues"><strong>{{ till.cashExpected|euros }}</strong></td>
+                                <td class="num" data-label="Carte">{{ till.card|euros }}</td>
+                                <td class="num" data-label="Écart">{{ till.shortfall ? '−' ~ till.shortfall|euros : '—' }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </section>
+
+    <section class="logbook-section" aria-labelledby="articles-title">
+        <h2 id="articles-title">Ventes et stock par article</h2>
+        <p class="lede">Pour ajuster les courses du prochain événement. Le stock restant tient compte des articles vendus dans les formules.</p>
+        <div class="tablewrap">
+            <table class="stack-table">
+                <thead><tr><th>Article</th><th>Vendus</th><th>Chiffre d'affaires</th><th>Stock de départ</th><th>Stock restant</th></tr></thead>
+                <tbody>
+                    {% for a in articles %}
+                        <tr>
+                            <td class="stack-title">{{ a.name }}{% if a.archived %} <span class="pill">retiré du menu</span>{% endif %}</td>
+                            <td class="num" data-label="Vendus">{{ a.sold }}</td>
+                            <td class="num" data-label="Chiffre d'affaires">{{ a.revenue|euros }}</td>
+                            <td class="num" data-label="Stock de départ">{{ a.formula ? 'formule' : (a.initial is null ? 'non compté' : a.initial) }}</td>
+                            <td data-label="Stock restant">
+                                {% if a.remaining is null %}
+                                    <span class="empty">—</span>
+                                {% elseif a.initial is not null and a.initial > 0 %}
+                                    <span class="stock">
+                                        <meter min="0" max="{{ a.initial }}" low="{{ (a.initial * 0.2)|round }}" high="{{ (a.initial * 0.5)|round }}" optimum="{{ a.initial }}" value="{{ max(0, a.remaining) }}" aria-label="Stock restant de {{ a.name }}"></meter>
+                                        <span class="num{{ a.remaining <= 0 ? ' out' }}">{{ a.remaining }}</span>
+                                    </span>
+                                {% else %}
+                                    <span class="num">{{ a.remaining }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="5" class="empty">Aucun article au menu.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="logbook-section" aria-labelledby="history-title">
+        <h2 id="history-title">Historique des commandes</h2>
+        <form method="get" class="logbook-filters">
+            <input type="hidden" name="evenement" value="{{ event.id }}">
+            <div class="field">
+                <label for="etat">État</label>
+                <select name="etat" id="etat">
+                    <option value="">Tous</option>
+                    {% for value, label in status_labels %}
+                        <option value="{{ value }}"{{ filters.etat == value ? ' selected' }}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="field">
+                <label for="caisse">Caisse</label>
+                <select name="caisse" id="caisse">
+                    <option value="">Toutes</option>
+                    {% for letter in letters %}
+                        <option value="{{ letter }}"{{ filters.caisse == letter ? ' selected' }}>{{ letter }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="field">
+                <label for="numero">Numéro</label>
+                <input type="text" name="numero" id="numero" value="{{ filters.numero }}" class="num input-short" placeholder="A12" autocomplete="off">
+            </div>
+            <button type="submit" class="btn">Filtrer</button>
+        </form>
+
+        <p class="lede">{{ history_count }} commande{{ history_count > 1 ? 's' }}{% if pages > 1 %} · page {{ page }} sur {{ pages }}{% endif %}</p>
+        {% if history is not empty %}
+            <div class="tablewrap">
+                <table class="stack-table history">
+                    <thead><tr><th>N°</th><th>Heure</th><th>Articles</th><th>Montant</th><th>Paiement</th><th>État</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
+                    <tbody>
+                        {% for order in history %}
+                            {% set articles = order.lines|filter(l => l.kind.value == 'article') %}
+                            <tr{{ order.status.value == 'cancelled' ? ' class="cancelled"' }}>
+                                <td class="stack-title num">{{ order.displayNumber }}</td>
+                                <td class="num" data-label="Heure">{{ order.createdAt|date('H\\hi') }}</td>
+                                <td data-label="Articles">
+                                    <details>
+                                        <summary>{{ articles|map(l => l.quantity ~ ' × ' ~ l.label)|join(', ') ?: 'Retour de consigne' }}</summary>
+                                        <ul class="order-lines">
+                                            {% for line in order.lines %}
+                                                <li><span>{{ line.quantity }} × {{ line.label }}</span> <span class="num">{{ line.totalCents|euros }}</span></li>
+                                            {% endfor %}
+                                        </ul>
+                                        {% if order.amountReceivedCents is not null %}
+                                            <p class="num">Reçu {{ order.amountReceivedCents|euros }}{% if order.changeCents > 0 %}, rendu {{ order.changeCents|euros }}{% elseif order.changeCents < 0 %}, écart de caisse : il manque {{ (0 - order.changeCents)|euros }}{% endif %}</p>
+                                        {% endif %}
+                                        {% if order.note %}<p class="order-note">Remarque : {{ order.note }}</p>{% endif %}
+                                    </details>
+                                </td>
+                                <td class="num" data-label="Montant">{{ order.totalCents|euros }}</td>
+                                <td data-label="Paiement">{{ order.paymentMethod.value == 'card' ? 'Carte' : 'Espèces' }}{% if order.changeCents is not null and order.changeCents < 0 %} <span class="pill pill-revoked">écart</span>{% endif %}</td>
+                                <td data-label="État">{{ _self.pill(order.status.value, status_labels) }}</td>
+                                <td class="actions">
+                                    {% if order.status.value != 'cancelled' %}
+                                        <a class="btn btn-small" href="{{ path('admin_logbook_cancel', {id: order.id}) }}">Annuler</a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if pages > 1 %}
+                <nav class="row pagination" aria-label="Pages de l'historique">
+                    {% if page > 1 %}<a class="btn btn-small" href="{{ path('admin_logbook', filters|merge({evenement: event.id, page: page - 1})) }}">Commandes plus récentes</a>{% endif %}
+                    {% if page < pages %}<a class="btn btn-small" href="{{ path('admin_logbook', filters|merge({evenement: event.id, page: page + 1})) }}">Commandes plus anciennes</a>{% endif %}
+                </nav>
+            {% endif %}
+        {% else %}
+            <p class="card empty">Aucune commande ne correspond.</p>
+        {% endif %}
+    </section>
+{% endblock %}

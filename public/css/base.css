@@ -246,3 +246,33 @@ fieldset.field legend { font-size: 14px; font-weight: 700; color: var(--encre-do
   display: flex; align-items: center; gap: 12px; max-width: calc(100% - 32px); padding: 10px 12px 10px 16px;
   background: var(--surface); border: 2px solid var(--renard); border-radius: var(--rayon); font-weight: 700;
 }
+
+/* Carnet de bord */
+.kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 16px; margin-bottom: 8px; }
+.kpi { display: flex; flex-direction: column; gap: 4px; }
+.kpi span { font-size: 14px; font-weight: 700; color: var(--encre-douce); }
+.kpi strong { font-size: 28px; }
+.kpi small { font-size: 14px; color: var(--encre-douce); }
+.logbook-section { margin-top: 36px; }
+.logbook-section h2 { margin-bottom: 4px; }
+.logbook-section .lede { margin-bottom: 14px; }
+.logbook-event select, .logbook-filters select {
+  min-height: 48px; padding: 6px 10px; border: 1px solid var(--kraft); border-radius: 8px; background: var(--nuage); color: var(--encre);
+}
+.logbook-filters { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 8px; }
+.logbook-filters .field { margin-bottom: 0; }
+.stock { display: inline-flex; align-items: center; gap: 10px; }
+/* Jauge de stock aux couleurs de la charte : Sauge (suffisant), Or (à surveiller), Erreur (presque épuisé) */
+.stock meter { width: 120px; height: 14px; appearance: none; background: var(--nuage); border: 1px solid var(--kraft); border-radius: 999px; }
+.stock meter::-webkit-meter-bar { background: var(--nuage); border: 0; border-radius: 999px; height: 12px; }
+.stock meter::-webkit-meter-optimum-value { background: var(--sauge); border-radius: 999px; }
+.stock meter::-webkit-meter-suboptimum-value { background: var(--or); border-radius: 999px; }
+.stock meter::-webkit-meter-even-less-good-value { background: var(--erreur); border-radius: 999px; }
+.kpis { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+.stock .out { color: var(--erreur); font-weight: 700; }
+.history details summary { cursor: pointer; min-height: 32px; }
+.order-lines { margin: 8px 0; padding: 0; list-style: none; }
+.order-lines li { display: flex; justify-content: space-between; gap: 12px; }
+.order-note { margin: 4px 0 0; padding: 6px 10px; border-radius: 8px; background: var(--or-fond); color: var(--or-texte); font-weight: 700; }
+tr.cancelled td { color: var(--encre-douce); }
+.pagination { margin-top: 16px; }

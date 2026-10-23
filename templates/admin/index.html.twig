@@ -2,7 +2,7 @@
 
 {% block body %}
     <h1>Administration</h1>
-    <p class="lede">Préparez ici vos événements. Les rubriques arrivent au fil des prochaines versions.</p>
+    <p class="lede">Préparez vos événements, suivez-les le jour J et faites le bilan.</p>
 
     <div class="tiles">
         <a class="card tile" href="{{ path('admin_event_index') }}">
@@ -12,6 +12,10 @@
         <a class="card tile" href="{{ path('admin_menu') }}">
             <strong>Menu</strong>
             <span>Articles, prix, stocks de départ, cuisine, consigne et formules.</span>
+        </a>
+        <a class="card tile" href="{{ path('admin_logbook') }}">
+            <strong>Carnet de bord</strong>
+            <span>Chiffres, ventes et stock par article, espèces par caisse, historique et annulation.</span>
         </a>
         <a class="card tile" href="{{ path('admin_device_index') }}">
             <strong>Tablettes</strong>
