@@ -27,7 +27,7 @@
             <p class="card empty">Aucune tablette pour l'instant. Ajoutez la première, par exemple « Caisse buvette ».</p>
         {% else %}
             <div class="tablewrap">
-                <table>
+                <table class="stack-table">
                     <thead>
                         <tr><th>Tablette</th><th>Rôle</th><th>Lettre</th><th>État</th><th><span class="visually-hidden">Actions</span></th></tr>
                     </thead>
@@ -35,10 +35,10 @@
                         {% for device in devices %}
                             {% set state = states[device.id] %}
                             <tr>
-                                <td>{{ device.name }}</td>
-                                <td>{{ device.role.label }}</td>
-                                <td class="num">{{ device.tillLetter ?? '—' }}</td>
-                                <td>
+                                <td class="stack-title">{{ device.name }}</td>
+                                <td data-label="Rôle">{{ device.role.label }}</td>
+                                <td class="num" data-label="Lettre">{{ device.tillLetter ?? '—' }}</td>
+                                <td data-label="État">
                                     <span class="pill {{ state_labels[state][1] }}">{{ state_labels[state][0] }}</span>
                                     {% if state == 'paired' %}
                                         <span class="seen">{{ device.lastSeenAt ? 'vue à ' ~ device.lastSeenAt|date('H\\hi') : 'pas encore vue' }}</span>

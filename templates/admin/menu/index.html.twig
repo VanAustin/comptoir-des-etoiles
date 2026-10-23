@@ -14,18 +14,18 @@
 {% macro row_inputs(product, v, e, with_stock) %}
     {% import 'admin/menu/_macros.html.twig' as m %}
     {% set prefix = 'products[' ~ product.id ~ ']' %}
-    <td>
+    <td data-label="Prix (€)">
         <input type="text" form="menu-save" inputmode="decimal" name="{{ prefix }}[price]" value="{{ v.price }}" class="num input-price" aria-label="Prix de {{ product.name }}"{{ m.invalid(e, 'price') }}>
         {{ m.error(e, 'price') }}
     </td>
     {% if with_stock %}
-        <td>
+        <td data-label="Stock de départ">
             <input type="text" form="menu-save" inputmode="numeric" name="{{ prefix }}[stock]" value="{{ v.stock }}" placeholder="non compté" class="num input-price" aria-label="Stock de départ de {{ product.name }}"{{ m.invalid(e, 'stock') }}>
             {{ m.error(e, 'stock') }}
         </td>
     {% endif %}
-    <td><input type="checkbox" form="menu-save" name="{{ prefix }}[kitchen]" value="1" {{ v.kitchen ? 'checked' }} aria-label="{{ product.name }} passe en cuisine"></td>
-    <td><input type="checkbox" form="menu-save" name="{{ prefix }}[deposit]" value="1" {{ v.deposit ? 'checked' }} aria-label="{{ product.name }} avec consigne"></td>
+    <td data-label="Cuisine"><input type="checkbox" form="menu-save" name="{{ prefix }}[kitchen]" value="1" {{ v.kitchen ? 'checked' }} aria-label="{{ product.name }} passe en cuisine"></td>
+    <td data-label="Consigne"><input type="checkbox" form="menu-save" name="{{ prefix }}[deposit]" value="1" {{ v.deposit ? 'checked' }} aria-label="{{ product.name }} avec consigne"></td>
 {% endmacro %}
 
 {% block body %}
@@ -64,7 +64,7 @@
             </div>
         {% else %}
             <div class="tablewrap">
-                <table class="menu-table">
+                <table class="menu-table stack-table">
                     <thead>
                         <tr><th>Ordre</th><th>Article</th><th>Prix (€)</th><th>Stock de départ</th><th>Cuisine</th><th>Consigne</th><th><span class="visually-hidden">Actions</span></th></tr>
                     </thead>
@@ -72,8 +72,8 @@
                         {% for product in articles %}
                             {% set e = row_errors[product.id] ?? {} %}
                             <tr id="produit-{{ product.id }}"{% if e is not empty %} class="row-invalid"{% endif %}>
-                                <td>{{ _self.move_buttons(product, loop.first, loop.last) }}</td>
-                                <td>
+                                <td data-label="Ordre">{{ _self.move_buttons(product, loop.first, loop.last) }}</td>
+                                <td class="stack-title">
                                     <span class="product-name"><span class="{{ icon_class(product.icon) }}" aria-hidden="true"></span> {{ product.name }}</span>
                                     <span class="seen">{{ product.category }}</span>
                                 </td>
@@ -103,7 +103,7 @@
             <p class="card empty">Aucune formule.{% if articles is empty %} Ajoutez d'abord des articles : une formule se compose d'articles existants.{% endif %}</p>
         {% else %}
             <div class="tablewrap">
-                <table class="menu-table">
+                <table class="menu-table stack-table">
                     <thead>
                         <tr><th>Ordre</th><th>Formule</th><th>Prix (€)</th><th>Cuisine</th><th>Consigne</th><th><span class="visually-hidden">Actions</span></th></tr>
                     </thead>
@@ -111,8 +111,8 @@
                         {% for product in formulas %}
                             {% set e = row_errors[product.id] ?? {} %}
                             <tr id="produit-{{ product.id }}"{% if e is not empty %} class="row-invalid"{% endif %}>
-                                <td>{{ _self.move_buttons(product, loop.first, loop.last) }}</td>
-                                <td>
+                                <td data-label="Ordre">{{ _self.move_buttons(product, loop.first, loop.last) }}</td>
+                                <td class="stack-title">
                                     <span class="product-name"><span class="{{ icon_class(product.icon) }}" aria-hidden="true"></span> {{ product.name }}</span>
                                     <span class="seen">{{ product.describeComposition }}</span>
                                 </td>

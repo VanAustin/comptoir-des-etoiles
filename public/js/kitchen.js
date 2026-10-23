@@ -228,8 +228,14 @@ function minutesWaiting(order) {
 }
 
 function render() {
-  $("kitchen-empty").hidden = orders.length > 0;
-  $("kitchen-tickets").replaceChildren(...orders.map(ticket));
+  // Classement selon l'état connu du serveur : un ticket ne change pas de section pendant le délai d'annulation
+  const toPrepare = orders.filter((order) => order.status !== "ready");
+  const ready = orders.filter((order) => order.status === "ready");
+  $("kitchen-empty").hidden = toPrepare.length > 0;
+  $("kitchen-tickets").replaceChildren(...toPrepare.map(ticket));
+  $("kitchen-ready").hidden = ready.length === 0;
+  $("kitchen-ready-title").textContent = `Prêtes · en attente du client (${ready.length})`;
+  $("kitchen-ready-tickets").replaceChildren(...ready.map(ticket));
 }
 
 function ticket(order) {

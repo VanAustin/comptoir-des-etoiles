@@ -15,17 +15,17 @@
         <p class="card empty">Aucun événement pour l'instant. Commencez par créer le prochain, par exemple « Loto de Noël ».</p>
     {% else %}
         <div class="tablewrap">
-            <table>
+            <table class="stack-table">
                 <thead>
                     <tr><th>Événement</th><th>Date</th><th>Consigne</th><th>État</th><th><span class="visually-hidden">Actions</span></th></tr>
                 </thead>
                 <tbody>
                     {% for event in events %}
                         <tr>
-                            <td>{{ event.name }}</td>
-                            <td class="num">{{ event.date|date('d/m/Y') }}</td>
-                            <td class="num">{{ event.depositCents ? event.depositCents|euros : '—' }}</td>
-                            <td>
+                            <td class="stack-title">{{ event.name }}</td>
+                            <td class="num" data-label="Date">{{ event.date|date('d/m/Y') }}</td>
+                            <td class="num" data-label="Consigne">{{ event.depositCents ? event.depositCents|euros : '—' }}</td>
+                            <td data-label="État">
                                 {% if event.active %}
                                     <span class="pill pill-active">Actif</span>
                                 {% else %}
