@@ -24,9 +24,15 @@
                 <button type="submit" class="btn btn-small">Afficher</button>
             </form>
             <a class="btn btn-small" href="{{ path('admin_logbook', {evenement: event.id}) }}">Actualiser</a>
-            <a class="btn btn-small" href="{{ path('admin_logbook_export', {kind: 'ventes', evenement: event.id}) }}" download>Exporter les ventes pour Excel</a>
-            <a class="btn btn-small" href="{{ path('admin_logbook_export', {kind: 'articles', evenement: event.id}) }}" download>Exporter le bilan par article</a>
         </div>
+    </div>
+
+    {# Exports pour Excel : chaque colonne de montant se somme sans double compte #}
+    <div class="row logbook-exports">
+        <span class="lede">Exporter pour Excel (commandes annulées exclues) :</span>
+        <a class="btn btn-small" href="{{ path('admin_logbook_export', {kind: 'commandes', evenement: event.id}) }}" download>Commandes</a>
+        <a class="btn btn-small" href="{{ path('admin_logbook_export', {kind: 'lignes', evenement: event.id}) }}" download>Détail des lignes</a>
+        <a class="btn btn-small" href="{{ path('admin_logbook_export', {kind: 'articles', evenement: event.id}) }}" download>Bilan par article</a>
     </div>
 
     {% if shortfalls is not empty %}
