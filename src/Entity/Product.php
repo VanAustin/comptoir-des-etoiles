@@ -52,6 +52,13 @@ class Product
     private int $position = 0;
 
     /**
+     * Article retiré du menu : il disparaît des caisses, mais reste en base pour
+     * l'historique et pour accepter une commande encaissée hors ligne avant le retrait.
+     */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $archivedAt = null;
+
+    /**
      * Composants d'une formule et leurs quantités : vendre la formule décompte
      * le stock de chacun d'eux. Vide pour un article simple.
      *
@@ -209,6 +216,18 @@ class Product
         }
 
         return $this;
+    }
+
+    public function archive(): static
+    {
+        $this->archivedAt ??= new \DateTimeImmutable();
+
+        return $this;
+    }
+
+    public function isArchived(): bool
+    {
+        return null !== $this->archivedAt;
     }
 
     public function addComponent(self $component, int $quantity = 1): static

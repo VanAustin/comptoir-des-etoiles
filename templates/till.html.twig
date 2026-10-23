@@ -13,6 +13,7 @@
 
 {% block nav %}
     <span class="who" id="till-who"></span>
+    <button type="button" class="btn btn-small outbox-badge" id="till-outbox" hidden></button>
     <button type="button" class="btn btn-small track-summary" id="till-track" hidden>Suivi</button>
     {# À maintenir 2 secondes : quitter l'écran par erreur ferait perdre ce qui est en cours #}
     <button type="button" class="btn btn-small hold" data-hold-href="{{ path('app_pair') }}" aria-describedby="hold-help">Tablette</button>
@@ -31,6 +32,8 @@
         <button type="button" id="till-status-retry" class="btn" hidden>Réessayer</button>
         <noscript><p class="alert alert-error">Cette page a besoin de JavaScript. Ouvrez-la dans Chrome.</p></noscript>
     </section>
+
+    <p id="till-offline" class="alert alert-error till-offline" role="status" hidden>Pas de connexion au serveur : les commandes sont enregistrées sur la tablette et partiront dès le retour du réseau. Annoncez en cuisine celles qui contiennent des plats.</p>
 
     <section id="till-main" class="pos" hidden>
         <div>
@@ -125,6 +128,18 @@
         {# Une ligne par commande, les prêtes (à remettre au client) en premier #}
         <ul class="track-list" id="track-list"></ul>
         <p class="empty" id="track-none">Aucune commande en cours.</p>
+    </section>
+
+    {# Commandes encaissées sans réseau : jamais effacées sans accord explicite #}
+    <section id="till-outbox-view" class="card panel track" aria-labelledby="outbox-title" hidden>
+        <div class="track-head">
+            <h2 id="outbox-title">Commandes enregistrées sur la tablette</h2>
+            <button type="button" class="btn" id="outbox-close">Revenir à la caisse</button>
+        </div>
+        <p class="lede">Elles partent seules, dans l'ordre, dès que le serveur répond. Une commande « À vérifier » a été refusée par le serveur : elle reste ici avec tout son détail, pour la ressaisir si besoin.</p>
+        <button type="button" class="btn" id="outbox-send">Essayer d'envoyer maintenant</button>
+        <ul class="track-list" id="outbox-list"></ul>
+        <p class="empty" id="outbox-none">Toutes les commandes ont été envoyées.</p>
     </section>
 
     <section id="till-done" class="card panel ordernum" aria-labelledby="done-lede" hidden>

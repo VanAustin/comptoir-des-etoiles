@@ -167,3 +167,9 @@ main.till { padding-block: 20px; }
 .track-countdown { font-weight: 700; color: var(--encre-douce); }
 .track-error { flex-basis: 100%; font-weight: 700; color: var(--erreur); }
 .act-served { background: var(--sauge-fond); border-color: var(--sauge-texte); color: var(--sauge-texte); }
+
+/* Commandes enregistrées sur la tablette (sans réseau) */
+.till-offline { margin: 0 0 16px; }
+.outbox-badge { border-color: var(--or-texte); color: var(--or-texte); }
+.outbox-badge.blocked { border-color: var(--erreur); color: var(--erreur); }
+.outbox-detail { flex-basis: 100%; color: var(--encre-douce); }

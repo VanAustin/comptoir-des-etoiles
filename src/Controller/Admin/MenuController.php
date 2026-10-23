@@ -152,8 +152,14 @@ class MenuController extends AbstractController
 
         if ($request->isMethod('POST')) {
             $this->denyUnlessCsrfValid($request, 'menu-remove-'.$product->getId());
-            $this->auditLogger->log('product.delete', 'product:'.$product->getId().' '.$product->getName(), before: self::snapshot($product));
-            $this->entityManager->remove($product);
+            $this->auditLogger->log('product.archive', 'product:'.$product->getId().' '.$product->getName(), before: self::snapshot($product));
+            // Archivé, pas supprimé : ventes, historique et commandes encore en attente sur une tablette restent valables
+            foreach ($this->products->findForEvent($event) as $formula) {
+                if ($formula->componentQuantity($product) > 0) {
+                    $formula->removeComponent($product);
+                }
+            }
+            $product->archive();
             $this->entityManager->flush();
             $this->addFlash('info', \sprintf('« %s » est retiré du menu.', $product->getName()));
 
@@ -543,8 +549,8 @@ class MenuController extends AbstractController
 
     private function denyUnlessInEvent(Product $product, Event $event): void
     {
-        if ($product->getEvent() !== $event) {
-            throw $this->createNotFoundException('Article d\'un autre événement.');
+        if ($product->getEvent() !== $event || $product->isArchived()) {
+            throw $this->createNotFoundException('Article d\'un autre événement, ou retiré du menu.');
         }
     }
 

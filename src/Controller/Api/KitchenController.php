@@ -32,7 +32,7 @@ class KitchenController extends AbstractController
     public function open(#[CurrentUser] Device $device, Request $request, OrderRepository $orders, ProductRepository $products): JsonResponse
     {
         $event = $device->getEvent();
-        $names = self::productNames($products->findForEvent($event));
+        $names = self::productNames($products->findAllForEvent($event));
 
         return PollResponse::create(
             $request,
@@ -67,7 +67,7 @@ class KitchenController extends AbstractController
         $current = $order->getStatus();
         if ($current !== $next) {
             if (!$current->canAdvanceTo($next)) {
-                $names = self::productNames($products->findForEvent($event));
+                $names = self::productNames($products->findAllForEvent($event));
 
                 return new JsonResponse([
                     'error' => self::refusal($order),
@@ -78,7 +78,7 @@ class KitchenController extends AbstractController
             $entityManager->flush();
         }
 
-        return new JsonResponse(self::describe($order, self::productNames($products->findForEvent($event))));
+        return new JsonResponse(self::describe($order, self::productNames($products->findAllForEvent($event))));
     }
 
     /**

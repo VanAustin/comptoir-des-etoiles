@@ -515,6 +515,48 @@ class TillApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(400);
     }
 
+    // --- Commandes encaissées hors ligne ---
+
+    public function testOfflineOrderWithAnOutdatedPriceIsKeptAsACashShortfall(): void
+    {
+        // Encaissé hors ligne à l'ancien prix du hot-dog (2,50 €), passé à 3,00 € entre-temps
+        $order = $this->order(['Hot-dog' => 1], amount: 250);
+        $order['offline'] = true;
+
+        $data = $this->post($order);
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame(300, $data['totalCents']);
+        self::assertSame(-50, $data['changeCents'], 'écart de caisse visible : il manque 0,50 €');
+        self::assertNull($data['changeBreakdown']);
+    }
+
+    public function testOnlineOrderStillNeedsEnoughCash(): void
+    {
+        $order = $this->order(['Hot-dog' => 1], amount: 250);
+        $order['offline'] = 'oui';
+
+        $this->post($order);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(0, $this->orderCount());
+    }
+
+    public function testOfflineOrderWithAProductRemovedSinceIsAccepted(): void
+    {
+        $em = self::entityManager();
+        $em->find(Product::class, $this->ids['Café'])->archive();
+        $em->flush();
+
+        $order = $this->order(['Café' => 2], amount: 200);
+        $order['offline'] = true;
+        $data = $this->post($order);
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame('Café', $data['lines'][0]['label']);
+        self::assertNotContains('Café', array_column($this->getMenu()['products'], 'name'), 'plus proposé aux caisses');
+    }
+
     // --- Remarque pour la cuisine ---
 
     public function testNoteIsKeptForTheKitchen(): void

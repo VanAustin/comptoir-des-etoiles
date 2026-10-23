@@ -16,7 +16,7 @@ export class ApiError extends Error {
   }
 }
 
-async function send(path, { method = "GET", body, auth = true, headers: extra = {}, cache = "default" }) {
+async function send(path, { method = "GET", body, auth = true, headers: extra = {}, cache = "default", timeout }) {
   const headers = { Accept: "application/json", ...extra };
   if (body !== undefined) {
     headers["Content-Type"] = "application/json";
@@ -34,6 +34,8 @@ async function send(path, { method = "GET", body, auth = true, headers: extra = 
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
       cache,
+      // Réseau 4G instable : une requête sans réponse est abandonnée au bout du délai
+      signal: timeout ? AbortSignal.timeout(timeout) : undefined,
       // Les tablettes n'utilisent jamais le cookie de session de l'administration
       credentials: "omit",
     });
@@ -53,7 +55,7 @@ async function read(response) {
 
 /**
  * @param {string} path par exemple "/api/me"
- * @param {{method?: string, body?: object, auth?: boolean}} options
+ * @param {{method?: string, body?: object, auth?: boolean, timeout?: number}} options timeout en millisecondes
  */
 export async function apiFetch(path, options = {}) {
   return read(await send(path, options));

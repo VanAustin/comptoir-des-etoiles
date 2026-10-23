@@ -17,8 +17,19 @@ class ProductRepository extends ServiceEntityRepository
         parent::__construct($registry, Product::class);
     }
 
-    /** @return list<Product> dans l'ordre d'affichage */
+    /** @return list<Product> le menu (sans les articles retirés), dans l'ordre d'affichage */
     public function findForEvent(Event $event): array
+    {
+        return $this->findBy(['event' => $event, 'archivedAt' => null], ['position' => 'ASC', 'id' => 'ASC']);
+    }
+
+    /**
+     * Menu et articles retirés : pour accepter une commande encaissée hors ligne
+     * avant un retrait, et nommer les composants des commandes passées.
+     *
+     * @return list<Product>
+     */
+    public function findAllForEvent(Event $event): array
     {
         return $this->findBy(['event' => $event], ['position' => 'ASC', 'id' => 'ASC']);
     }
