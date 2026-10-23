@@ -24,6 +24,8 @@
                 <button type="submit" class="btn btn-small">Afficher</button>
             </form>
             <a class="btn btn-small" href="{{ path('admin_logbook', {evenement: event.id}) }}">Actualiser</a>
+            <a class="btn btn-small" href="{{ path('admin_logbook_export', {kind: 'ventes', evenement: event.id}) }}" download>Exporter les ventes pour Excel</a>
+            <a class="btn btn-small" href="{{ path('admin_logbook_export', {kind: 'articles', evenement: event.id}) }}" download>Exporter le bilan par article</a>
         </div>
     </div>
 
