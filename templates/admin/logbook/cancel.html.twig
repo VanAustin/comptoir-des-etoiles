@@ -1,0 +1,28 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Annuler la commande {{ order.displayNumber }} · Administration{% endblock %}
+
+{% block body %}
+    <p><a href="{{ back }}">← Retour au Carnet de bord</a></p>
+
+    <section class="card form-card">
+        <h1>Annuler la commande {{ order.displayNumber }} ?</h1>
+        <p>
+            Encaissée à {{ order.createdAt|date('H\\hi') }},
+            {{ order.totalCents|euros }} payés {{ order.paymentMethod.value == 'card' ? 'par carte' : 'en espèces' }}.
+        </p>
+        <ul>
+            {% for line in order.lines %}
+                <li>{{ line.quantity }} × {{ line.label }}</li>
+            {% endfor %}
+        </ul>
+        <p>Elle disparaîtra de la cuisine et de l'écran Arrivées, ne comptera plus dans les chiffres, et son stock sera rendu. {{ refund_hint }}</p>
+        <form method="post">
+            <input type="hidden" name="_token" value="{{ csrf_token('order-cancel-' ~ order.id) }}">
+            <div class="row">
+                <a class="btn" href="{{ back }}">Garder la commande</a>
+                <button type="submit" class="btn btn-danger">Annuler la commande</button>
+            </div>
+        </form>
+    </section>
+{% endblock %}

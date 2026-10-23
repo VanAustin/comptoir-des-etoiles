@@ -58,6 +58,26 @@ class OrderRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * Toutes les commandes de l'événement avec leurs lignes, de la plus récente à la plus ancienne
+     * (Carnet de bord). Quelques centaines au plus pour un événement de l'association.
+     *
+     * @return list<Order>
+     */
+    public function findForEvent(Event $event): array
+    {
+        return $this->createQueryBuilder('o')
+            ->addSelect('l')
+            ->leftJoin('o.lines', 'l')
+            ->where('o.event = :event')
+            ->setParameter('event', $event)
+            ->orderBy('o.createdAt', 'DESC')
+            ->addOrderBy('o.id', 'DESC')
+            ->addOrderBy('l.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
     public function findOneInEvent(Event $event, string $uuid): ?Order
     {
         return $this->findOneBy(['event' => $event, 'uuid' => $uuid]);

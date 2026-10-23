@@ -108,7 +108,7 @@ Le numéro donné au client est la **lettre de la caisse suivie d'un numéro** :
 | Caisse | Caisse | Grille d'articles, panier, paiement (billets et pièces reçus additionnés, monnaie à rendre et sa décomposition en billets et pièces, `Money::changeBreakdown` côté serveur faisant référence), numéro de commande en grand |
 | Cuisine | Cuisine | Tickets à préparer, boutons « Je prépare », « Prête », « Remise au client », alerte au-delà de 10 min |
 | Appel client | Arrivées | Numéros prêts et en préparation, très grands, façon tableau d'aéroport |
-| Bilan | Carnet de bord | CA, nombre de commandes, panier moyen, ventes et stock restant par article, historique, annulation, export CSV pour Excel |
+| Bilan | Carnet de bord | `/admin/carnet` (`App\Service\Logbook`) : CA hors consignes, commandes, panier moyen, espèces et carte, consignes (encaissées, rendues, gobelets non rendus), espèces attendues par caisse (hors fond de caisse) et écarts des commandes hors ligne, ventes et stock restant par article (articles retirés compris), historique filtrable, annulation confirmée dans la page et tracée (`order.cancel`), événements passés ; export CSV pour Excel |
 | Administration | Menu | Deux parties, Articles et Formules : tableau de modification rapide (prix, stock, cuisine, consigne, ordre ↑ ↓) et une page par article ou formule (nom, icône, catégorie, composition avec quantités) |
 
 Le prototype validé par l'APE sert de référence pour l'ergonomie : `docs/prototype.html`.
