@@ -69,6 +69,14 @@ main { padding-block: var(--espace) calc(var(--espace) * 1.5); }
 .btn[disabled] { opacity: .5; cursor: not-allowed; }
 .inline-form { display: inline; margin: 0; }
 
+/* Bouton à maintenir 2 secondes : une jauge se remplit pendant l'appui */
+.hold { position: relative; overflow: hidden; touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.hold::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 5px;
+  background: var(--renard); transform: scaleX(0); transform-origin: left;
+}
+.hold.holding::after { transform: scaleX(1); transition: transform 2s linear; }
+
 /* Cartes et formulaires */
 .card {
   background: var(--surface); border: 1px solid var(--kraft); border-radius: var(--rayon);
@@ -119,6 +127,9 @@ td.actions > * + * { margin-left: 8px; }
 /* États : toujours une couleur et un libellé écrit */
 .pill { display: inline-block; font-size: 13px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--nuage); color: var(--encre-douce); }
 .pill-active { background: var(--sauge-fond); color: var(--sauge-texte); }
+/* États d'une commande : mêmes couleurs en cuisine et dans le suivi de la caisse */
+.pill.prep { background: var(--or-fond); color: var(--or-texte); }
+.pill.ready, .pill.served { background: var(--sauge-fond); color: var(--sauge-texte); }
 
 .empty { color: var(--encre-douce); }
 

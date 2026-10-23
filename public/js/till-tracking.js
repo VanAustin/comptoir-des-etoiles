@@ -8,7 +8,7 @@ import { Poller } from "./poller.js";
 
 const LATE_MINUTES = 10;
 const UNDO_SECONDS = 5;
-const STATUS_LABELS = { new: "Nouvelle", prep: "En préparation" };
+const STATUS_LABELS = { new: "Nouvelle", prep: "En préparation", ready: "Prête" };
 
 const $ = (id) => document.getElementById(id);
 
@@ -176,56 +176,36 @@ export class TillTracking {
   renderPanel() {
     const search = $("track-search").value.toUpperCase().replace(/\s/g, "");
     const visible = this.orders.filter((o) => !search || o.displayNumber.includes(search));
-    // Prêtes : celle qui attend depuis le plus longtemps d'abord
+    // Prêtes d'abord (celle qui attend depuis le plus longtemps en tête), puis les autres de la plus ancienne à la plus récente
     const ready = visible.filter((o) => o.status === "ready").sort((a, b) => a.updatedAt.localeCompare(b.updatedAt));
     const kitchen = visible.filter((o) => o.status !== "ready");
 
-    $("track-ready").replaceChildren(...ready.map((o) => this.readyRow(o)));
-    $("track-ready-none").hidden = ready.length > 0;
-    $("track-kitchen").replaceChildren(...kitchen.map((o) => this.kitchenRow(o)));
-    $("track-kitchen-none").hidden = kitchen.length > 0;
+    $("track-list").replaceChildren(...[...ready, ...kitchen].map((o) => this.row(o)));
+    $("track-none").hidden = visible.length > 0;
+    $("track-none").textContent = search ? `Aucune commande en cours ne correspond à « ${search} ».` : "Aucune commande en cours.";
   }
 
-  numberCell(order) {
-    return el("span", { class: "track-number" }, [
-      el("b", { class: "num", text: order.displayNumber }),
-      order.mine ? el("span", { class: "tag", text: "Cette caisse" }) : null,
-    ]);
-  }
-
-  kitchenRow(order) {
-    const minutes = this.minutesSince(order.createdAt);
-    const late = minutes >= LATE_MINUTES;
-    return el("li", { class: late ? "track-row late" : "track-row" }, [
-      this.numberCell(order),
-      el("span", { class: "track-state", text: `${STATUS_LABELS[order.status]} · ${minutes} min${late ? " · En retard" : ""}` }),
-    ]);
-  }
-
-  readyRow(order) {
-    const entry = this.pending.get(order.uuid);
+  row(order) {
+    const ready = order.status === "ready";
+    const minutes = this.minutesSince(ready ? order.updatedAt : order.createdAt);
+    const late = !ready && minutes >= LATE_MINUTES;
     const notice = this.notices.get(order.uuid);
-    let action;
-    if (entry) {
-      const message = entry.sending ? "Envoi…" : entry.error ?? this.countdownText(entry);
-      action = el("span", { class: "track-actions" }, [
-        el("span", {
-          class: entry.error ? "track-error" : "track-countdown",
-          attrs: { role: "status", "data-track-countdown": entry.sending || entry.error ? null : order.uuid },
-          text: message,
-        }),
-        el("button", {
-          class: "btn btn-small",
-          text: "Annuler",
-          attrs: { type: "button", disabled: entry.sending, "aria-label": `Annuler la remise de la commande ${order.displayNumber}` },
-          on: { click: () => { this.cancelPending(order.uuid); this.render(); } },
-        }),
-        entry.error
-          ? el("button", { class: "btn btn-small", text: "Réessayer", attrs: { type: "button" }, on: { click: () => this.send(order.uuid) } })
-          : null,
-      ]);
-    } else {
-      action = el("button", {
+
+    return el("li", { class: ["track-row", order.status, late ? "late" : ""].filter(Boolean).join(" ") }, [
+      el("span", { class: "track-number", text: order.displayNumber }),
+      el("span", { class: `pill ${order.status}`, text: STATUS_LABELS[order.status] }),
+      el("span", { class: "track-time num", text: ready ? `depuis ${minutes} min` : `${minutes} min` }),
+      late ? el("span", { class: "track-late", text: "En retard" }) : null,
+      order.mine ? el("span", { class: "tag", text: "Cette caisse" }) : null,
+      ready ? this.serveAction(order) : null,
+      notice ? el("span", { class: "track-error", attrs: { role: "status" }, text: notice }) : null,
+    ]);
+  }
+
+  serveAction(order) {
+    const entry = this.pending.get(order.uuid);
+    if (!entry) {
+      return el("button", {
         class: "btn btn-small act-served",
         text: "Remise au client",
         attrs: { type: "button", "aria-label": `Remise au client : commande ${order.displayNumber}` },
@@ -233,11 +213,22 @@ export class TillTracking {
       });
     }
 
-    return el("li", { class: "track-row ready" }, [
-      this.numberCell(order),
-      el("span", { class: "track-state", text: `Prête depuis ${this.minutesSince(order.updatedAt)} min` }),
-      action,
-      notice ? el("span", { class: "track-error", attrs: { role: "status" }, text: notice }) : null,
+    const message = entry.sending ? "Envoi…" : entry.error ?? this.countdownText(entry);
+    return el("span", { class: "track-actions" }, [
+      el("span", {
+        class: entry.error ? "track-error" : "track-countdown",
+        attrs: { role: "status", "data-track-countdown": entry.sending || entry.error ? null : order.uuid },
+        text: message,
+      }),
+      el("button", {
+        class: "btn btn-small",
+        text: "Annuler",
+        attrs: { type: "button", disabled: entry.sending, "aria-label": `Annuler la remise de la commande ${order.displayNumber}` },
+        on: { click: () => { this.cancelPending(order.uuid); this.render(); } },
+      }),
+      entry.error
+        ? el("button", { class: "btn btn-small", text: "Réessayer", attrs: { type: "button" }, on: { click: () => this.send(order.uuid) } })
+        : null,
     ]);
   }
 }

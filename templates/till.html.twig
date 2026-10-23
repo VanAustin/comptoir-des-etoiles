@@ -7,13 +7,16 @@
 {% endblock %}
 
 {% block javascripts %}
+    <script type="module" src="{{ app.request.basePath }}/js/hold.js"></script>
     <script type="module" src="{{ app.request.basePath }}/js/till.js"></script>
 {% endblock %}
 
 {% block nav %}
     <span class="who" id="till-who"></span>
     <button type="button" class="btn btn-small track-summary" id="till-track" hidden>Suivi</button>
-    <a class="btn btn-small" href="{{ path('app_pair') }}">Tablette</a>
+    {# À maintenir 2 secondes : quitter l'écran par erreur ferait perdre ce qui est en cours #}
+    <button type="button" class="btn btn-small hold" data-hold-href="{{ path('app_pair') }}" aria-describedby="hold-help">Tablette</button>
+    <span class="visually-hidden" id="hold-help">Maintenez le bouton 2 secondes pour ouvrir l'appairage de la tablette.</span>
 {% endblock %}
 
 {% block body_class %}page-wide{% endblock %}
@@ -119,13 +122,9 @@
         </div>
         <p id="track-offline" class="alert alert-error" role="status" hidden>Connexion perdue : le suivi n'est peut-être plus à jour.</p>
 
-        <h3>Prêtes · à remettre au client</h3>
-        <ul class="track-list" id="track-ready"></ul>
-        <p class="empty" id="track-ready-none">Aucune commande prête.</p>
-
-        <h3>En cuisine</h3>
-        <ul class="track-list" id="track-kitchen"></ul>
-        <p class="empty" id="track-kitchen-none">Rien en cuisine.</p>
+        {# Une ligne par commande, les prêtes (à remettre au client) en premier #}
+        <ul class="track-list" id="track-list"></ul>
+        <p class="empty" id="track-none">Aucune commande en cours.</p>
     </section>
 
     <section id="till-done" class="card panel ordernum" aria-labelledby="done-lede" hidden>

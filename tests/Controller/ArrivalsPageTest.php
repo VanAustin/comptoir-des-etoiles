@@ -23,6 +23,10 @@ class ArrivalsPageTest extends WebTestCase
         self::assertCount(1, $crawler->filterXPath('//script[@type="module" and @src="/js/arrivals.js"]'));
         self::assertCount(1, $crawler->filterXPath('//link[@rel="stylesheet" and @href="/css/arrivals.css"]'));
         self::assertCount(1, $crawler->filterXPath('//div[@id="arrivals-ready"]'));
+        // « Tablette » se maintient 2 secondes : pas de lien qu'un appui accidentel suivrait
+        self::assertCount(1, $crawler->filterXPath('//button[@data-hold-href="/appairer"]'));
+        self::assertCount(0, $crawler->filterXPath('//nav//a[@href="/appairer"]'));
+        self::assertCount(1, $crawler->filterXPath('//script[@type="module" and @src="/js/hold.js"]'));
         self::assertResponseHeaderSame('Content-Security-Policy', "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
     }
 

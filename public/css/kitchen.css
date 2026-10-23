@@ -5,12 +5,11 @@ main.kitchen { padding-block: 20px; }
 .screen-status { max-width: 520px; margin: 8vh auto 0; text-align: center; }
 .screen-status p { font-weight: 700; margin: 0 0 16px; }
 
-.tickets { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; align-items: start; }
+.tickets { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; align-items: start; }
 
 /* Prêtes : à part, sous les commandes à préparer, en plus compact */
 .kitchen-ready { margin-top: 32px; }
 .kitchen-ready h2 { margin-bottom: 14px; color: var(--sauge-texte); }
-.kitchen-ready .tickets { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
 .kitchen-ready .ticket { gap: 8px; }
 .kitchen-ready .kitchen-lines { font-size: 16px; }
 
@@ -30,12 +29,7 @@ main.kitchen { padding-block: 20px; }
 .tk-head .t { color: var(--encre-douce); font-weight: 700; }
 .ticket.late .t { color: var(--erreur); }
 
-.pill {
-  align-self: flex-start; padding: 2px 10px; border-radius: 999px; font-size: 14px; font-weight: 700;
-  background: var(--nuage); color: var(--encre-douce);
-}
-.pill.prep { background: var(--or-fond); color: var(--or-texte); }
-.pill.ready, .pill.served { background: var(--sauge-fond); color: var(--sauge-texte); }
+.ticket .pill { align-self: flex-start; font-size: 14px; }
 .ticket.late .pill { background: var(--erreur-fond); color: var(--erreur); }
 
 .kitchen-lines { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: 19px; }
@@ -51,7 +45,7 @@ main.kitchen { padding-block: 20px; }
 /* Boutons d'action : couleur de l'état suivant, jamais le bouton principal (un seul par écran) */
 .ticket > .btn { width: 100%; }
 .act-prep { background: var(--or); border-color: var(--or); color: var(--or-encre); }
-.act-ready { background: var(--sauge-fond); border-color: var(--sauge-texte); color: var(--sauge-texte); }
+.act-ready { background: var(--sauge); border-color: var(--sauge); color: var(--sauge-encre); }
 
 .pending-actions { display: flex; flex-direction: column; gap: 8px; }
 .pending-actions .countdown { margin: 0; font-weight: 700; color: var(--encre-douce); }

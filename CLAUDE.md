@@ -199,6 +199,7 @@ Référence complète : document « Charte graphique — Le Comptoir des étoile
   /* Couleurs dérivées */
   --renard-encre: #FFFFFF;  /* texte sur Renard */
   --or-encre: #3B352E;      /* texte sur Or */
+  --sauge-encre: #1A1612;   /* texte sur Sauge (5,24:1 ; l'encre n'atteint que 3,53:1) */
   --or-texte: #7A5A0F;  --or-fond: #FBF0CF;      /* en préparation */
   --sauge-fond: #EEF3DF;                          /* prête */
   --papier: #FFFDF8;                              /* tickets, panier */
@@ -215,7 +216,7 @@ Référence complète : document « Charte graphique — Le Comptoir des étoile
     --encre: #F0E6D6;   --encre-douce: #B4A897;
     --nuage: #1A1612;   --surface: #241F1A;
     --erreur: #FF8F86;  --erreur-fond: #43201D;
-    --renard-encre: #1A1612;  --or-encre: #1A1612;
+    --renard-encre: #1A1612;  --or-encre: #1A1612;  --sauge-encre: #1A1612;
     --or-texte: #E2B83A;  --or-fond: #3A2F12;
     --sauge-fond: #2A3319;  --papier: #241F1A;
     color-scheme: dark;
@@ -240,6 +241,7 @@ Règles :
 - Un seul bouton principal (fond Renard) par écran.
 - Chaque état a une couleur **et** un libellé écrit.
 - Zones tactiles d'au moins 48 px, boutons d'au moins 52 px de haut.
+- Sur les écrans de service, « Tablette » (vers l'appairage) se maintient 2 secondes, au doigt ou au clavier : un appui accidentel ferait perdre la commande en cours.
 - Contraste d'au moins 4,5:1 pour tout texte.
 - Aucun texte sous 13 px ; prix et totaux en police Mono.
 - Pas de dégradés, d'ombres marquées, de fenêtres système (`alert`, `confirm`) : les confirmations se font dans la page.
