@@ -22,6 +22,7 @@ body:json {
     "amountReceivedCents": 100000,
     "lines": [{ "productId": {{productId}}, "quantity": 2 }],
     "depositReturns": 0,
+    "note": "  Sans   oignons  ",
     "totalCents": 1
   }
 }
@@ -47,6 +48,10 @@ script:post-response {
 }
 
 tests {
+  test("la remarque est nettoyée, ou retirée sans article cuisine", function () {
+    expect([null, "Sans oignons"]).to.include(res.body.note);
+  });
+
   test("la commande est créée (201)", function () {
     expect(res.status).to.equal(201);
   });

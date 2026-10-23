@@ -255,6 +255,8 @@ function ticket(order) {
       el("span", { class: "t num", text: `${minutes} min` }),
     ]),
     el("span", { class: `pill ${status}`, text: STATUS_LABELS[status] + (late ? " · En retard" : "") }),
+    // Remarque du client : texte brut, inséré avec textContent
+    order.note ? el("p", { class: "ticket-note", text: order.note, attrs: { "aria-label": `Remarque : ${order.note}` } }) : null,
     el("ul", { class: "kitchen-lines" }, order.kitchenLines.map(kitchenLine)),
     order.counterLines.length
       ? el("p", { class: "counter", text: `Au comptoir : ${order.counterLines.map((l) => `${l.quantity} × ${l.label}`).join(", ")}` })

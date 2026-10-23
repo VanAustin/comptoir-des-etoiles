@@ -103,6 +103,16 @@ class KitchenApiTest extends WebTestCase
         self::assertStringNotContainsString('payment', $json);
     }
 
+    public function testTicketShowsTheNote(): void
+    {
+        $order = self::createOrder($this->event, [[$this->crepe, 1]]);
+        $em = self::entityManager();
+        $em->find(Order::class, $order->getId())->setNote('Sans sucre');
+        $em->flush();
+
+        self::assertSame('Sans sucre', $this->list()['orders'][0]['note']);
+    }
+
     public function testFormulaShowsItsCompositionForTheWholeLine(): void
     {
         $duo = self::createProduct($this->event, 'Formule Duo', kitchen: true);

@@ -19,6 +19,8 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(columns: ['event_id', 'updated_at'])]
 class Order
 {
+    public const NOTE_MAX_LENGTH = 140;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -61,6 +63,10 @@ class Order
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(onDelete: 'SET NULL')]
     private ?Device $device = null;
+
+    /** Remarque pour la cuisine (« sans oignons »), texte brut. Jamais de nom ni de téléphone. */
+    #[ORM\Column(length: self::NOTE_MAX_LENGTH, nullable: true)]
+    private ?string $note = null;
 
     /** @var Collection<int, OrderLine> */
     #[ORM\OneToMany(targetEntity: OrderLine::class, mappedBy: 'order', cascade: ['persist'], orphanRemoval: true)]
@@ -176,6 +182,18 @@ class Order
     public function setDevice(?Device $device): static
     {
         $this->device = $device;
+
+        return $this;
+    }
+
+    public function getNote(): ?string
+    {
+        return $this->note;
+    }
+
+    public function setNote(?string $note): static
+    {
+        $this->note = $note;
 
         return $this;
     }
