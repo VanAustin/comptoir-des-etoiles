@@ -1,7 +1,7 @@
 // Page /appairer : échange du code contre le jeton, puis affichage de la tablette appairée.
 
 import { apiFetch, ApiError } from "./api.js";
-import { clearPairing, getPairing, savePairing } from "./device-store.js";
+import { clearPairing, getOutbox, getPairing, savePairing } from "./device-store.js";
 
 const ROLE_LABELS = { caisse: "Caisse", cuisine: "Cuisine", affichage: "Affichage" };
 const CONFIRM_DELAY_MS = 4000;
@@ -96,6 +96,14 @@ unpairButton.addEventListener("click", async () => {
   }
   delete unpairButton.dataset.armed;
   unpairButton.textContent = "Désappairer cette tablette";
+  // Des commandes encaissées sans réseau attendent encore : sans l'appairage, elles ne pourraient plus partir
+  const waiting = await getOutbox().catch(() => []);
+  if (waiting.length > 0) {
+    const unpairError = document.getElementById("unpair-error");
+    unpairError.hidden = false;
+    unpairError.textContent = (`${waiting.length} commande${waiting.length > 1 ? "s" : ""} encaissée${waiting.length > 1 ? "s" : ""} sur cette tablette ${waiting.length > 1 ? "ne sont" : "n'est"} pas encore envoyée${waiting.length > 1 ? "s" : ""}. Ouvrez la caisse : attendez leur envoi, ou traitez celles « À vérifier », avant de désappairer.`);
+    return;
+  }
   await clearPairing();
   showForm();
 });

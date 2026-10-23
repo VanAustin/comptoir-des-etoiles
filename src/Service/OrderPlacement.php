@@ -92,7 +92,8 @@ class OrderPlacement
         $note = self::readNote($payload['note'] ?? null);
 
         $catalog = [];
-        foreach ($this->products->findForEvent($event) as $product) {
+        // Articles retirés compris : une commande encaissée hors ligne avant le retrait reste acceptée
+        foreach ($this->products->findAllForEvent($event) as $product) {
             $catalog[$product->getId()] = $product;
         }
 
@@ -124,7 +125,9 @@ class OrderPlacement
 
         $total = array_sum(array_map(static fn (OrderLine $l): int => $l->getTotalCents(), $order->getLines()->toArray()));
         $order->setTotalCents($total);
-        $order->setAmountReceivedCents($this->readPayment($method, $total, $payload['amountReceivedCents'] ?? null));
+        // Commande encaissée hors ligne et envoyée plus tard : l'argent est déjà dans la caisse
+        $offline = true === ($payload['offline'] ?? false);
+        $order->setAmountReceivedCents($this->readPayment($method, $total, $payload['amountReceivedCents'] ?? null, $offline));
         $order->setStatus($kitchen ? OrderStatus::New : OrderStatus::Served);
         // La remarque n'a de sens que pour la cuisine
         $order->setNote($kitchen ? $note : null);
@@ -180,8 +183,14 @@ class OrderPlacement
         return $quantities;
     }
 
-    /** @return int|null montant reçu à enregistrer */
-    private function readPayment(PaymentMethod $method, int $total, mixed $received): ?int
+    /**
+     * @param bool $offline encaissée hors ligne : un montant reçu inférieur au total recalculé
+     *                      (prix modifié entre-temps) est accepté et apparaît comme un écart de caisse,
+     *                      plutôt que de perdre une commande déjà payée
+     *
+     * @return int|null montant reçu à enregistrer
+     */
+    private function readPayment(PaymentMethod $method, int $total, mixed $received, bool $offline = false): ?int
     {
         if (PaymentMethod::Card === $method) {
             if ($total <= 0) {
@@ -196,7 +205,7 @@ class OrderPlacement
         if (!\is_int($received) || $received < 0 || $received > self::MAX_RECEIVED_CENTS) {
             throw new OrderRejectedException('Indiquez le montant reçu en espèces.');
         }
-        if ($received < $total) {
+        if ($received < $total && !$offline) {
             throw new OrderRejectedException('Le montant reçu est inférieur au total.');
         }
 

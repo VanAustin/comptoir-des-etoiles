@@ -3,19 +3,22 @@
 // après validation sont ceux de sa réponse.
 
 import { apiFetch, ApiError } from "./api.js";
-import { getNumbering, getPairing, saveNumbering } from "./device-store.js";
+import { getMenuCache, getNumbering, getPairing, saveMenuCache, saveNumbering } from "./device-store.js";
 import { el } from "./dom.js";
 import { CashReceived, changeBreakdown, describeBreakdown } from "./cash.js";
 import { formatEuros } from "./money.js";
 import { Cart, MAX_QUANTITY, indexMenu, newUuid } from "./till-cart.js";
+import { TillOutbox } from "./till-outbox.js";
 import { TillTracking } from "./till-tracking.js";
 
 const ALL = "Tout";
 /** Relecture du menu : stocks des autres caisses, prix modifiés, articles retirés. */
 const MENU_REFRESH_MS = 30000;
+/** Au-delà, une commande sans réponse part dans la file d'attente de la tablette. */
+const SEND_TIMEOUT_MS = 6000;
 
 const $ = (id) => document.getElementById(id);
-const views = { status: $("till-status"), main: $("till-main"), pay: $("till-pay"), track: $("till-track-view"), done: $("till-done") };
+const views = { status: $("till-status"), main: $("till-main"), pay: $("till-pay"), track: $("till-track-view"), outbox: $("till-outbox-view"), done: $("till-done") };
 
 const cart = new Cart();
 let menu = null;
@@ -27,31 +30,50 @@ const payment = { method: "cash", received: new CashReceived() };
 let attempt = null;
 let sending = false;
 
-/** Vue affichée avant d'ouvrir le suivi, pour y revenir. */
-let beforeTracking = "main";
+/** Vue affichée avant d'ouvrir un panneau (suivi, commandes en attente), pour y revenir. */
+let returnTo = "main";
+/** Menu lu dans la tablette faute de réseau au démarrage. */
+let menuFromCache = false;
+/** Caisse qui encaisse : une commande en attente n'est envoyée qu'avec le même appairage. */
+let owner = null;
+
+function openPanel(name) {
+  if (!views[name].hidden || sending) {
+    return false;
+  }
+  const current = Object.keys(views).find((key) => !views[key].hidden) ?? "main";
+  if (current !== "track" && current !== "outbox") {
+    returnTo = current;
+  }
+  show(name);
+  return true;
+}
+
+function closePanel() {
+  show(returnTo);
+  if (returnTo === "main") {
+    render();
+  }
+}
+
 const tracking = new TillTracking({
   onOpen: () => {
-    if (!views.track.hidden || sending) {
-      return;
-    }
-    beforeTracking = Object.keys(views).find((key) => !views[key].hidden) ?? "main";
-    show("track");
-    $("track-search").focus();
-  },
-  onClose: () => {
-    show(beforeTracking);
-    if (beforeTracking === "main") {
-      render();
+    if (openPanel("track")) {
+      $("track-search").focus();
     }
   },
+  onClose: closePanel,
   onFatal: (error) => showStatus(error.message, { pairLink: true }),
 });
+
+const outbox = new TillOutbox({ onChange: () => renderOutbox() });
 
 function show(name) {
   for (const [key, view] of Object.entries(views)) {
     view.hidden = key !== name;
   }
   window.scrollTo(0, 0);
+  renderOutbox();
 }
 
 /** Message bloquant : tablette non appairée, serveur injoignable… */
@@ -85,6 +107,8 @@ async function start() {
     showStatus("Cette tablette n'est pas une caisse. Ouvrez l'écran prévu pour son rôle.", { pairLink: true });
     return;
   }
+  owner = { tillLetter: pairing.device.tillLetter, event: pairing.device.event?.name ?? "" };
+  await outbox.start(owner);
   await loadMenu({ initial: true });
   tracking.start();
   setInterval(refreshMenu, MENU_REFRESH_MS);
@@ -100,6 +124,7 @@ function refreshMenu() {
 
 async function loadMenu({ initial = false, background = false } = {}) {
   let data;
+  let fromCache = false;
   try {
     data = await apiFetch("/api/menu");
     if (background && (views.main.hidden || sending)) {
@@ -111,10 +136,20 @@ async function loadMenu({ initial = false, background = false } = {}) {
     }
     if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
       showStatus(error.message, { pairLink: true });
-    } else {
-      showStatus(error.message, { retry: true });
+      return;
     }
-    return;
+    // Pas de réseau au démarrage : dernier menu reçu par cette caisse
+    const cached = await getMenuCache().catch(() => null);
+    if (!cached || cached.owner?.tillLetter !== owner.tillLetter || cached.owner?.event !== owner.event) {
+      showStatus(`${error.message} Le menu n'a encore jamais été reçu par cette caisse.`, { retry: true });
+      return;
+    }
+    data = cached.data;
+    fromCache = true;
+  }
+  menuFromCache = fromCache;
+  if (!fromCache) {
+    saveMenuCache({ owner, data }).catch(() => {});
   }
 
   menu = indexMenu(data);
@@ -131,6 +166,7 @@ async function loadMenu({ initial = false, background = false } = {}) {
     show("main");
   }
   render();
+  renderOutbox();
 }
 
 async function setNextNumber(number) {
@@ -416,6 +452,11 @@ async function submitOrder() {
   renderPayment();
 
   try {
+    // Réseau absent il y a un instant : directement dans la file, sans faire attendre le client
+    if (outbox.offline || !navigator.onLine) {
+      await queueOrder(content);
+      return;
+    }
     const order = await sendWithNumbering(content);
     attempt = null;
     await setNextNumber(order.number + 1);
@@ -423,8 +464,14 @@ async function submitOrder() {
     tracking.refresh();
     clearCart();
     loadMenu(); // Stocks à jour pour la commande suivante
+    outbox.noteSuccess(); // Le réseau est là : les commandes en attente partent aussi
   } catch (error) {
-    await handleSendError(error);
+    if (isNetworkFailure(error)) {
+      outbox.noteFailure();
+      await queueOrder(content);
+    } else {
+      await handleSendError(error);
+    }
   } finally {
     sending = false;
     if (!views.pay.hidden) {
@@ -437,21 +484,54 @@ async function submitOrder() {
 async function sendWithNumbering(content) {
   const body = (number) => ({ uuid: attempt.uuid, number, createdAt: attempt.createdAt, ...content });
   try {
-    return await apiFetch("/api/orders", { method: "POST", body: body(nextNumber) });
+    return await apiFetch("/api/orders", { method: "POST", body: body(nextNumber), timeout: SEND_TIMEOUT_MS });
   } catch (error) {
     if (error instanceof ApiError && error.status === 409 && error.data?.nextNumber) {
       await setNextNumber(error.data.nextNumber);
-      return apiFetch("/api/orders", { method: "POST", body: body(nextNumber) });
+      return apiFetch("/api/orders", { method: "POST", body: body(nextNumber), timeout: SEND_TIMEOUT_MS });
     }
     throw error;
   }
 }
 
-async function handleSendError(error) {
-  if (!(error instanceof ApiError) || error.status === 0) {
-    showMessage($("pay-error"), "Commande non enregistrée : la connexion au serveur a échoué. Touchez « Réessayer ».");
+/** Pas de réponse du serveur (réseau, délai dépassé, serveur indisponible) : la commande part dans la file. */
+function isNetworkFailure(error) {
+  return !(error instanceof ApiError) || error.status === 0 || error.status >= 500 || error.status === 429;
+}
+
+/**
+ * Garde la commande dans la tablette : le client a payé et reçoit son numéro. Même UUID
+ * que la tentative en cours : si le serveur l'avait reçue malgré tout, il n'y aura pas de doublon.
+ */
+async function queueOrder(content) {
+  const number = nextNumber;
+  const total = cart.total(menu);
+  const entry = {
+    uuid: attempt.uuid,
+    number,
+    displayNumber: `${menu.tillLetter}${number}`,
+    createdAt: attempt.createdAt,
+    body: { uuid: attempt.uuid, number, createdAt: attempt.createdAt, ...content, offline: true },
+    // Détail gardé pour la caisse (liste « En attente », ressaisie si le serveur refusait)
+    lines: cart.lines(menu).map(({ label, quantity, totalCents }) => ({ label, quantity, totalCents })),
+    totalCents: total,
+    paymentMethod: content.paymentMethod,
+    receivedCents: content.amountReceivedCents ?? null,
+    kitchen: cart.hasKitchenItem(menu),
+  };
+  try {
+    await outbox.add(entry);
+  } catch {
+    showMessage($("pay-error"), "Commande non enregistrée : la tablette n'a pas pu la garder en mémoire. Touchez « Réessayer ».");
     return;
   }
+  attempt = null;
+  await setNextNumber(number + 1);
+  showDoneOffline(entry);
+  clearCart();
+}
+
+async function handleSendError(error) {
   attempt = null;
   if (error.status === 401 || error.status === 403) {
     showStatus(error.message, { pairLink: true });
@@ -464,7 +544,101 @@ async function handleSendError(error) {
   showMessage($("pay-error"), error.message);
 }
 
+// --- Commandes en attente d'envoi ---
+
+function renderOutbox() {
+  const pending = outbox.pending.length;
+  const blocked = outbox.blocked.length;
+  const badge = $("till-outbox");
+  badge.hidden = pending + blocked === 0;
+  badge.classList.toggle("blocked", blocked > 0);
+  const waiting = `${pending} en attente d'envoi`;
+  badge.textContent = blocked > 0
+    ? `À vérifier : ${blocked}${pending ? ` · ${waiting}` : ""}`
+    : `${outbox.offline ? "Hors ligne · " : ""}${waiting}`;
+
+  // Menu lu dans la tablette : hors ligne tant que le serveur n'a pas répondu depuis
+  const offline = outbox.offline || (menuFromCache && !outbox.reachedServer);
+  $("till-offline").hidden = !offline || !views.status.hidden;
+  if (!views.outbox.hidden) {
+    renderOutboxPanel();
+  }
+}
+
+function renderOutboxPanel() {
+  $("outbox-list").replaceChildren(...outbox.entries.map(outboxRow));
+  $("outbox-none").hidden = outbox.entries.length > 0;
+  $("outbox-send").hidden = outbox.pending.length === 0;
+}
+
+function outboxRow(entry) {
+  const blocked = entry.status === "blocked";
+  const time = new Date(entry.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  const payment = entry.paymentMethod === "card"
+    ? "carte"
+    : `espèces${entry.receivedCents !== null ? `, reçu ${formatEuros(entry.receivedCents)}` : ""}`;
+
+  return el("li", { class: `track-row outbox-row${blocked ? " late" : " prep"}` }, [
+    el("span", { class: "track-number", text: entry.displayNumber }),
+    el("span", { class: blocked ? "pill pill-revoked" : "pill prep", text: blocked ? "À vérifier" : "En attente" }),
+    el("span", { class: "track-time num", text: `encaissée à ${time}` }),
+    el("span", { class: "outbox-detail" }, [
+      el("span", { text: entry.lines.map((l) => `${l.quantity} × ${l.label}`).join(", ") }),
+      el("span", { class: "num", text: ` · ${formatEuros(entry.totalCents)} · ${payment}` }),
+    ]),
+    blocked ? el("span", { class: "track-error", text: entry.error }) : null,
+    blocked ? el("span", { class: "track-actions" }, [
+      el("button", { class: "btn btn-small", text: "Réessayer", attrs: { type: "button" }, on: { click: () => outbox.retry(entry.uuid) } }),
+      confirmButton("Ressaisie faite : retirer", () => outbox.discard(entry.uuid)),
+    ]) : null,
+  ]);
+}
+
+/** Bouton à toucher deux fois : la confirmation se fait dans la page, sans fenêtre système. */
+function confirmButton(label, action) {
+  const button = el("button", { class: "btn btn-small btn-danger", text: label, attrs: { type: "button" } });
+  let timer = null;
+  button.addEventListener("click", () => {
+    if (!timer) {
+      button.textContent = "Toucher encore pour confirmer";
+      timer = setTimeout(() => { timer = null; button.textContent = label; }, 4000);
+      return;
+    }
+    clearTimeout(timer);
+    action();
+  });
+  return button;
+}
+
+$("till-outbox").addEventListener("click", () => {
+  if (openPanel("outbox")) {
+    renderOutboxPanel();
+  }
+});
+$("outbox-close").addEventListener("click", closePanel);
+$("outbox-send").addEventListener("click", () => outbox.flush());
+
 // --- Confirmation ---
+
+function showDoneOffline(entry) {
+  $("done-lede").textContent = "Commande enregistrée sur la tablette";
+  $("done-number").textContent = entry.displayNumber;
+  $("done-help").textContent = entry.kitchen
+    ? "Pas encore en cuisine : annoncez-la de vive voix. Elle partira dès le retour du réseau."
+    : "À servir directement au comptoir. Elle sera transmise dès le retour du réseau.";
+  $("done-queue").hidden = true;
+
+  const change = entry.receivedCents === null ? 0 : entry.receivedCents - entry.totalCents;
+  $("done-change").hidden = change <= 0 && entry.totalCents >= 0;
+  if (!$("done-change").hidden) {
+    const amount = entry.totalCents < 0 ? -entry.totalCents : change;
+    $("done-change-label").textContent = entry.totalCents < 0 ? "À rendre au client" : "À rendre";
+    $("done-change-amount").textContent = formatEuros(amount);
+    $("done-change-breakdown").textContent = describeBreakdown(changeBreakdown(amount));
+  }
+  show("done");
+  $("done-next").focus();
+}
 
 function showDone(order) {
   const kitchen = order.status !== "served";

@@ -56,6 +56,8 @@ PHP, Composer et Symfony ne sont **pas** installés sur le Mac : tout tourne dan
   - `/sw.js` est servi par `PwaController` : `App\Pwa\AppShell` y inscrit la liste des fichiers à garder (écrans de service et tout `public/css`, `js`, `fonts`, `img`) et une version calculée sur leur contenu, celui des gabarits et du service worker (`src/Pwa/service-worker.js`). Pas d'outil de build : toute modification change la version, et les tablettes rechargent tout.
   - Pages : réseau d'abord (4 s), copie locale sinon. Fichiers statiques : copie de la version en cours. Jamais l'API ni l'administration.
   - Nouvelle version : bandeau « Recharger » sur la tablette, jamais de rechargement automatique (commande en cours de saisie).
+  - File d'attente (`public/js/till-outbox.js`) : sans réponse du serveur en 6 s, la commande est gardée dans IndexedDB (magasin `outbox`) avec son UUID et son numéro, et le client reçoit son numéro. Envoi dans l'ordre au retour du réseau, avec `"offline": true`. Une commande gardée n'est jamais effacée sans accord : un refus du serveur la met « À vérifier » avec tout son détail (articles, montant, paiement), retirée seulement après ressaisie, en deux appuis. Elle n'est envoyée qu'avec l'appairage d'origine (la lettre du numéro ne doit pas changer), et le désappairage est bloqué tant qu'il en reste.
+  - Le dernier menu reçu est gardé dans la tablette : une caisse rechargée sans réseau reste utilisable.
   - Application installable : `/manifest.webmanifest`, icônes dans `public/img/app/` (générées depuis le logo générique), démarrage sur `/demarrer`, qui ouvre l'écran du rôle de la tablette.
 - **Idempotence** : chaque commande reçoit un UUID créé sur la tablette. `POST /api/orders` avec un UUID déjà connu ne crée pas de doublon et renvoie la commande existante.
 - **Temps réel** : l'écran cuisine (`GET /api/orders`) et l'écran Arrivées (`GET /api/board`) interrogent le serveur toutes les 2 à 3 secondes. Pas de Mercure pour l'instant.
@@ -71,7 +73,7 @@ PHP, Composer et Symfony ne sont **pas** installés sur le Mac : tout tourne dan
 ## Modèle de données (point de départ)
 
 - `Event` : nom, date, actif ou non, montant de la consigne (centimes, 0 = pas de consigne).
-- `Product` : événement, nom, icône (clé du catalogue d'icônes, voir Charte), catégorie, prix (centimes, entier), stock de départ (nullable = non compté), passe en cuisine (bool), avec consigne (bool), ordre d'affichage, composants si formule.
+- `Product` : événement, nom, icône (clé du catalogue d'icônes, voir Charte), catégorie, prix (centimes, entier), stock de départ (nullable = non compté), passe en cuisine (bool), avec consigne (bool), ordre d'affichage, composants si formule, retiré le (`archivedAt`). Un article retiré du menu est archivé, jamais supprimé : il disparaît des caisses mais reste accepté dans une commande encaissée hors ligne avant le retrait.
 - `ProductComponent` : article inclus dans une formule, avec sa quantité (« 2 crêpes »). Une formule ne contient que des articles simples, jamais une autre formule.
 - `Order` : UUID (identifiant venu de la tablette), événement, lettre de caisse et numéro (voir Numérotation), moyen de paiement (espèces ou carte), montant reçu, total recalculé par le serveur, état, créé le, modifié le, tablette d'origine, remarque pour la cuisine (facultative, 140 caractères, texte brut sur une ligne, gardée seulement si la commande passe en cuisine ; l'aide « Pas de nom ni de téléphone » rappelle la règle des données personnelles).
 - `OrderLine` : commande, produit, type (article, consigne, retour de consigne), libellé, prix et passage en cuisine figés au moment de la vente, quantité, composants figés si formule (un identifiant d'article par unité : « 2 crêpes » donne deux fois l'identifiant de la crêpe).
@@ -118,6 +120,7 @@ Usage prévu : une APE, petite échelle. Mais le code est écrit **comme s'il é
 ### Principe : le serveur ne fait jamais confiance à la tablette
 
 - Le serveur **recalcule** prix, totaux et monnaie à partir de la base. Le total envoyé par la tablette est ignoré.
+- Seule exception, pour ne jamais perdre une commande déjà payée : une commande envoyée avec `"offline": true` (encaissée sans réseau) est acceptée même si le montant reçu est inférieur au total recalculé ; l'écart apparaît comme une monnaie négative, à signaler dans le Carnet de bord.
 - Toute entrée est validée côté serveur : UUID au bon format, quantités entières entre 1 et 99, produit appartenant à l'événement actif, état demandé autorisé depuis l'état actuel, taille du corps JSON limitée (64 Ko).
 - Les transitions d'état sont vérifiées par le serveur : `new` → `prep` → `ready` → `served`. L'annulation est réservée à l'administration.
 

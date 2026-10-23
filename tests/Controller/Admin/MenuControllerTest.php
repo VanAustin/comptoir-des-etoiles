@@ -392,8 +392,32 @@ class MenuControllerTest extends WebTestCase
         $this->client->submit($crawler->selectButton('Retirer l\'article')->form());
 
         self::assertResponseRedirects('/admin/menu');
-        self::assertSame(0, $this->productRepository()->count());
-        self::assertSame(1, $this->auditCount('product.delete'));
+        // Archivé : hors du menu, mais toujours en base pour l'historique
+        self::assertSame(1, $this->productRepository()->count());
+        self::assertTrue($this->findProductById($cafe->getId())->isArchived());
+        self::assertSame([], $this->productRepository()->findForEvent($this->findProductById($cafe->getId())->getEvent()));
+        self::assertSame(1, $this->auditCount('product.archive'));
+
+        $this->client->request('GET', '/admin/menu');
+        self::assertStringNotContainsString('id="produit-'.$cafe->getId().'"', $this->content());
+        $this->client->request('GET', '/admin/menu/'.$cafe->getId().'/modifier');
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testRemovedProductLeavesItsFormulas(): void
+    {
+        self::createEvent();
+        $crepe = $this->createProduct('Crêpe', 200);
+        $soda = $this->createProduct('Soda', 150);
+        $duo = $this->createProduct('Duo', 300);
+        $duo->addComponent($crepe)->addComponent($soda);
+        self::entityManager()->flush();
+
+        $crawler = $this->client->request('GET', '/admin/menu/'.$crepe->getId().'/retirer');
+        $this->client->submit($crawler->selectButton('Retirer l\'article')->form());
+
+        self::entityManager()->clear();
+        self::assertSame('1 × Soda', $this->findProductById($duo->getId())->describeComposition());
     }
 
     public function testProductOfAnotherEventCannotBeRemoved(): void

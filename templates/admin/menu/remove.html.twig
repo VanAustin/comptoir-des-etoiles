@@ -7,7 +7,7 @@
 
     <section class="card form-card">
         <h1>Retirer « {{ product.name }} » du menu ?</h1>
-        <p>L'article disparaîtra des caisses. Les ventes déjà enregistrées restent dans le Carnet de bord.</p>
+        <p>L'article disparaîtra des caisses. Les ventes déjà enregistrées restent dans le Carnet de bord, et une commande encaissée hors ligne avant le retrait sera bien enregistrée.</p>
         {% if used_as_component %}
             <p class="alert alert-info">Il sera aussi retiré des formules qui le contiennent.</p>
         {% endif %}

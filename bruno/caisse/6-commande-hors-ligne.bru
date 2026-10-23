@@ -1,0 +1,48 @@
+meta {
+  name: 6. Commande encaissée hors ligne
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/orders
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_caisse}}
+}
+
+body:json {
+  {
+    "uuid": "{{offlineUuid}}",
+    "number": {{offlineNumber}},
+    "paymentMethod": "cash",
+    "amountReceivedCents": 1,
+    "lines": [{ "productId": {{productId}}, "quantity": 1 }],
+    "offline": true
+  }
+}
+
+script:pre-request {
+  bru.setVar("offlineUuid", "7e1f2a3b-4c5d-4e6f-8a9b-" + Date.now().toString(16).padStart(12, "0").slice(-12));
+  bru.setVar("offlineNumber", 5000 + Math.floor(Math.random() * 4000));
+}
+
+tests {
+  test("acceptée malgré un montant reçu insuffisant (201)", function () {
+    expect(res.status).to.equal(201);
+  });
+
+  test("l'écart de caisse apparaît comme une monnaie négative", function () {
+    expect(res.body.changeCents).to.be.below(0);
+    expect(res.body.changeBreakdown).to.equal(null);
+  });
+}
+
+docs {
+  Envoi différé d'une commande encaissée sans réseau (`"offline": true`). L'argent est déjà dans la caisse : si le total recalculé dépasse le montant reçu (prix modifié entre-temps), la commande est acceptée et l'écart apparaît (monnaie négative), au lieu d'être perdue.
+
+  Sans `offline`, la même commande serait refusée (422). Lancez d'abord « 1. Menu ».
+}
