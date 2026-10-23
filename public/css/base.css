@@ -239,3 +239,10 @@ fieldset.field legend { font-size: 14px; font-weight: 700; color: var(--encre-do
   .stack-table .input-price { max-width: 140px; }
   .tablewrap { overflow-x: visible; }
 }
+
+/* Nouvelle version installée : bandeau discret, rechargement au choix */
+.update-banner {
+  position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 10;
+  display: flex; align-items: center; gap: 12px; max-width: calc(100% - 32px); padding: 10px 12px 10px 16px;
+  background: var(--surface); border: 2px solid var(--renard); border-radius: var(--rayon); font-weight: 700;
+}

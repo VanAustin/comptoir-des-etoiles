@@ -1,0 +1,17 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Le Comptoir des étoiles{% endblock %}
+
+{% block javascripts %}
+    <script type="module" src="{{ app.request.basePath }}/js/start.js"></script>
+{% endblock %}
+
+{% block body %}
+    <section class="card form-card" id="start"
+             data-pair-url="{{ path('app_pair') }}" data-till-url="{{ path('app_till') }}"
+             data-kitchen-url="{{ path('app_kitchen') }}" data-arrivals-url="{{ path('app_arrivals') }}">
+        <p class="lede" role="status">Ouverture de l'écran de cette tablette…</p>
+        <noscript><p class="alert alert-error">Cette page a besoin de JavaScript. Ouvrez-la dans Chrome.</p></noscript>
+        <p><a href="{{ path('app_pair') }}">Ouvrir la page de la tablette</a></p>
+    </section>
+{% endblock %}

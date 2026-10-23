@@ -161,6 +161,12 @@ php bin/console cache:clear
 
 Évitez de mettre à jour pendant un événement.
 
+## Installer l'application sur une tablette
+
+Une fois la tablette appairée, dans Chrome : menu ⋮, puis « Ajouter à l'écran d'accueil » (ou « Installer l'application »). L'icône « Comptoir » ouvre directement l'écran de la tablette (caisse, cuisine ou Arrivées), même sans réseau.
+
+Après une mise à jour du serveur, un bandeau « Nouvelle version de l'application » apparaît sur les tablettes : touchez « Recharger » entre deux commandes.
+
 ## Tester sur le terrain
 
 À faire une fois dans la salle, avant la répétition générale, à l'emplacement exact des caisses et de la cuisine. Comptez dix minutes.

@@ -231,7 +231,8 @@ function render() {
   // Classement selon l'état connu du serveur : un ticket ne change pas de section pendant le délai d'annulation
   const toPrepare = orders.filter((order) => order.status !== "ready");
   const ready = orders.filter((order) => order.status === "ready");
-  $("kitchen-empty").hidden = toPrepare.length > 0;
+  // Rien reçu du serveur (hors ligne au démarrage) : ne pas annoncer « aucune commande »
+  $("kitchen-empty").hidden = firstLoad || toPrepare.length > 0;
   $("kitchen-tickets").replaceChildren(...toPrepare.map(ticket));
   $("kitchen-ready").hidden = ready.length === 0;
   $("kitchen-ready-title").textContent = `Prêtes · en attente du client (${ready.length})`;

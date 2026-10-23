@@ -53,6 +53,10 @@ PHP, Composer et Symfony ne sont **pas** installés sur le Mac : tout tourne dan
 - **Administration** (événements, menu, prix, stocks, tablettes) : pages Twig avec formulaires HTML traités dans les contrôleurs. Protégée par Symfony Security (voir Sécurité). Pas de comptes utilisateurs pour les bénévoles.
 - **API JSON** pour les tablettes, sous `/api`, accessible uniquement aux tablettes appairées (voir Sécurité).
 - **Hors ligne** : service worker qui met en cache l'application ; file d'attente des commandes dans IndexedDB, envoyée au retour du réseau.
+  - `/sw.js` est servi par `PwaController` : `App\Pwa\AppShell` y inscrit la liste des fichiers à garder (écrans de service et tout `public/css`, `js`, `fonts`, `img`) et une version calculée sur leur contenu, celui des gabarits et du service worker (`src/Pwa/service-worker.js`). Pas d'outil de build : toute modification change la version, et les tablettes rechargent tout.
+  - Pages : réseau d'abord (4 s), copie locale sinon. Fichiers statiques : copie de la version en cours. Jamais l'API ni l'administration.
+  - Nouvelle version : bandeau « Recharger » sur la tablette, jamais de rechargement automatique (commande en cours de saisie).
+  - Application installable : `/manifest.webmanifest`, icônes dans `public/img/app/` (générées depuis le logo générique), démarrage sur `/demarrer`, qui ouvre l'écran du rôle de la tablette.
 - **Idempotence** : chaque commande reçoit un UUID créé sur la tablette. `POST /api/orders` avec un UUID déjà connu ne crée pas de doublon et renvoie la commande existante.
 - **Temps réel** : l'écran cuisine (`GET /api/orders`) et l'écran Arrivées (`GET /api/board`) interrogent le serveur toutes les 2 à 3 secondes. Pas de Mercure pour l'instant.
   - Le serveur renvoie à chaque fois la **liste complète** des commandes en cours (pas de `since`) : une tablette qui a manqué une réponse se recale à la suivante.
