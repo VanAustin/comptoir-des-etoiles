@@ -8,11 +8,13 @@ use App\Enum\OrderStatus;
 use App\Repository\EventRepository;
 use App\Service\AuditLogger;
 use App\Service\Logbook;
+use App\Service\LogbookExport;
 use App\Service\Money;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -75,6 +77,24 @@ class LogbookController extends AbstractController
             'letters' => array_keys($summary['tills']),
             'status_labels' => self::STATUS_LABELS,
         ]);
+    }
+
+    /** Exports pour Excel : les ventes ligne par ligne, ou la synthèse par article. */
+    #[Route('/export/{kind<ventes|articles>}', name: 'admin_logbook_export', methods: ['GET'])]
+    public function export(string $kind, Request $request, LogbookExport $export): Response
+    {
+        $event = $this->selectedEvent($request, $this->events->findAllByDateDesc());
+        if (null === $event) {
+            throw $this->createNotFoundException('Aucun événement.');
+        }
+
+        $response = new Response('ventes' === $kind ? $export->sales($event) : $export->articles($event));
+        $response->headers->set('Content-Type', 'text/csv; charset=UTF-8');
+        $response->headers->set('Content-Disposition', $response->headers->makeDisposition(ResponseHeaderBag::DISPOSITION_ATTACHMENT, LogbookExport::filename($event, $kind)));
+        // Données de l'association : jamais gardées par un cache intermédiaire
+        $response->headers->set('Cache-Control', 'no-store, private');
+
+        return $response;
     }
 
     /** Annulation, confirmée dans la page : la commande sort de la cuisine, des Arrivées et des chiffres. */
