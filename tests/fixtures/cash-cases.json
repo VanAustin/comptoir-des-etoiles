@@ -1,0 +1,21 @@
+{
+  "_doc": "Cas partagés entre MoneyTest (PHP) et public/js/cash.js (vérifié dans le navigateur) : mêmes résultats des deux côtés.",
+  "breakdown": [
+    { "cents": 0, "parts": [], "rest": 0 },
+    { "cents": 50, "parts": [[50, 1]], "rest": 0 },
+    { "cents": 1150, "parts": [[1000, 1], [100, 1], [50, 1]], "rest": 0 },
+    { "cents": 1350, "parts": [[1000, 1], [200, 1], [100, 1], [50, 1]], "rest": 0 },
+    { "cents": 3650, "parts": [[2000, 1], [1000, 1], [500, 1], [100, 1], [50, 1]], "rest": 0 },
+    { "cents": 8880, "parts": [[5000, 1], [2000, 1], [1000, 1], [500, 1], [200, 1], [100, 1], [50, 1], [20, 1], [10, 1]], "rest": 0 },
+    { "cents": 400, "parts": [[200, 2]], "rest": 0 },
+    { "cents": 9000, "parts": [[5000, 1], [2000, 2]], "rest": 0 },
+    { "cents": 155, "parts": [[100, 1], [50, 1]], "rest": 5 },
+    { "cents": -200, "parts": [], "rest": 0 }
+  ],
+  "received": [
+    { "presses": [2000, 500], "total": 2500, "detail": "20 € + 5 € = 25,00 €" },
+    { "presses": [500, 2000, 2000, 100], "total": 4600, "detail": "2 × 20 € + 5 € + 1 € = 46,00 €" },
+    { "presses": [200, 200, 200], "total": 600, "detail": "3 × 2 € = 6,00 €" },
+    { "presses": [5000], "total": 5000, "detail": "50 € = 50,00 €" }
+  ]
+}

@@ -99,7 +99,7 @@ Le numéro donné au client est la **lettre de la caisse suivie d'un numéro** :
 
 | Écran | Nom affiché | Rôle |
 | --- | --- | --- |
-| Caisse | Caisse | Grille d'articles, panier, paiement (calcul de la monnaie), numéro de commande en grand |
+| Caisse | Caisse | Grille d'articles, panier, paiement (billets et pièces reçus additionnés, monnaie à rendre et sa décomposition en billets et pièces, `Money::changeBreakdown` côté serveur faisant référence), numéro de commande en grand |
 | Cuisine | Cuisine | Tickets à préparer, boutons « Je prépare », « Prête », « Remise au client », alerte au-delà de 10 min |
 | Appel client | Arrivées | Numéros prêts et en préparation, très grands, façon tableau d'aéroport |
 | Bilan | Carnet de bord | CA, nombre de commandes, panier moyen, ventes et stock restant par article, historique, annulation, export CSV pour Excel |
