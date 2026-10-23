@@ -1,0 +1,45 @@
+meta {
+  name: 11. Remarque trop longue
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/api/orders
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_caisse}}
+}
+
+body:json {
+  {
+    "uuid": "{{longNoteUuid}}",
+    "number": 9999,
+    "paymentMethod": "card",
+    "lines": [{ "productId": {{productId}}, "quantity": 1 }],
+    "note": "{{longNote}}"
+  }
+}
+
+script:pre-request {
+  bru.setVar("longNoteUuid", "9c4d5e6f-7a8b-4c9d-8e0f-" + Date.now().toString(16).padStart(12, "0").slice(-12));
+  // 141 caractères : un de trop
+  bru.setVar("longNote", "é".repeat(141));
+}
+
+tests {
+  test("refusé (422)", function () {
+    expect(res.status).to.equal(422);
+  });
+
+  test("le message indique la limite", function () {
+    expect(res.body.error).to.include("140 caractères");
+  });
+}
+
+docs {
+  La remarque pour la cuisine fait au plus 140 caractères (comptés en caractères, accents compris). Lancez d'abord « Caisse / 1. Menu » pour connaître un article.
+}

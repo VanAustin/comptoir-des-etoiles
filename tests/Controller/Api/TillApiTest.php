@@ -515,6 +515,86 @@ class TillApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(400);
     }
 
+    // --- Remarque pour la cuisine ---
+
+    public function testNoteIsKeptForTheKitchen(): void
+    {
+        $order = $this->order(['Hot-dog' => 1]);
+        $order['note'] = '  Sans   moutarde  ';
+
+        $data = $this->post($order);
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame('Sans moutarde', $data['note']);
+        self::assertSame('Sans moutarde', self::entityManager()->getRepository(Order::class)->findOneBy([])->getNote());
+    }
+
+    public function testNoteIsPlainTextOnOneLine(): void
+    {
+        $order = $this->order(['Hot-dog' => 1]);
+        // Retour à la ligne, tabulation, caractère nul, inversion du sens d'écriture, espace insécable de largeur nulle
+        $order['note'] = "Bien\ncuit\t\u{0000}svp\u{202E}<b>x</b>\u{200B}";
+
+        $data = $this->post($order);
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame('Bien cuit svp <b>x</b>', $data['note'], 'le HTML reste du texte : c\'est l\'écran qui l\'affiche avec textContent');
+    }
+
+    public function testNoteLengthIsCountedInCharacters(): void
+    {
+        $order = $this->order(['Hot-dog' => 1]);
+        $order['note'] = str_repeat('é', Order::NOTE_MAX_LENGTH);
+        $this->post($order);
+        self::assertResponseStatusCodeSame(201);
+
+        $order = $this->order(['Hot-dog' => 1], number: 2);
+        $order['note'] = str_repeat('é', Order::NOTE_MAX_LENGTH + 1);
+        $this->post($order);
+        self::assertResponseStatusCodeSame(422);
+        self::assertStringContainsString('140 caractères', $this->error());
+    }
+
+    public function testNoteMustBeText(): void
+    {
+        $order = $this->order(['Hot-dog' => 1]);
+        $order['note'] = ['sans oignons'];
+
+        $this->post($order);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(0, $this->orderCount());
+    }
+
+    public function testBlankNoteIsNoNote(): void
+    {
+        $order = $this->order(['Hot-dog' => 1]);
+        $order['note'] = " \n ";
+
+        self::assertNull($this->post($order)['note']);
+    }
+
+    public function testNoteIsDroppedWithoutKitchenItem(): void
+    {
+        $order = $this->order(['Café' => 1]);
+        $order['note'] = 'Bien chaud';
+
+        self::assertNull($this->post($order)['note']);
+    }
+
+    public function testReplayedOrderKeepsItsOriginalNote(): void
+    {
+        $order = $this->order(['Hot-dog' => 1]);
+        $order['note'] = 'Sans moutarde';
+        $this->post($order);
+
+        $order['note'] = 'Autre chose';
+        $data = $this->post($order);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame('Sans moutarde', $data['note']);
+    }
+
     // --- Outils ---
 
     private function product(string $name, int $price, ?int $stock = null, bool $kitchen = false, bool $deposit = false): Product

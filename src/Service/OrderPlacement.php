@@ -89,6 +89,7 @@ class OrderPlacement
         if ([] === $quantities && 0 === $returns) {
             throw new OrderRejectedException('La commande est vide.');
         }
+        $note = self::readNote($payload['note'] ?? null);
 
         $catalog = [];
         foreach ($this->products->findForEvent($event) as $product) {
@@ -125,6 +126,8 @@ class OrderPlacement
         $order->setTotalCents($total);
         $order->setAmountReceivedCents($this->readPayment($method, $total, $payload['amountReceivedCents'] ?? null));
         $order->setStatus($kitchen ? OrderStatus::New : OrderStatus::Served);
+        // La remarque n'a de sens que pour la cuisine
+        $order->setNote($kitchen ? $note : null);
 
         if ($this->orders->numberExists($event, $letter, $number)) {
             throw $this->numberTaken($this->orders, $device);
@@ -198,6 +201,30 @@ class OrderPlacement
         }
 
         return $received;
+    }
+
+    /**
+     * Remarque pour la cuisine : texte brut, sur une ligne. Les caractères de contrôle et
+     * invisibles (retours à la ligne, inversions de sens d'écriture…) sont remplacés par
+     * des espaces, puis les espaces superflus retirés. Vide : pas de remarque.
+     *
+     * @throws OrderRejectedException
+     */
+    private static function readNote(mixed $note): ?string
+    {
+        if (null === $note) {
+            return null;
+        }
+        if (!\is_string($note) || !mb_check_encoding($note, 'UTF-8')) {
+            throw new OrderRejectedException('La remarque pour la cuisine est illisible.');
+        }
+
+        $note = trim((string) preg_replace(['/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]+/u', '/\s+/u'], ' ', $note));
+        if (mb_strlen($note) > Order::NOTE_MAX_LENGTH) {
+            throw new OrderRejectedException(\sprintf('La remarque pour la cuisine fait au plus %d caractères.', Order::NOTE_MAX_LENGTH));
+        }
+
+        return '' === $note ? null : $note;
     }
 
     /**

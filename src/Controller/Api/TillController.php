@@ -100,6 +100,7 @@ class TillController extends AbstractController
             // Billets et pièces à rendre, calculés par le serveur (référence pour la caisse)
             'changeBreakdown' => $order->getChangeCents() > 0 ? Money::changeBreakdown((int) $order->getChangeCents()) : null,
             'createdAt' => $order->getCreatedAt()->format(\DATE_ATOM),
+            'note' => $order->getNote(),
             'lines' => array_map(static fn (OrderLine $l): array => [
                 'kind' => $l->getKind()->value,
                 'productId' => $l->getProduct()?->getId(),

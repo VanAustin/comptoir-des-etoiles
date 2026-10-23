@@ -49,6 +49,12 @@
             </div>
             <div class="lines" id="till-lines"></div>
             <button type="button" class="btn btn-small" id="till-add-return" hidden>Retour de consigne</button>
+            {# Seulement si la commande passe en cuisine #}
+            <div class="field note-field" id="till-note-field" hidden>
+                <label for="till-note">Remarque pour la cuisine (facultatif)</label>
+                <input type="text" id="till-note" maxlength="140" autocomplete="off" placeholder="Sans oignons, bien cuit…" aria-describedby="till-note-help">
+                <p class="field-help" id="till-note-help">Pas de nom ni de téléphone. <span class="num" id="till-note-count">0/140</span></p>
+            </div>
             <p id="till-cart-error" class="alert alert-error" role="alert" hidden></p>
             <div class="total"><span>Total</span><span class="num" id="till-total"></span></div>
             <div class="row">

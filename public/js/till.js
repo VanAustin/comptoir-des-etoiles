@@ -242,6 +242,7 @@ function renderCart() {
 
   $("till-lines").replaceChildren(...(rows.length ? rows : [el("p", { class: "empty", text: "Touchez un article pour l'ajouter." })]));
   $("till-add-return").hidden = menu.depositCents === 0 || cart.depositReturns > 0;
+  $("till-note-field").hidden = !cart.hasKitchenItem(menu);
   $("till-total").textContent = formatEuros(cart.total(menu));
   const count = lines.filter((line) => line.kind === "article").reduce((sum, line) => sum + line.quantity, 0);
   $("till-mini").hidden = cart.isEmpty();
@@ -252,7 +253,20 @@ function renderCart() {
 }
 
 $("till-add-return").addEventListener("click", () => { cart.changeReturns(1); render(); });
-$("till-clear").addEventListener("click", () => { cart.clear(); showMessage($("till-cart-error"), ""); render(); });
+$("till-clear").addEventListener("click", () => { clearCart(); showMessage($("till-cart-error"), ""); render(); });
+
+/** Vide la commande en cours, remarque comprise. */
+function clearCart() {
+  cart.clear();
+  $("till-note").value = "";
+  renderNoteCount();
+}
+
+function renderNoteCount() {
+  $("till-note-count").textContent = `${$("till-note").value.length}/140`;
+}
+
+$("till-note").addEventListener("input", renderNoteCount);
 $("till-status-retry").addEventListener("click", () => {
   showStatus("Chargement du menu…");
   loadMenu({ initial: true });
@@ -381,6 +395,8 @@ function orderPayload() {
     ...(payment.method === "cash" ? { amountReceivedCents: receivedCents(cart.total(menu)) } : {}),
     lines: cart.payloadLines(),
     depositReturns: cart.depositReturns,
+    // Remarque pour la cuisine : le serveur la nettoie et l'ignore sans article cuisine
+    ...(cart.hasKitchenItem(menu) && $("till-note").value.trim() ? { note: $("till-note").value.trim() } : {}),
   };
 }
 
@@ -405,7 +421,7 @@ async function submitOrder() {
     await setNextNumber(order.number + 1);
     showDone(order);
     tracking.refresh();
-    cart.clear();
+    clearCart();
     loadMenu(); // Stocks à jour pour la commande suivante
   } catch (error) {
     await handleSendError(error);
