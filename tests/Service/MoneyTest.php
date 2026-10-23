@@ -46,6 +46,34 @@ class MoneyTest extends TestCase
         self::assertNull(Money::parseEuros($input));
     }
 
+    /** @return iterable<string, array{int, list<array{int, int}>, int}> */
+    public static function breakdownCases(): iterable
+    {
+        $cases = json_decode((string) file_get_contents(\dirname(__DIR__).'/fixtures/cash-cases.json'), true, flags: \JSON_THROW_ON_ERROR);
+        foreach ($cases['breakdown'] as $case) {
+            yield $case['cents'].' c' => [$case['cents'], $case['parts'], $case['rest']];
+        }
+    }
+
+    /** @param list<array{int, int}> $parts [valeur, nombre] */
+    #[DataProvider('breakdownCases')]
+    public function testChangeBreakdown(int $cents, array $parts, int $rest): void
+    {
+        $result = Money::changeBreakdown($cents);
+
+        self::assertSame($parts, array_map(static fn (array $p): array => [$p['cents'], $p['count']], $result['parts']));
+        self::assertSame($rest, $result['rest']);
+    }
+
+    public function testBreakdownAddsUpToTheChange(): void
+    {
+        for ($cents = 0; $cents <= 20000; $cents += 10) {
+            $result = Money::changeBreakdown($cents);
+            $sum = array_sum(array_map(static fn (array $p): int => $p['cents'] * $p['count'], $result['parts']));
+            self::assertSame($cents, $sum + $result['rest'], $cents.' c');
+        }
+    }
+
     public function testFormat(): void
     {
         self::assertSame('2,50', Money::formatEuros(250));

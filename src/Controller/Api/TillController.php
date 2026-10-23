@@ -11,6 +11,7 @@ use App\Menu\IconCatalog;
 use App\Repository\OrderRepository;
 use App\Repository\ProductRepository;
 use App\Service\OrderPlacement;
+use App\Service\Money;
 use App\Service\OrderRejectedException;
 use App\Service\StockCalculator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -96,6 +97,8 @@ class TillController extends AbstractController
             'totalCents' => $order->getTotalCents(),
             'amountReceivedCents' => $order->getAmountReceivedCents(),
             'changeCents' => $order->getChangeCents(),
+            // Billets et pièces à rendre, calculés par le serveur (référence pour la caisse)
+            'changeBreakdown' => $order->getChangeCents() > 0 ? Money::changeBreakdown((int) $order->getChangeCents()) : null,
             'createdAt' => $order->getCreatedAt()->format(\DATE_ATOM),
             'lines' => array_map(static fn (OrderLine $l): array => [
                 'kind' => $l->getKind()->value,

@@ -68,6 +68,8 @@ main.till { padding-block: 20px; }
 }
 .row { display: flex; gap: 10px; }
 .row > .btn { flex: 1; }
+/* Le bouton principal porte le montant (« Valider · 13,50 € ») : il prend la place qu'il faut */
+.row > .btn-primary { flex: 2; white-space: nowrap; }
 
 /* Paiement et confirmation : panneaux dans la page, pas de fenêtre système */
 .panel { max-width: 520px; margin: 4vh auto 0; display: flex; flex-direction: column; gap: 16px; }
@@ -75,19 +77,32 @@ main.till { padding-block: 20px; }
 .panel .lede { text-align: center; }
 .big { font: 800 44px/1 var(--f-chiffres); text-align: center; margin: 0; }
 .segmented .btn[aria-pressed="true"] { border: 3px solid var(--renard); color: var(--renard-texte); }
-.cash { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+.exact { width: 100%; margin-bottom: 10px; }
+.exact[aria-pressed="true"] { background: var(--or); border-color: var(--or); color: var(--or-encre); }
+/* Billets et pièces : chaque appui ajoute au montant reçu */
+.cash { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 8px; }
+.cash.coins { grid-template-columns: repeat(2, 1fr); margin-bottom: 12px; }
 .cash button {
   min-height: 56px; border-radius: var(--rayon-bouton); cursor: pointer;
   border: 1px solid var(--kraft); background: var(--nuage); font-weight: 700; font-size: 18px;
 }
-.cash button[aria-pressed="true"] { background: var(--or); border-color: var(--or); color: var(--or-encre); }
+.cash button:active { background: var(--or); color: var(--or-encre); }
+.cash.coins button { border-radius: 999px; }
+.received {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 10px 12px; border: 1px dashed var(--kraft); border-radius: var(--rayon-bouton); font-weight: 700;
+}
 .panel .field { margin-bottom: 0; }
+/* Monnaie : « À rendre » en très grand, avec les billets et pièces à rendre en dessous */
 .change {
-  display: flex; justify-content: space-between; align-items: baseline; padding: 12px 14px;
+  display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 4px 12px; padding: 14px 16px;
   border-radius: var(--rayon-bouton); background: var(--sauge-fond); color: var(--sauge-texte); font-weight: 700;
 }
 .change.short { background: var(--erreur-fond); color: var(--erreur); }
-.change .num { font-size: 26px; }
+.change-label { font-size: 18px; }
+.change-amount { font: 800 40px/1 var(--f-chiffres); }
+.change-breakdown { grid-column: 1 / -1; font-size: 16px; }
+.change-breakdown:empty { display: none; }
 .panel .alert { margin: 0; }
 
 .ordernum { text-align: center; }
@@ -119,6 +134,7 @@ main.till { padding-block: 20px; }
   }
   .cart-mini > * { white-space: nowrap; }
   .cash { grid-template-columns: repeat(2, 1fr); }
+  .cash.coins { grid-template-columns: repeat(2, 1fr); }
 }
 @media (prefers-reduced-motion: reduce) {
   .item:active { transform: none; }

@@ -68,30 +68,37 @@
         </div>
 
         <div id="pay-cash">
-            <div class="cash" role="group" aria-label="Montant reçu">
-                <button type="button" data-exact aria-pressed="false">Compte juste</button>
-                <button type="button" data-cents="500" aria-pressed="false" class="num">5 €</button>
-                <button type="button" data-cents="1000" aria-pressed="false" class="num">10 €</button>
-                <button type="button" data-cents="2000" aria-pressed="false" class="num">20 €</button>
-                <button type="button" data-cents="5000" aria-pressed="false" class="num">50 €</button>
+            <button type="button" class="btn exact" data-exact aria-pressed="false">Compte juste</button>
+            {# Les billets et pièces s'additionnent : 20 € puis 5 € donnent 25 € reçus #}
+            <div class="cash" role="group" aria-label="Billets reçus">
+                {% for euros in [50, 20, 10, 5] %}
+                    <button type="button" class="note num" data-cents="{{ euros * 100 }}" aria-label="Ajouter un billet de {{ euros }} €">{{ euros }} €</button>
+                {% endfor %}
             </div>
-            <div class="field">
-                <label for="pay-other">Autre montant reçu (€)</label>
-                <input type="text" id="pay-other" inputmode="decimal" autocomplete="off" class="num" placeholder="100">
+            <div class="cash coins" role="group" aria-label="Pièces reçues">
+                {% for euros in [2, 1] %}
+                    <button type="button" class="coin num" data-cents="{{ euros * 100 }}" aria-label="Ajouter une pièce de {{ euros }} €">{{ euros }} €</button>
+                {% endfor %}
             </div>
-            <p class="lede" id="pay-cash-help">Touchez le billet donné par le client.</p>
+            <div class="received" id="pay-received" hidden>
+                <span>Reçu · <span class="num" id="pay-received-detail"></span></span>
+                <button type="button" class="btn btn-small" id="pay-clear">Effacer</button>
+            </div>
+            <p class="lede" id="pay-cash-help">Touchez les billets et pièces donnés par le client, ou « Compte juste ».</p>
         </div>
         <p class="lede" id="pay-card-help" hidden>Passez la carte sur votre terminal, puis validez ici une fois le paiement accepté.</p>
         <p class="lede" id="pay-refund-help" hidden>Le client rend des gobelets : rendez-lui l'argent en espèces.</p>
 
-        <div class="change" id="pay-change" hidden>
-            <span id="pay-change-label"></span><span class="num" id="pay-change-amount"></span>
+        <div class="change" id="pay-change" role="status" hidden>
+            <span class="change-label" id="pay-change-label"></span>
+            <span class="change-amount num" id="pay-change-amount"></span>
+            <span class="change-breakdown num" id="pay-change-breakdown"></span>
         </div>
         <p id="pay-error" class="alert alert-error" role="alert" hidden></p>
 
         <div class="row">
             <button type="button" class="btn" id="pay-back">Retour</button>
-            <button type="button" class="btn btn-primary" id="pay-confirm">Valider la commande</button>
+            <button type="button" class="btn btn-primary num" id="pay-confirm">Valider</button>
         </div>
     </section>
 
@@ -121,7 +128,9 @@
         <p id="done-help"></p>
         <p class="lede" id="done-queue" hidden></p>
         <div class="change" id="done-change" hidden>
-            <span id="done-change-label"></span><span class="num" id="done-change-amount"></span>
+            <span class="change-label" id="done-change-label"></span>
+            <span class="change-amount num" id="done-change-amount"></span>
+            <span class="change-breakdown num" id="done-change-breakdown"></span>
         </div>
         <button type="button" class="btn btn-primary" id="done-next">Commande suivante</button>
     </section>

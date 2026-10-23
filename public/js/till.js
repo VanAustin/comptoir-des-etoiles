@@ -5,7 +5,8 @@
 import { apiFetch, ApiError } from "./api.js";
 import { getNumbering, getPairing, saveNumbering } from "./device-store.js";
 import { el } from "./dom.js";
-import { formatEuros, parseEuros } from "./money.js";
+import { CashReceived, changeBreakdown, describeBreakdown } from "./cash.js";
+import { formatEuros } from "./money.js";
 import { Cart, MAX_QUANTITY, indexMenu, newUuid } from "./till-cart.js";
 import { TillTracking } from "./till-tracking.js";
 
@@ -21,7 +22,7 @@ let menu = null;
 let activeCategory = ALL;
 let nextNumber = 1;
 let numberingScope = "";
-const payment = { method: "cash", receivedCents: null, exact: false };
+const payment = { method: "cash", received: new CashReceived() };
 /** Dernière tentative d'envoi : renvoyée avec le même UUID si rien n'a changé (pas de doublon). */
 let attempt = null;
 let sending = false;
@@ -263,16 +264,25 @@ $("till-checkout").addEventListener("click", () => {
   if (cart.isEmpty()) {
     return;
   }
-  const total = cart.total(menu);
   payment.method = "cash";
-  payment.exact = false;
-  // Retour de consigne seul (total nul ou négatif) : rien à recevoir
-  payment.receivedCents = total <= 0 ? 0 : null;
-  $("pay-other").value = "";
+  payment.received.clear();
   showMessage($("pay-error"), "");
   renderPayment();
   show("pay");
 });
+
+/** Montant reçu en espèces ; un retour de consigne seul (total nul ou négatif) n'attend rien. */
+function receivedCents(total) {
+  return total <= 0 ? 0 : payment.received.amount(total);
+}
+
+function confirmLabel(total) {
+  if (sending) {
+    return "Envoi…";
+  }
+  const amount = total < 0 ? `rendre ${formatEuros(-total)}` : formatEuros(total);
+  return `${attempt ? "Réessayer" : "Valider"} · ${amount}`;
+}
 
 function renderPayment() {
   const total = cart.total(menu);
@@ -288,48 +298,55 @@ function renderPayment() {
   $("pay-cash").hidden = !cash || refund;
   $("pay-card-help").hidden = cash;
   $("pay-refund-help").hidden = !refund;
-  for (const button of views.pay.querySelectorAll(".cash button")) {
-    const pressed = button.hasAttribute("data-exact")
-      ? payment.exact
-      : !payment.exact && payment.receivedCents === Number(button.dataset.cents) && $("pay-other").value === "";
-    button.setAttribute("aria-pressed", String(pressed));
-  }
 
-  const change = cash && payment.receivedCents !== null ? payment.receivedCents - total : null;
+  const received = payment.received;
+  views.pay.querySelector("[data-exact]").setAttribute("aria-pressed", String(received.exact));
+  $("pay-received").hidden = received.isEmpty();
+  $("pay-received-detail").textContent = received.isEmpty() ? "" : received.detail(total);
+  $("pay-cash-help").hidden = !received.isEmpty();
+
+  const amount = cash && !refund ? receivedCents(total) : null;
+  const change = amount === null ? null : amount - total;
   const changeBox = $("pay-change");
-  changeBox.hidden = change === null || refund;
+  changeBox.hidden = change === null;
   if (change !== null) {
     changeBox.classList.toggle("short", change < 0);
     $("pay-change-label").textContent = change < 0 ? "Il manque" : "À rendre";
     $("pay-change-amount").textContent = formatEuros(Math.abs(change));
+    $("pay-change-breakdown").textContent = change > 0 ? describeBreakdown(changeBreakdown(change)) : "";
   }
 
-  $("pay-confirm").disabled = sending || (cash ? change === null || change < 0 : refund);
+  // Toujours actif : un montant insuffisant est expliqué dans la page au moment de valider
+  $("pay-confirm").textContent = confirmLabel(total);
+  $("pay-confirm").disabled = sending;
 }
 
 for (const button of views.pay.querySelectorAll("[data-method]")) {
   button.addEventListener("click", () => {
     payment.method = button.dataset.method;
-    payment.exact = false;
-    payment.receivedCents = cart.total(menu) <= 0 ? 0 : null;
-    $("pay-other").value = "";
+    payment.received.clear();
+    showMessage($("pay-error"), "");
     renderPayment();
   });
 }
 
-for (const button of views.pay.querySelectorAll(".cash button")) {
+views.pay.querySelector("[data-exact]").addEventListener("click", () => {
+  payment.received.setExact();
+  showMessage($("pay-error"), "");
+  renderPayment();
+});
+
+for (const button of views.pay.querySelectorAll(".cash button[data-cents]")) {
   button.addEventListener("click", () => {
-    payment.exact = button.hasAttribute("data-exact");
-    payment.receivedCents = payment.exact ? cart.total(menu) : Number(button.dataset.cents);
-    $("pay-other").value = "";
+    const added = payment.received.add(Number(button.dataset.cents));
+    showMessage($("pay-error"), added ? "" : "Montant reçu trop élevé : 1 000 € au plus. Touchez « Effacer » pour recommencer.");
     renderPayment();
   });
 }
 
-$("pay-other").addEventListener("input", () => {
-  const value = $("pay-other").value.trim();
-  payment.exact = false;
-  payment.receivedCents = value === "" ? null : parseEuros(value);
+$("pay-clear").addEventListener("click", () => {
+  payment.received.clear();
+  showMessage($("pay-error"), "");
   renderPayment();
 });
 
@@ -340,14 +357,28 @@ $("pay-back").addEventListener("click", () => {
   }
 });
 
-$("pay-confirm").addEventListener("click", () => submitOrder());
+$("pay-confirm").addEventListener("click", () => {
+  const total = cart.total(menu);
+  if (payment.method === "cash" && total > 0) {
+    const amount = receivedCents(total);
+    if (amount === null) {
+      showMessage($("pay-error"), "Indiquez le montant reçu : touchez les billets et pièces donnés par le client, ou « Compte juste ».");
+      return;
+    }
+    if (amount < total) {
+      showMessage($("pay-error"), `Il manque ${formatEuros(total - amount)} : complétez le montant reçu avant de valider.`);
+      return;
+    }
+  }
+  submitOrder();
+});
 
 // --- Envoi de la commande ---
 
 function orderPayload() {
   return {
     paymentMethod: payment.method,
-    ...(payment.method === "cash" ? { amountReceivedCents: payment.receivedCents } : {}),
+    ...(payment.method === "cash" ? { amountReceivedCents: receivedCents(cart.total(menu)) } : {}),
     lines: cart.payloadLines(),
     depositReturns: cart.depositReturns,
   };
@@ -366,7 +397,6 @@ async function submitOrder() {
 
   sending = true;
   showMessage($("pay-error"), "");
-  $("pay-confirm").textContent = "Envoi…";
   renderPayment();
 
   try {
@@ -381,7 +411,6 @@ async function submitOrder() {
     await handleSendError(error);
   } finally {
     sending = false;
-    $("pay-confirm").textContent = attempt ? "Réessayer" : "Valider la commande";
     if (!views.pay.hidden) {
       renderPayment();
     }
@@ -440,6 +469,8 @@ function showDone(order) {
   if (change) {
     $("done-change-label").textContent = order.totalCents < 0 ? "À rendre au client" : "À rendre";
     $("done-change-amount").textContent = formatEuros(change);
+    // Décomposition calculée par le serveur, qui fait référence
+    $("done-change-breakdown").textContent = order.changeBreakdown ? describeBreakdown(order.changeBreakdown) : "";
   }
   show("done");
   $("done-next").focus();

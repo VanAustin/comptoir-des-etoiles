@@ -131,6 +131,23 @@ class TillApiTest extends WebTestCase
         self::assertSame(700, self::entityManager()->getRepository(Order::class)->findOneBy([])->getTotalCents());
     }
 
+    public function testCashChangeComesWithItsBreakdown(): void
+    {
+        // 2 hot-dogs (6,00 €) + 1 crêpe (2,00 €) = 8,00 € ; 20 € reçus : 12,00 € à rendre
+        $data = $this->post($this->order(['Hot-dog' => 2, 'Crêpe sucre' => 1], amount: 2000));
+
+        self::assertSame(1200, $data['changeCents']);
+        self::assertSame(['parts' => [['cents' => 1000, 'count' => 1], ['cents' => 200, 'count' => 1]], 'rest' => 0], $data['changeBreakdown']);
+    }
+
+    public function testNoBreakdownWithoutChange(): void
+    {
+        $data = $this->post($this->order(['Hot-dog' => 1], amount: 300));
+
+        self::assertSame(0, $data['changeCents']);
+        self::assertNull($data['changeBreakdown']);
+    }
+
     public function testCardPaymentHasNoChange(): void
     {
         $data = $this->post($this->order(['Hot-dog' => 1], method: 'card', amount: 5000));
