@@ -103,8 +103,9 @@ function render() {
     ...board.ready.map((number) => el("span", { class: number === fresh?.number ? "num fresh" : "num", text: number })),
   );
   $("arrivals-prep").replaceChildren(...board.preparing.map((number) => el("span", { class: "num", text: number })));
-  $("arrivals-ready-none").hidden = board.ready.length > 0;
-  $("arrivals-prep-none").hidden = board.preparing.length > 0;
+  // Rien reçu du serveur (hors ligne au démarrage) : ne pas annoncer « aucune commande »
+  $("arrivals-ready-none").hidden = firstLoad || board.ready.length > 0;
+  $("arrivals-prep-none").hidden = firstLoad || board.preparing.length > 0;
 }
 
 start();
