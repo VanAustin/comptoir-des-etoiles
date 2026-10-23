@@ -12,8 +12,8 @@ const $ = (id) => document.getElementById(id);
 
 let board = { ready: [], preparing: [] };
 let firstLoad = true;
-/** Numéros devenus prêts récemment, avec l'heure de fin de mise en évidence. */
-const fresh = new Map();
+/** Dernier numéro devenu prêt, mis en évidence jusqu'à l'heure indiquée. */
+let fresh = null;
 
 const sound = new Sound("son-arrivees");
 const poller = new Poller("/api/board", {
@@ -82,12 +82,10 @@ function renderSoundButton(enabled) {
 
 function receive(data) {
   const before = new Set(board.ready);
-  const arrived = data.ready.filter((number) => !before.has(number));
-  if (!firstLoad && arrived.length > 0) {
-    const until = Date.now() + FRESH_SECONDS * 1000;
-    for (const number of arrived) {
-      fresh.set(number, until);
-    }
+  // Les prêtes arrivent de la plus récente à la plus ancienne : la première nouvelle est la dernière prête
+  const latest = data.ready.find((number) => !before.has(number));
+  if (!firstLoad && latest) {
+    fresh = { number: latest, until: Date.now() + FRESH_SECONDS * 1000 };
     sound.play("carillon");
     setTimeout(render, FRESH_SECONDS * 1000 + 100);
   }
@@ -97,15 +95,12 @@ function receive(data) {
 }
 
 function render() {
-  const now = Date.now();
-  for (const [number, until] of fresh) {
-    if (until <= now) {
-      fresh.delete(number);
-    }
+  if (fresh && fresh.until <= Date.now()) {
+    fresh = null;
   }
 
   $("arrivals-ready").replaceChildren(
-    ...board.ready.map((number) => el("span", { class: fresh.has(number) ? "num fresh" : "num", text: number })),
+    ...board.ready.map((number) => el("span", { class: number === fresh?.number ? "num fresh" : "num", text: number })),
   );
   $("arrivals-prep").replaceChildren(...board.preparing.map((number) => el("span", { class: "num", text: number })));
   $("arrivals-ready-none").hidden = board.ready.length > 0;

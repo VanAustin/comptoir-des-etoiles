@@ -43,6 +43,7 @@
   /* Couleurs dérivées */
   --renard-encre: #FFFFFF;   /* texte sur fond Renard */
   --or-encre: #3B352E;       /* texte sur fond Or */
+  --sauge-encre: #1A1612;    /* texte sur fond Sauge (5,24:1 ; l'encre n'atteint que 3,53:1) */
   --or-texte: #7A5A0F;       /* texte « en préparation » */
   --or-fond: #FBF0CF;        /* fond « en préparation » */
   --sauge-fond: #EEF3DF;     /* fond « prête » */
@@ -67,6 +68,7 @@
     --erreur: #FF8F86;  --erreur-fond: #43201D;
     --renard-encre: #1A1612;
     --or-encre: #1A1612;
+    --sauge-encre: #1A1612;  /* 9,09:1 */
     --or-texte: #E2B83A;
     --or-fond: #3A2F12;
     --sauge-fond: #2A3319;
@@ -85,6 +87,7 @@
   --erreur: #FF8F86;  --erreur-fond: #43201D;
   --renard-encre: #1A1612;
   --or-encre: #1A1612;
+  --sauge-encre: #1A1612;
   --or-texte: #E2B83A;
   --or-fond: #3A2F12;
   --sauge-fond: #2A3319;

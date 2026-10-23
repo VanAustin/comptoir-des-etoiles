@@ -147,20 +147,22 @@ main.till { padding-block: 20px; }
 .track-summary.late { border-color: var(--erreur); color: var(--erreur); }
 .panel.track { max-width: 720px; }
 .track-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
-.track h3 { margin: 8px 0 0; font: 800 18px var(--f-titre); }
 .track .empty { margin: 0; }
 .track-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+/* Une ligne par commande : numéro, état, attente, retard, puis l'action */
 .track-row {
-  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; padding: 10px 12px;
-  background: var(--papier); border: 1px solid var(--kraft); border-left: 6px solid var(--or); border-radius: var(--rayon-bouton);
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; padding: 10px 14px;
+  background: var(--papier); border: 1px solid var(--kraft); border-left: 6px solid var(--encre-douce); border-radius: var(--rayon-bouton);
 }
+.track-row.prep { border-left-color: var(--or); }
 .track-row.ready { border-left-color: var(--sauge); }
 .track-row.late { border-left-color: var(--erreur); }
-.track-number { display: flex; align-items: center; gap: 8px; min-width: 150px; }
-.track-number b { font-size: 26px; }
-.tag { padding: 2px 8px; border-radius: 999px; font-size: 13px; font-weight: 700; background: var(--nuage); color: var(--encre-douce); }
-.track-state { flex: 1; color: var(--encre-douce); font-weight: 700; }
-.track-row.late .track-state { color: var(--erreur); }
+.track-number { min-width: 72px; font: 800 28px/1 var(--f-titre); }
+.track-row .pill { font-size: 14px; }
+.track-time { color: var(--encre-douce); font-weight: 700; }
+.track-late { color: var(--erreur); font-weight: 700; }
+.track-row .tag { margin-right: auto; }
+.track-row > .btn, .track-row > .track-actions { margin-left: auto; }
 .track-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .track-countdown { font-weight: 700; color: var(--encre-douce); }
 .track-error { flex-basis: 100%; font-weight: 700; color: var(--erreur); }

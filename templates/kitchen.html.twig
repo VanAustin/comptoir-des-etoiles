@@ -7,13 +7,16 @@
 {% endblock %}
 
 {% block javascripts %}
+    <script type="module" src="{{ app.request.basePath }}/js/hold.js"></script>
     <script type="module" src="{{ app.request.basePath }}/js/kitchen.js"></script>
 {% endblock %}
 
 {% block nav %}
     <span class="who" id="kitchen-who"></span>
     <button type="button" class="btn btn-small" id="kitchen-sound" aria-pressed="true" hidden>Son activé</button>
-    <a class="btn btn-small" href="{{ path('app_pair') }}">Tablette</a>
+    {# À maintenir 2 secondes : quitter l'écran par erreur ferait perdre ce qui est en cours #}
+    <button type="button" class="btn btn-small hold" data-hold-href="{{ path('app_pair') }}" aria-describedby="hold-help">Tablette</button>
+    <span class="visually-hidden" id="hold-help">Maintenez le bouton 2 secondes pour ouvrir l'appairage de la tablette.</span>
 {% endblock %}
 
 {% block body_class %}page-wide{% endblock %}
