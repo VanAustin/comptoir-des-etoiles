@@ -1,0 +1,42 @@
+# Incidents
+
+## Mot de passe administrateur oublié
+
+Sur le serveur :
+
+```
+php bin/console app:admin:password
+```
+
+La commande rappelle l'identifiant de l'administrateur et demande deux fois le nouveau mot de passe (12 caractères minimum). Les sessions ouvertes avec l'ancien sont fermées.
+
+## Tablette de caisse en panne
+
+1. **Si elle peut redémarrer**, redémarrez-la et rouvrez l'icône « Comptoir » : les commandes en attente sont toujours là et partiront au retour du réseau.
+2. **Sinon**, ajoutez une nouvelle tablette dans l'administration (**Tablettes**, **Ajouter une tablette**, rôle caisse) et appairez-la. Elle reçoit une **nouvelle lettre** : une lettre n'est jamais réattribuée pendant un événement, pour éviter deux commandes avec le même numéro.
+3. Les commandes encaissées hors ligne sur la tablette en panne et pas encore envoyées restent dans cette tablette. Elles partiront seulement si elle redémarre. Notez leurs numéros si vous les connaissez, et signalez-le au moment de la clôture.
+
+## Tablette perdue ou volée
+
+Dans l'administration, **Tablettes**, **Révoquer** sur sa ligne : elle ne peut plus rien lire ni envoyer, immédiatement.
+
+## Tablette « n'est plus reconnue » ou « appairage expiré »
+
+Elle a été révoquée, ou son jeton a expiré (lendemain de l'événement, 6 h), ou un autre événement a été activé. Une tablette déjà appairée ne peut pas recevoir de nouveau code : ajoutez-la à nouveau (**Tablettes**, **Ajouter une tablette**) et appairez-la. Une caisse reçoit alors une nouvelle lettre.
+
+Avant de le faire sur une caisse, vérifiez qu'elle n'a plus de commande « en attente d'envoi » : ces commandes ne partent qu'avec l'appairage d'origine.
+
+## Une commande n'apparaît pas en cuisine
+
+1. Sur la caisse, l'en-tête indique-t-il des commandes « en attente d'envoi » ? C'est une coupure réseau : fiche [Coupure réseau](coupure-reseau.md).
+2. La commande ne contenait-elle que des articles hors cuisine (boissons…) ? Elle est servie directement au comptoir et n'apparaît jamais en cuisine.
+3. Les commandes arrivent, mais avec jusqu'à 30 secondes de retard et sans message d'erreur : le temps réel est coupé (voir [Coupure réseau](coupure-reseau.md), « Commandes en retard »). Après le service, vérifiez sur le serveur que le hub Mercure tourne.
+4. Sinon, cherchez le numéro (par exemple A12) dans **Carnet de bord**, historique des commandes.
+
+## Erreur d'encaissement
+
+Ne réencaissez pas par-dessus. **Carnet de bord**, ligne de la commande, **Annuler**, puis confirmez dans la page. La commande sort de la cuisine, des Arrivées et des chiffres ; l'annulation est tracée. Rendez l'argent au client si besoin, puis encaissez la bonne commande.
+
+## Le site ne répond plus du tout
+
+Si même la page d'accueil ne s'ouvre pas avec un bon réseau (essayez sur un téléphone en 4G), le serveur a un problème. Les caisses continuent d'encaisser hors ligne : appliquez la fiche [Coupure réseau](coupure-reseau.md) pendant que quelqu'un contacte l'hébergeur ou consulte `var/log/prod.log` sur le serveur.

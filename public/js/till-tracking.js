@@ -25,7 +25,7 @@ export class TillTracking {
     this.handlers = { onFatal };
 
     this.poller = new Poller("/api/till/orders", {
-      interval: 5000,
+      interval: 10000,
       onData: (data) => this.receive(data),
       onSuccess: () => { $("track-offline").hidden = true; },
       onError: () => { $("track-offline").hidden = false; },

@@ -10,7 +10,7 @@ PHP et Composer n'ont pas besoin d'être installés sur votre ordinateur : tout 
 
 Prérequis : [Docker Desktop](https://www.docker.com/products/docker-desktop/).
 
-1. Construisez et démarrez les conteneurs (application, base MySQL et phpMyAdmin) :
+1. Construisez et démarrez les conteneurs (application et hub Mercure avec FrankenPHP, base MySQL, phpMyAdmin) :
 
    ```
    docker compose up -d --build
@@ -91,7 +91,7 @@ Le jour de l'événement, les tablettes se connectent à un serveur en ligne, en
 ### Ce qu'il faut
 
 - Un serveur web **Apache** ou **Nginx**, joignable depuis internet avec un nom de domaine et un certificat HTTPS (Let's Encrypt, gratuit).
-- **PHP 8.2 ou plus récent**, avec les extensions `pdo_mysql`, `intl`, `ctype` et `iconv` (`php -m` les liste).
+- **PHP 8.2 ou plus récent**, avec les extensions `pdo_mysql`, `intl`, `ctype`, `iconv`, `sodium` et `openssl` (`php -m` les liste).
 - Une base **MySQL 8** vide, créée chez votre hébergeur (souvent depuis son panneau, avec phpMyAdmin), en `utf8mb4`. Notez son nom, son utilisateur, son mot de passe et l'adresse du serveur MySQL.
 - Un accès **SSH** au serveur.
 - **Composer**. S'il n'est pas installé sur le serveur : `curl -sS https://getcomposer.org/installer | php`, puis remplacez `composer` par `php composer.phar` dans les commandes ci-dessous.
@@ -146,6 +146,21 @@ Le jour de l'événement, les tablettes se connectent à un serveur en ligne, en
 
 7. Ouvrez l'adresse du site : l'accueil s'affiche. Connectez-vous à l'administration, créez l'événement, le menu et les tablettes.
 
+### Temps réel (facultatif)
+
+Sans réglage particulier, la cuisine et l'écran Arrivées interrogent le serveur toutes les 5 secondes, et les caisses toutes les 10 secondes : tout fonctionne ainsi.
+
+Avec un hub [Mercure](https://mercure.rocks) installé sur le serveur, les écrans sont prévenus en moins d'une seconde et n'interrogent plus le serveur que toutes les 30 secondes. Le hub doit répondre sur le même domaine, à l'adresse `/.well-known/mercure` (par exemple derrière Apache avec `ProxyPass`), et accepter les abonnés anonymes : ses messages ne contiennent aucune donnée. Dans `.env.local` :
+
+```
+MERCURE_URL=http://127.0.0.1:3000/.well-known/mercure
+MERCURE_PUBLIC_URL=https://comptoir.example.org/.well-known/mercure
+MERCURE_JWT_SECRET=une-longue-cle-secrete-partagee-avec-le-hub
+MERCURE_JWT_ISSUER=comptoir-des-etoiles
+```
+
+`MERCURE_URL` est l'adresse où l'application publie (souvent interne au serveur), `MERCURE_PUBLIC_URL` celle où les tablettes s'abonnent. La clé (32 caractères au moins) et l'émetteur doivent être les mêmes que dans la configuration du hub. Si le hub s'arrête, les commandes sont toujours enregistrées et les écrans se recalent toutes les 30 secondes. Laissez `MERCURE_URL` vide pour revenir à l'interrogation seule. La configuration de développement (`docker/Caddyfile`) sert d'exemple.
+
 ### Serveur derrière un proxy
 
 En entreprise ou chez certains hébergeurs, le HTTPS est assuré par un autre serveur placé devant le vôtre (proxy). L'application croit alors recevoir du HTTP simple : les cookies sécurisés et l'en-tête HSTS ne partent pas. Indiquez-lui de faire confiance au proxy, dans `.env.local` :
@@ -155,6 +170,16 @@ SYMFONY_TRUSTED_PROXIES=127.0.0.1,REMOTE_ADDR
 ```
 
 `REMOTE_ADDR` fait confiance à la machine qui contacte directement le serveur : n'utilisez cette valeur que si le serveur n'est joignable que par le proxy. Sinon, indiquez l'adresse IP du proxy. Après chaque modification de `.env.local` : `php bin/console cache:clear`.
+
+### Mot de passe administrateur oublié
+
+L'administration n'a pas de lien « mot de passe oublié ». Sur le serveur, choisissez un nouveau mot de passe :
+
+```
+php bin/console app:admin:password
+```
+
+La commande affiche l'identifiant de l'administrateur (utile s'il est oublié lui aussi) et demande deux fois le nouveau mot de passe. Les sessions ouvertes avec l'ancien sont fermées. En développement : `docker compose exec php bin/console app:admin:password`.
 
 ### Sauvegarde
 
@@ -186,6 +211,10 @@ Si l'icône ouvre un onglet Chrome avec la barre d'adresse, c'est un simple racc
 
 Après une mise à jour du serveur, un bandeau « Nouvelle version de l'application » apparaît sur les tablettes : touchez « Recharger » entre deux commandes.
 
+## Procédures pour l'événement
+
+Fiches à imprimer pour l'équipe, dans `docs/procedures/` : [jour J](docs/procedures/jour-j.md), [coupure réseau](docs/procedures/coupure-reseau.md), [clôture](docs/procedures/cloture.md) et [incidents](docs/procedures/incidents.md).
+
 ## Tester sur le terrain
 
 À faire une fois dans la salle, avant la répétition générale, à l'emplacement exact des caisses et de la cuisine. Comptez dix minutes.
@@ -193,7 +222,7 @@ Après une mise à jour du serveur, un bandeau « Nouvelle version de l'applicat
 1. Sur un téléphone, activez le partage de connexion 4G (ou connectez-vous au Wi-Fi de la salle s'il existe).
 2. Connectez une tablette à ce partage et ouvrez l'adresse du site dans Chrome : la page d'accueil doit s'afficher en quelques secondes, avec le cadenas du HTTPS.
 3. Appairez la tablette en caisse (code créé dans l'administration), puis encaissez une commande d'essai.
-4. Si possible, une deuxième tablette en cuisine : la commande doit y apparaître en moins de 5 secondes.
+4. Si possible, une deuxième tablette en cuisine : la commande doit y apparaître en quelques secondes (moins de 10).
 5. Notez la qualité du réseau à chaque emplacement (nombre de barres 4G, temps d'affichage), et essayez un autre opérateur si le premier est faible.
 6. Faites ce test avec un événement « Essai » : activez ensuite le vrai événement, ses ventes partent de zéro.
 

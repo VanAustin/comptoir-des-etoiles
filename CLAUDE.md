@@ -20,6 +20,7 @@ Dépendances de production autorisées, et rien d'autre :
 - `symfony/twig-bundle`
 - `doctrine/doctrine-bundle`, `doctrine/orm`, `doctrine/doctrine-migrations-bundle`
 - `symfony/security-bundle` et `symfony/rate-limiter` : seule exception à la règle du minimum, réservée à l'authentification de l'administration (hachage du mot de passe, protection CSRF, limitation des tentatives, protection de session). Pour un projet qui pourrait devenir public, un composant audité vaut mieux qu'une authentification écrite à la main.
+- `symfony/mercure-bundle` (avec `symfony/mercure`, `symfony/http-client`, `lcobucci/jwt`) : temps réel facultatif, voir Architecture. Extensions PHP `sodium` et `openssl` requises.
 - Base de données : **MySQL 8** (`utf8mb4`, interclassement `utf8mb4_unicode_ci` fixé dans `config/packages/doctrine.yaml`), fournie par l'hébergeur en production. SQLite a été abandonné le 26 octobre 2026.
 
 Développement uniquement : `symfony/maker-bundle`, PHPUnit.
@@ -30,10 +31,10 @@ Explicitement exclus : EasyAdmin, Symfony Form, Stimulus, AssetMapper, Webpack E
 
 PHP, Composer et Symfony ne sont **pas** installés sur le Mac : tout tourne dans Docker.
 
-- Une seule image, basée sur l'image officielle **`php:8.3-apache`**, avec les extensions `pdo_mysql`, `intl` et `opcache`, et Composer copié depuis l'image officielle `composer:2`. FrankenPHP a été écarté : trop de soucis à la mise en place.
-- Apache sert `public/` comme racine, avec `FallbackResource /index.php` dans la configuration du site (fichier copié par le `Dockerfile`). **Pas** de `symfony/apache-pack`.
+- Une seule image, basée sur l'image officielle **`dunglas/frankenphp`** (version fixée, PHP 8.3), avec les extensions `pdo_mysql` et `intl` (`opcache`, `sodium`, `openssl` incluses), et Composer copié depuis l'image officielle `composer:2`. FrankenPHP (adopté le 26 octobre 2026, après un premier essai écarté) sert l'application **et** le hub Mercure intégré. Développement uniquement : la production n'en dépend pas pour l'instant (Apache ou Nginx).
+- `docker/Caddyfile` : racine `public/`, `php_server`, hub Mercure sur `/.well-known/mercure` (émetteur `{$MERCURE_JWT_ISSUER}`, clé `MERCURE_JWT_SECRET`, abonnés anonymes), pas de HTTPS. Le projet est monté dans `/app`. **Pas** de `symfony/apache-pack`.
 - Le site est servi sur **`http://localhost:8080`**. Pas de HTTPS en développement : Chrome autorise le service worker sur `localhost`, ce qui suffit pour développer et tester le mode hors ligne sur le Mac.
-- Fichiers attendus, et rien de plus : `Dockerfile`, `compose.yaml`, le fichier de configuration Apache du site (`docker/apache.conf`) et `docker/mysql/init.sql`. Pas de Redis, pas de Node.
+- Fichiers attendus, et rien de plus : `Dockerfile`, `compose.yaml`, `docker/Caddyfile` et `docker/mysql/init.sql`. Pas de Redis, pas de Node.
 - Services en plus de `php` :
   - **`database`** : image officielle `mysql` (version fixée), base `comptoir`, utilisateur et mot de passe `comptoir` (développement uniquement). Données dans le volume nommé `database_data` : elles survivent au redémarrage des conteneurs (`docker compose down -v` les efface). `docker/mysql/init.sql` crée la base des tests `comptoir_test`.
   - **phpMyAdmin** (image officielle `phpmyadmin`, version fixée), connexion automatique, sur `http://localhost:8082`. Développement uniquement, lié à `127.0.0.1`. Rien dans l'application n'en dépend.
@@ -44,7 +45,7 @@ PHP, Composer et Symfony ne sont **pas** installés sur le Mac : tout tourne dan
   - `docker compose exec php bin/phpunit`
 - Le nom du service dans `compose.yaml` est `php`.
 - En production sur un hébergement mutualisé (sans Docker), le même code tourne avec le PHP de l'hébergeur : ne rien faire qui dépende de Docker dans le code de l'application.
-- Apache ne transmet pas l'en-tête `Authorization` à PHP par défaut. `docker/apache.conf` le fait avec `SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1` ; sur un serveur Apache sans Docker, c'est `public/.htaccess` (avec la redirection vers le HTTPS), sinon aucune tablette ne peut s'authentifier. Exemple Nginx : `docs/deploiement/nginx.conf`. Installation décrite dans `README.md`.
+- Apache ne transmet pas l'en-tête `Authorization` à PHP par défaut (FrankenPHP, si). Sur un serveur Apache, `public/.htaccess` le fait avec `SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1` (avec la redirection vers le HTTPS), sinon aucune tablette ne peut s'authentifier. Exemple Nginx : `docs/deploiement/nginx.conf`. Installation décrite dans `README.md`.
 
 ## Architecture
 
@@ -62,13 +63,17 @@ PHP, Composer et Symfony ne sont **pas** installés sur le Mac : tout tourne dan
   - Le dernier menu reçu est gardé dans la tablette : une caisse rechargée sans réseau reste utilisable.
   - Application installable : `/manifest.webmanifest`, icônes dans `public/img/app/` (générées depuis le logo générique), démarrage sur `/demarrer`, qui ouvre l'écran du rôle de la tablette.
 - **Idempotence** : chaque commande reçoit un UUID créé sur la tablette. `POST /api/orders` avec un UUID déjà connu ne crée pas de doublon et renvoie la commande existante.
-- **Temps réel** : l'écran cuisine (`GET /api/orders`) et l'écran Arrivées (`GET /api/board`) interrogent le serveur toutes les 2 à 3 secondes. Pas de Mercure pour l'instant.
+- **Temps réel** : l'écran cuisine (`GET /api/orders`) et l'écran Arrivées (`GET /api/board`) interrogent le serveur toutes les 5 secondes, sauf si un hub Mercure est configuré (`App\Realtime`) :
+  - `OrderChangePublisher` (Doctrine, après chaque enregistrement qui crée ou modifie une `Order`) publie `{}` sur le sujet `urn:comptoir:evenement:{id}:commandes`. **Aucune donnée dans les messages** : `EventSource` ne peut pas envoyer `Authorization`, et le jeton ne va jamais dans une URL ; la tablette relit l'API. Un hub injoignable ne fait jamais échouer un enregistrement (journal, délai de 2 s).
+  - `RealtimeLinkListener` : sur les `GET /api/…` d'une tablette, en-têtes `Link: <hub>; rel="mercure"` et `<sujet>; rel="self"`. Absents sans hub (`MERCURE_URL` ou `MERCURE_PUBLIC_URL` vide).
+  - `public/js/poller.js` : abonnement avec `match=<sujet>` (protocole Mercure récent) ; chaque message et chaque (re)connexion déclenchent une relecture complète ; interrogation de contrôle toutes les 30 s au plus, même hub injoignable. Sans hub, interrogation comme avant.
+  - Tests : `App\Tests\Realtime\RecordingHub` remplace le hub (publications gardées en mémoire, panne simulable).
   - Le serveur renvoie à chaque fois la **liste complète** des commandes en cours (pas de `since`) : une tablette qui a manqué une réponse se recale à la suivante.
   - Réponse avec empreinte (`ETag`) : la tablette la renvoie dans `If-None-Match`, et le serveur répond 304 sans contenu tant que rien n'a changé (forfait 4G).
   - Les temps d'attente se calculent sur l'heure du serveur (`serverTime`), jamais sur l'horloge de la tablette.
   - La cuisine fait avancer une commande avec `POST /api/orders/{uuid}/status` ; redemander l'état actuel ne change rien (deux tablettes cuisine), un autre état non autorisé répond 409 avec l'état actuel.
   - L'écran Arrivées montre les 12 dernières commandes prêtes et toutes celles en préparation.
-  - La caisse suit les commandes en cours (`GET /api/till/orders`, toutes les 5 secondes) : résumé dans l'en-tête, panneau « Suivi » avec recherche par numéro, et nombre de commandes avant la nouvelle en cuisine.
+  - La caisse suit les commandes en cours (`GET /api/till/orders`, toutes les 10 secondes sans hub) : résumé dans l'en-tête, panneau « Suivi » avec recherche par numéro, et nombre de commandes avant la nouvelle en cuisine.
   - Chaque caisse relit le menu toutes les 30 secondes, seulement sur la grille (jamais pendant un paiement) : stocks des autres caisses, prix modifiés, articles retirés.
 - **Stocks** : le stock restant est calculé à partir des ventes (stock de départ moins quantités vendues des commandes non annulées), jamais stocké comme un compteur décrémenté. Le stock est une **information, jamais une limite** : ni le serveur ni la caisse ne bloquent une vente (stocks de départ approximatifs, ventes hors ligne), et il peut devenir négatif. Une formule décompte les composants figés sur la ligne au moment de la vente ; son stock restant est le nombre de formules encore possibles avec ses composants comptés (stock de chaque composant divisé par sa quantité, le plus petit l'emporte).
 
@@ -131,7 +136,7 @@ Usage prévu : une APE, petite échelle. Mais le code est écrit **comme s'il é
 - Symfony Security avec formulaire de connexion, mot de passe haché (`auto`, donc bcrypt ou argon2), protection CSRF sur la connexion et sur **chaque** formulaire qui modifie des données.
 - `login_throttling` : 5 tentatives par tranche de 15 minutes, par IP et par identifiant.
 - Session régénérée à la connexion (comportement par défaut de Symfony, à ne pas désactiver), expiration après 2 heures d'inactivité.
-- **Aucun identifiant par défaut livré.** Le premier administrateur est créé par une commande : `php bin/console app:install`, qui demande le mot de passe (12 caractères minimum) et génère `APP_SECRET`.
+- **Aucun identifiant par défaut livré.** Le premier administrateur est créé par une commande : `php bin/console app:install`, qui demande le mot de passe (12 caractères minimum) et génère `APP_SECRET`. Mot de passe oublié : `php bin/console app:admin:password` (mêmes règles de saisie, `App\Command\NewPasswordPrompt` ; ferme les sessions ouvertes, tracé `admin.password`).
 
 ### Tablettes : appairage, sans comptes
 
@@ -142,7 +147,7 @@ Usage prévu : une APE, petite échelle. Mais le code est écrit **comme s'il é
   - `caisse` : lire le menu et les stocks, créer des commandes, suivre les commandes en cours (numéros et états seulement) et remettre au client une commande prête (`POST /api/till/orders/{uuid}/served`, au comptoir de la buvette).
   - `cuisine` : lire les commandes en cours, faire avancer leur état.
   - `affichage` : lire uniquement les numéros et leur état, rien d'autre (pas de montants, pas d'articles).
-- Limitation de débit par tablette sur l'API (par exemple 120 requêtes par minute), pour encaisser l'interrogation toutes les 2 à 3 secondes sans permettre d'abus.
+- Limitation de débit par tablette sur l'API (par exemple 120 requêtes par minute), pour encaisser l'interrogation toutes les 5 secondes (sans hub Mercure) sans permettre d'abus.
 - Comparaisons de jetons et de codes avec `hash_equals`.
 
 ### Navigateur
