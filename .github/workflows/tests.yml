@@ -1,0 +1,86 @@
+# Lance les tests à chaque pull request et à chaque fusion sur main :
+# PHPUnit sur MySQL, migrations sur une base neuve (aller et retour),
+# syntaxe de la configuration, des gabarits et du conteneur Symfony.
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    # Même base qu'en développement (compose.yaml)
+    services:
+      database:
+        image: mysql:8.4.6
+        env:
+          MYSQL_DATABASE: comptoir
+          MYSQL_USER: comptoir
+          MYSQL_PASSWORD: comptoir
+          MYSQL_ROOT_PASSWORD: comptoir
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -ucomptoir -pcomptoir"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    env:
+      # Remplace l'adresse du service Docker (database) par celle du service de GitHub
+      DATABASE_URL: mysql://comptoir:comptoir@127.0.0.1:3306/comptoir?serverVersion=8.0.32&charset=utf8mb4
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # PHP 8.3, comme le développement (PHPUnit 12 exige PHP 8.3)
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: intl, pdo_mysql, sodium, openssl
+          coverage: none
+          tools: composer:v2
+
+      - name: Récupérer le cache de Composer
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Vérifier composer.json et composer.lock
+        run: composer validate --no-check-publish
+
+      - name: Installer les dépendances
+        run: composer install --no-interaction --no-progress
+
+      - name: Créer la base des tests
+        run: mysql -h 127.0.0.1 -uroot -pcomptoir < docker/mysql/init.sql
+
+      - name: Vérifier la configuration, les gabarits et le conteneur
+        run: |
+          bin/console lint:yaml config --parse-tags
+          bin/console lint:twig templates
+          bin/console lint:container
+
+      # Les tests créent le schéma depuis les entités : ici, on vérifie que les
+      # migrations produisent le même schéma, et que leur retour arrière fonctionne.
+      - name: Vérifier les migrations
+        run: |
+          bin/console doctrine:migrations:migrate --no-interaction
+          bin/console doctrine:schema:validate
+          bin/console doctrine:migrations:migrate first --no-interaction
+          bin/console doctrine:migrations:migrate --no-interaction
+
+      - name: Lancer les tests
+        run: bin/phpunit
