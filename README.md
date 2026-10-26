@@ -180,7 +180,9 @@ php bin/console cache:clear
 
 ## Installer l'application sur une tablette
 
-Une fois la tablette appairée, dans Chrome : menu ⋮, puis « Ajouter à l'écran d'accueil » (ou « Installer l'application »). L'icône « Comptoir » ouvre directement l'écran de la tablette (caisse, cuisine ou Arrivées), même sans réseau.
+Une fois la tablette appairée, dans Chrome : menu ⋮, puis « Ajouter au bureau ». Selon la version d'Android et de Chrome, l'option s'appelle aussi « Installer l'application » ou « Ajouter à l'écran d'accueil ». L'icône « Comptoir » ouvre directement l'écran de la tablette (caisse, cuisine ou Arrivées), sans barre d'adresse, même sans réseau.
+
+Si l'icône ouvre un onglet Chrome avec la barre d'adresse, c'est un simple raccourci : supprimez-la (appui long) et refaites l'installation.
 
 Après une mise à jour du serveur, un bandeau « Nouvelle version de l'application » apparaît sur les tablettes : touchez « Recharger » entre deux commandes.
 
