@@ -62,6 +62,8 @@ docker compose exec php bin/console doctrine:migrations:migrate
 
 Relisez toujours la migration générée dans `migrations/` avant de l'appliquer et de la commiter.
 
+Sur GitHub, chaque pull request lance automatiquement les tests, la vérification des migrations et de la configuration (onglet « Actions », fichier `.github/workflows/tests.yml`). Attendez la coche verte avant de fusionner.
+
 ## Consulter la base de données (phpMyAdmin)
 
 phpMyAdmin démarre avec `docker compose up -d`.
