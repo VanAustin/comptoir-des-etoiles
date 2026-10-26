@@ -10,7 +10,7 @@ PHP et Composer n'ont pas besoin d'être installés sur votre ordinateur : tout 
 
 Prérequis : [Docker Desktop](https://www.docker.com/products/docker-desktop/).
 
-1. Construisez et démarrez le conteneur :
+1. Construisez et démarrez les conteneurs (application, base MySQL et phpMyAdmin) :
 
    ```
    docker compose up -d --build
@@ -22,7 +22,7 @@ Prérequis : [Docker Desktop](https://www.docker.com/products/docker-desktop/).
    docker compose exec php composer install
    ```
 
-3. Créez la base de données (un fichier SQLite dans `var/`) :
+3. Créez les tables dans la base MySQL :
 
    ```
    docker compose exec php bin/console doctrine:migrations:migrate
@@ -45,23 +45,31 @@ docker compose exec php composer …
 docker compose exec php bin/console …
 ```
 
-Pour lancer les tests :
+Pour lancer les tests (ils utilisent une base à part, `comptoir_test`, vidée à chaque test) :
 
 ```
 docker compose exec php bin/phpunit
 ```
 
-Pour arrêter le conteneur : `docker compose down`.
+Pour arrêter les conteneurs : `docker compose down`. Les données restent dans le volume Docker `database_data` ; `docker compose down -v` efface ce volume, donc toute la base.
 
-## Consulter la base de données (Adminer)
+Pour faire évoluer la base, après avoir modifié une entité :
 
-Adminer est un outil web proche de phpMyAdmin, qui sait lire la base SQLite du projet. Il démarre avec `docker compose up -d`.
+```
+docker compose exec php bin/console doctrine:migrations:diff
+docker compose exec php bin/console doctrine:migrations:migrate
+```
 
-1. Ouvrez <http://localhost:8082> : le type de base (SQLite) et le fichier (`/var/db/data_dev.db`) sont déjà remplis.
-2. Mot de passe : `comptoir` (laissez « Utilisateur » vide).
-3. Cliquez sur une table à gauche, puis sur « Afficher les données ».
+Relisez toujours la migration générée dans `migrations/` avant de l'appliquer et de la commiter.
 
-Adminer n'est accessible que depuis votre ordinateur et n'existe qu'en développement. Préférez la consultation : une modification faite ici contourne les vérifications de l'application et l'historique des changements. Pour modifier un prix, un stock ou une icône, passez par l'administration.
+## Consulter la base de données (phpMyAdmin)
+
+phpMyAdmin démarre avec `docker compose up -d`.
+
+1. Ouvrez <http://localhost:8082> : la connexion est automatique.
+2. Choisissez la base `comptoir` à gauche, puis une table.
+
+En développement, l'utilisateur et le mot de passe MySQL sont `comptoir` / `comptoir` (voir `compose.yaml`). phpMyAdmin n'est accessible que depuis votre ordinateur et n'existe qu'en développement. Préférez la consultation : une modification faite ici contourne les vérifications de l'application et l'historique des changements. Pour modifier un prix, un stock ou une icône, passez par l'administration.
 
 ## Tester l'API des tablettes avec Bruno
 
@@ -83,11 +91,10 @@ Le jour de l'événement, les tablettes se connectent à un serveur en ligne, en
 ### Ce qu'il faut
 
 - Un serveur web **Apache** ou **Nginx**, joignable depuis internet avec un nom de domaine et un certificat HTTPS (Let's Encrypt, gratuit).
-- **PHP 8.2 ou plus récent**, avec les extensions `pdo_sqlite`, `intl`, `ctype` et `iconv` (`php -m` les liste).
+- **PHP 8.2 ou plus récent**, avec les extensions `pdo_mysql`, `intl`, `ctype` et `iconv` (`php -m` les liste).
+- Une base **MySQL 8** vide, créée chez votre hébergeur (souvent depuis son panneau, avec phpMyAdmin), en `utf8mb4`. Notez son nom, son utilisateur, son mot de passe et l'adresse du serveur MySQL.
 - Un accès **SSH** au serveur.
 - **Composer**. S'il n'est pas installé sur le serveur : `curl -sS https://getcomposer.org/installer | php`, puis remplacez `composer` par `php composer.phar` dans les commandes ci-dessous.
-
-Pas de MySQL : la base est un simple fichier SQLite dans `var/`.
 
 ### Installation
 
@@ -106,26 +113,34 @@ Pas de MySQL : la base est un simple fichier SQLite dans `var/`.
    printf 'APP_ENV=prod\nAPP_DEBUG=0\nDEFAULT_URI=https://comptoir.example.org\n' > .env.local
    ```
 
+   Ajoutez-y l'adresse de la base MySQL (remplacez utilisateur, mot de passe, serveur et nom de la base) :
+
+   ```
+   DATABASE_URL="mysql://utilisateur:mot-de-passe@serveur-mysql:3306/nom-de-la-base?serverVersion=8.0.32&charset=utf8mb4"
+   ```
+
+   Si le mot de passe contient des caractères spéciaux (`@`, `:`, `/`, `#`…), encodez-les (`@` devient `%40`, par exemple). Pour `serverVersion`, indiquez la version donnée par votre hébergeur (phpMyAdmin l'affiche : « Version du serveur »).
+
 3. Installez les dépendances, sans les outils de développement :
 
    ```
    composer install --no-dev --optimize-autoloader --classmap-authoritative
    ```
 
-4. Créez la base de données, puis le premier administrateur (la commande génère aussi `APP_SECRET` dans `.env.local`) :
+4. Créez les tables, puis le premier administrateur (la commande génère aussi `APP_SECRET` dans `.env.local`) :
 
    ```
    php bin/console doctrine:migrations:migrate
    php bin/console app:install
    ```
 
-5. Donnez au serveur web le droit d'écrire dans `var/` (la base et ses fichiers temporaires y sont créés). Par exemple, si le serveur web tourne sous l'utilisateur `www-data` :
+5. Donnez au serveur web le droit d'écrire dans `var/` (cache, journaux et sauvegardes y sont créés). Par exemple, si le serveur web tourne sous l'utilisateur `www-data` :
 
    ```
    sudo chown -R www-data:www-data var
    ```
 
-6. Faites pointer le site sur le dossier **`public/`**, jamais sur la racine du projet : la base de données et `.env.local` ne doivent pas être accessibles par une adresse web.
+6. Faites pointer le site sur le dossier **`public/`**, jamais sur la racine du projet : `.env.local` (qui contient le mot de passe de la base) et `var/` ne doivent pas être accessibles par une adresse web.
    - **Apache** : le fichier `public/.htaccess` est fourni. Il redirige le HTTP vers le HTTPS et transmet le jeton des tablettes à l'application. Le site doit autoriser ce fichier (`AllowOverride All`) et le module `rewrite` doit être actif (`sudo a2enmod rewrite`).
    - **Nginx** : partez de l'exemple `docs/deploiement/nginx.conf`.
 
@@ -147,7 +162,9 @@ SYMFONY_TRUSTED_PROXIES=127.0.0.1,REMOTE_ADDR
 php bin/console app:backup
 ```
 
-La commande copie la base, horodatée, dans `var/backups/` (lisible par le seul propriétaire du fichier). Lancez-la avant et après chaque événement, et récupérez la copie sur votre ordinateur, par exemple avec `scp`. Elle peut tourner pendant que les tablettes enregistrent des commandes.
+La commande écrit un fichier SQL horodaté (structure et données) dans `var/backups/`, lisible par le seul propriétaire du fichier. Lancez-la avant et après chaque événement, et récupérez la copie sur votre ordinateur, par exemple avec `scp`. Elle peut tourner pendant que les tablettes enregistrent des commandes : elle lit un instantané cohérent de la base.
+
+Pour restaurer : dans phpMyAdmin, sélectionnez la base, onglet « Importer », choisissez le fichier `.sql`. Les tables sont remplacées par leur contenu au moment de la sauvegarde. La sauvegarde de votre hébergeur, si elle existe, est un filet de plus.
 
 ### Mettre à jour
 

@@ -403,7 +403,7 @@ class TillApiTest extends WebTestCase
         self::assertSame(60 - 3, $this->stockOf('Soda'));
         self::assertSame(12, $this->stockOf('Duo de crêpes'), '24 crêpes restantes, 2 par formule');
         $line = $em->getRepository(Order::class)->findOneBy([])->getLines()->first();
-        self::assertSame([$this->ids['Crêpe sucre'], $this->ids['Crêpe sucre'], $this->ids['Soda']], $line->getComponentIds());
+        self::assertEqualsCanonicalizing([$this->ids['Crêpe sucre'], $this->ids['Crêpe sucre'], $this->ids['Soda']], $line->getComponentIds());
     }
 
     public function testMenuOnlySendsKnownIcons(): void

@@ -6,7 +6,6 @@ use App\Command\BackupCommand;
 use App\Tests\FixturesTrait;
 use App\Tests\ResetDatabaseTrait;
 use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\DriverManager;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -32,20 +31,23 @@ class BackupCommandTest extends KernelTestCase
         parent::tearDown();
     }
 
-    public function testBackupIsAReadableCopyOfTheDatabase(): void
+    public function testBackupRestoresTheDatabase(): void
     {
-        self::createEvent('Loto de Noël');
+        self::createEvent('Loto d\'hiver « Noël »');
+        $connection = self::getContainer()->get(Connection::class);
 
-        $tester = new CommandTester(new BackupCommand(self::getContainer()->get(Connection::class), $this->directory));
+        $tester = new CommandTester(new BackupCommand($connection, $this->directory));
         $tester->execute([]);
 
         self::assertSame(Command::SUCCESS, $tester->getStatusCode());
-        $files = glob($this->directory.'/comptoir-*.db');
+        $files = glob($this->directory.'/comptoir-*.sql');
         self::assertCount(1, $files);
         self::assertSame(0o600, fileperms($files[0]) & 0o777, 'lisible par le seul propriétaire');
 
-        $copy = DriverManager::getConnection(['driver' => 'pdo_sqlite', 'path' => $files[0]]);
-        self::assertSame('Loto de Noël', $copy->fetchOne('SELECT name FROM event'));
-        $copy->close();
+        // Restauration comme dans phpMyAdmin : les tables sont recréées avec leurs données
+        $connection->executeStatement('UPDATE event SET name = \'Modifié après la sauvegarde\'');
+        $connection->getNativeConnection()->exec((string) file_get_contents($files[0]));
+
+        self::assertSame('Loto d\'hiver « Noël »', $connection->fetchOne('SELECT name FROM event'));
     }
 }

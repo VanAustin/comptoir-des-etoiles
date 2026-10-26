@@ -185,10 +185,17 @@ class Product
         return !$this->components->isEmpty();
     }
 
-    /** @return Collection<int, ProductComponent> */
+    /**
+     * Dans l'ordre du menu : la base ne garantit pas l'ordre de saisie.
+     *
+     * @return Collection<int, ProductComponent>
+     */
     public function getComponents(): Collection
     {
-        return $this->components;
+        $components = $this->components->toArray();
+        usort($components, static fn (ProductComponent $a, ProductComponent $b): int => [$a->getComponent()->getPosition(), $a->getComponent()->getId()] <=> [$b->getComponent()->getPosition(), $b->getComponent()->getId()]);
+
+        return new ArrayCollection($components);
     }
 
     /**
@@ -257,7 +264,7 @@ class Product
     {
         return implode(', ', array_map(
             static fn (ProductComponent $c): string => $c->getQuantity().' × '.$c->getComponent()->getName(),
-            $this->components->toArray(),
+            $this->getComponents()->toArray(),
         ));
     }
 }

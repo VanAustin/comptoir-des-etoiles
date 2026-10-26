@@ -4,17 +4,43 @@ services:
     ports:
       - "8080:80"
     volumes:
-      # Le projet entier est monté, var/ (et donc la base SQLite) compris
       - .:/var/www/html
+    depends_on:
+      database:
+        condition: service_healthy
 
-  # Consultation de la base en développement, façon phpMyAdmin : http://localhost:8082
-  # Accessible depuis ce Mac uniquement ; n'existe pas en production.
-  adminer:
-    image: adminer:5.5.1
-    ports:
-      - "127.0.0.1:8082:8080"
+  # Base MySQL de développement. Les données vivent dans le volume database_data :
+  # elles survivent à « docker compose down » (mais pas à « down -v »).
+  database:
+    image: mysql:8.4.6
     environment:
-      ADMINER_PASSWORD: comptoir
+      MYSQL_DATABASE: comptoir
+      MYSQL_USER: comptoir
+      MYSQL_PASSWORD: comptoir
+      MYSQL_ROOT_PASSWORD: comptoir
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     volumes:
-      - ./var:/var/db
-      - ./docker/adminer/login.php:/var/www/html/plugins-enabled/login.php:ro
+      - database_data:/var/lib/mysql
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-ucomptoir", "-pcomptoir"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Consultation de la base en développement : http://localhost:8082
+  # Accessible depuis ce Mac uniquement ; n'existe pas en production.
+  phpmyadmin:
+    image: phpmyadmin:5.2.2
+    ports:
+      - "127.0.0.1:8082:80"
+    environment:
+      PMA_HOST: database
+      PMA_USER: comptoir
+      PMA_PASSWORD: comptoir
+    depends_on:
+      database:
+        condition: service_healthy
+
+volumes:
+  database_data:

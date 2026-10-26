@@ -31,12 +31,12 @@ class AuditLog
     #[ORM\Column(length: 120, nullable: true)]
     private ?string $subject;
 
-    /** @var array<string, mixed>|null */
-    #[ORM\Column(type: Types::JSON, nullable: true)]
+    /** @var array<string, mixed>|null « before » est un mot réservé de MySQL */
+    #[ORM\Column(name: 'value_before', type: Types::JSON, nullable: true)]
     private ?array $before;
 
     /** @var array<string, mixed>|null */
-    #[ORM\Column(type: Types::JSON, nullable: true)]
+    #[ORM\Column(name: 'value_after', type: Types::JSON, nullable: true)]
     private ?array $after;
 
     #[ORM\Column]
