@@ -1,10 +1,15 @@
 services:
+  # Application et hub Mercure (FrankenPHP) : http://localhost:8080
   php:
     build: .
     ports:
       - "8080:80"
     volumes:
-      - .:/var/www/html
+      - .:/app
+    environment:
+      # Clé de publication du hub, la même que celle de l'application (.env)
+      MERCURE_JWT_SECRET: "!DevelopmentOnlyMercureSecretChangeMe!"
+      MERCURE_JWT_ISSUER: comptoir-des-etoiles
     depends_on:
       database:
         condition: service_healthy

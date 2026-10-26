@@ -1,0 +1,46 @@
+# Clôture de l'événement
+
+À faire dans l'ordre, avant de ranger les tablettes.
+
+## 1. Plus aucune commande en attente
+
+Sur **chaque caisse**, l'en-tête ne doit plus afficher « en attente d'envoi » ni de commande « À vérifier ». Sinon, gardez la tablette allumée et connectée jusqu'à l'envoi, ou traitez les commandes « À vérifier » (voir [Coupure réseau](coupure-reseau.md)).
+
+Une caisse éteinte avec des commandes en attente les garde : elles partiront à la prochaine ouverture, avec le même appairage. Elles manqueraient d'ici là dans les chiffres.
+
+## 2. Compter les caisses
+
+1. Dans l'administration, **Carnet de bord** : bloc **Par caisse**, colonne **Espèces attendues**. Ce montant est *hors fond de caisse*, consignes comprises, monnaie rendue déduite.
+2. Comptez les espèces de chaque caisse, retirez le fond de caisse noté à l'installation, et comparez.
+3. La colonne **Écart** signale les commandes encaissées hors ligne avec un montant reçu inférieur au total (prix modifié pendant la coupure, ou erreur de saisie). Un écart inexpliqué se note dans le compte rendu.
+4. Les paiements par carte se rapprochent avec le relevé du terminal de paiement (le Carnet de bord donne le total carte).
+5. Consignes : le Carnet de bord donne les consignes encaissées, rendues, et le solde (gobelets non rendus). Ce solde n'est pas du chiffre d'affaires.
+
+## 3. Exporter le bilan
+
+Dans **Carnet de bord**, « Exporter pour Excel » : téléchargez les trois fichiers (commandes, détail des lignes, bilan par article). Les commandes annulées en sont exclues. Le bilan par article sert à ajuster les courses du prochain événement.
+
+## 4. Sauvegarder
+
+Sur le serveur :
+
+```
+php bin/console app:backup
+```
+
+Puis copiez le fichier de `var/backups/` sur votre ordinateur, par exemple :
+
+```
+scp utilisateur@serveur:chemin/du/projet/var/backups/comptoir-AAAA-MM-JJ_HHMMSS.sql .
+```
+
+Gardez cette copie avec les fichiers Excel.
+
+## 5. Tablettes
+
+Les jetons des tablettes expirent tout seuls le lendemain de l'événement à 6 h : rien d'obligatoire à faire. Si une tablette personnelle rentre chez un parent avant, ou si l'une d'elles a disparu, **Révoquer** sur sa ligne, dans l'administration, **Tablettes**.
+
+## 6. Avant le prochain événement
+
+- Créez le prochain événement et activez-le le moment venu : les numéros repartent à 1 et les lettres de caisse à A.
+- Notez ce qui a manqué (articles en rupture, attente en cuisine, réseau…) pendant que c'est frais.

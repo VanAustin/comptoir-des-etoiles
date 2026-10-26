@@ -18,6 +18,13 @@ framework:
         cookie_samesite: lax
         gc_maxlifetime: 7200
 
+    # Publication vers le hub Mercure : jamais plus de 2 secondes d'attente,
+    # une commande ne doit pas rester bloquée par un hub injoignable
+    http_client:
+        default_options:
+            timeout: 2
+            max_duration: 2
+
     #esi: true
     #fragments: true
 

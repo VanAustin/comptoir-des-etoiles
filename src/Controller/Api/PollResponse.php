@@ -6,7 +6,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
- * Réponse des routes interrogées toutes les 2 à 3 secondes : tant que rien n'a
+ * Réponse des routes interrogées régulièrement (toutes les 5 à 30 secondes) : tant que rien n'a
  * changé, le serveur répond 304 sans contenu, ce qui ménage le forfait 4G.
  * La tablette renvoie l'empreinte reçue dans l'en-tête If-None-Match.
  */

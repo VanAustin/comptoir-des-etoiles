@@ -1,14 +1,16 @@
-FROM php:8.3-apache
+# Développement uniquement : FrankenPHP (PHP + serveur web Caddy + hub Mercure).
+# La production n'en dépend pas (Apache ou Nginx, voir README.md).
+FROM dunglas/frankenphp:1.13.0-php8.3
 
-# Outils nécessaires à Composer (git, unzip) et à l'extension intl (libicu)
+# Outils nécessaires à Composer (git, unzip) ; opcache, sodium et openssl sont déjà inclus
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git unzip libicu-dev \
-    && docker-php-ext-install intl opcache pdo_mysql \
+    && apt-get install -y --no-install-recommends git unzip \
+    && install-php-extensions intl pdo_mysql \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 ENV COMPOSER_ALLOW_SUPERUSER=1
 
-COPY docker/apache.conf /etc/apache2/sites-available/000-default.conf
+COPY docker/Caddyfile /etc/frankenphp/Caddyfile
 
-WORKDIR /var/www/html
+WORKDIR /app

@@ -8,7 +8,7 @@ framework:
             interval: '15 minutes'
 
         # API des tablettes : 120 requêtes par minute et par tablette
-        # (interrogation toutes les 2 à 3 secondes, avec de la marge).
+        # (interrogation toutes les 5 secondes sans hub Mercure, avec beaucoup de marge).
         device_api:
             policy: sliding_window
             limit: 120
