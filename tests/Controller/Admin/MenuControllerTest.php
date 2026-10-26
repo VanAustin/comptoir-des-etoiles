@@ -50,7 +50,7 @@ class MenuControllerTest extends WebTestCase
         $formula = $this->findProduct('Menu Loto');
         self::assertSame(550, $formula->getPriceCents());
         self::assertNull($formula->getInitialStock());
-        self::assertSame('1 × Hot-dog, 1 × Soda canette, 1 × Crêpe sucre', $formula->describeComposition());
+        self::assertSame('1 × Hot-dog, 1 × Crêpe sucre, 1 × Soda canette', $formula->describeComposition(), 'dans l\'ordre du menu');
         foreach ($this->productRepository()->findAll() as $product) {
             self::assertTrue(IconCatalog::has($product->getIcon()), $product->getName().' : icône du catalogue');
         }
@@ -147,8 +147,9 @@ class MenuControllerTest extends WebTestCase
         $cafe = $this->findProduct('Café long');
         self::assertSame('coffee', $cafe->getIcon());
         $log = self::entityManager()->getRepository(AuditLog::class)->findOneBy(['action' => 'product.update']);
-        self::assertSame(['name' => 'Café', 'icon' => null], $log->getBefore());
-        self::assertSame(['name' => 'Café long', 'icon' => 'coffee'], $log->getAfter());
+        // assertEquals : MySQL ne garde pas l'ordre des clés d'une colonne JSON
+        self::assertEquals(['name' => 'Café', 'icon' => null], $log->getBefore());
+        self::assertEquals(['name' => 'Café long', 'icon' => 'coffee'], $log->getAfter());
     }
 
     public function testCreateFormulaWithQuantities(): void

@@ -115,8 +115,9 @@ class EventControllerTest extends WebTestCase
 
         $log = $this->entityManager->getRepository(AuditLog::class)->findOneBy(['action' => 'event.update']);
         self::assertSame('admin:camille', $log?->getActor());
-        self::assertSame(['name' => 'Loto', 'date' => '2026-12-18', 'deposit_cents' => 0], $log->getBefore());
-        self::assertSame(['name' => 'Loto de Noël', 'date' => '2026-12-19', 'deposit_cents' => 150], $log->getAfter());
+        // assertEquals : MySQL ne garde pas l'ordre des clés d'une colonne JSON
+        self::assertEquals(['name' => 'Loto', 'date' => '2026-12-18', 'deposit_cents' => 0], $log->getBefore());
+        self::assertEquals(['name' => 'Loto de Noël', 'date' => '2026-12-19', 'deposit_cents' => 150], $log->getAfter());
     }
 
     public function testOnlyOneEventIsActive(): void

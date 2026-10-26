@@ -20,7 +20,7 @@ Dépendances de production autorisées, et rien d'autre :
 - `symfony/twig-bundle`
 - `doctrine/doctrine-bundle`, `doctrine/orm`, `doctrine/doctrine-migrations-bundle`
 - `symfony/security-bundle` et `symfony/rate-limiter` : seule exception à la règle du minimum, réservée à l'authentification de l'administration (hachage du mot de passe, protection CSRF, limitation des tentatives, protection de session). Pour un projet qui pourrait devenir public, un composant audité vaut mieux qu'une authentification écrite à la main.
-- Base de données : **SQLite** (un seul fichier, facile à sauvegarder et à déplacer)
+- Base de données : **MySQL 8** (`utf8mb4`, interclassement `utf8mb4_unicode_ci` fixé dans `config/packages/doctrine.yaml`), fournie par l'hébergeur en production. SQLite a été abandonné le 26 octobre 2026.
 
 Développement uniquement : `symfony/maker-bundle`, PHPUnit.
 
@@ -30,12 +30,14 @@ Explicitement exclus : EasyAdmin, Symfony Form, Stimulus, AssetMapper, Webpack E
 
 PHP, Composer et Symfony ne sont **pas** installés sur le Mac : tout tourne dans Docker.
 
-- Une seule image, basée sur l'image officielle **`php:8.3-apache`**, avec les extensions `pdo_sqlite` (déjà incluse), `intl` et `opcache`, et Composer copié depuis l'image officielle `composer:2`. FrankenPHP a été écarté : trop de soucis à la mise en place.
+- Une seule image, basée sur l'image officielle **`php:8.3-apache`**, avec les extensions `pdo_mysql`, `intl` et `opcache`, et Composer copié depuis l'image officielle `composer:2`. FrankenPHP a été écarté : trop de soucis à la mise en place.
 - Apache sert `public/` comme racine, avec `FallbackResource /index.php` dans la configuration du site (fichier copié par le `Dockerfile`). **Pas** de `symfony/apache-pack`.
 - Le site est servi sur **`http://localhost:8080`**. Pas de HTTPS en développement : Chrome autorise le service worker sur `localhost`, ce qui suffit pour développer et tester le mode hors ligne sur le Mac.
-- Fichiers attendus, et rien de plus : `Dockerfile`, `compose.yaml`, et le fichier de configuration Apache du site (par exemple `docker/apache.conf`). Pas de MySQL, pas de Redis, pas de Node.
-- Seul service en plus de `php` : **Adminer** (image officielle `adminer`, version fixée), pour consulter la base SQLite comme dans phpMyAdmin, sur `http://localhost:8082`. Développement uniquement, lié à `127.0.0.1`, mot de passe `comptoir` (exigé par Adminer pour SQLite) ; sa configuration tient dans `docker/adminer/login.php`. Rien dans l'application n'en dépend.
-- La base SQLite reste dans `var/`, monté en volume : elle survit au redémarrage des conteneurs.
+- Fichiers attendus, et rien de plus : `Dockerfile`, `compose.yaml`, le fichier de configuration Apache du site (`docker/apache.conf`) et `docker/mysql/init.sql`. Pas de Redis, pas de Node.
+- Services en plus de `php` :
+  - **`database`** : image officielle `mysql` (version fixée), base `comptoir`, utilisateur et mot de passe `comptoir` (développement uniquement). Données dans le volume nommé `database_data` : elles survivent au redémarrage des conteneurs (`docker compose down -v` les efface). `docker/mysql/init.sql` crée la base des tests `comptoir_test`.
+  - **phpMyAdmin** (image officielle `phpmyadmin`, version fixée), connexion automatique, sur `http://localhost:8082`. Développement uniquement, lié à `127.0.0.1`. Rien dans l'application n'en dépend.
+- Tests : `tests/bootstrap.php` recrée le schéma de `comptoir_test` une fois par lancement ; `ResetDatabaseTrait` vide les tables avant chaque test.
 - **Toutes** les commandes PHP passent par le conteneur, jamais par le PHP du Mac :
   - `docker compose exec php composer …`
   - `docker compose exec php bin/console …`
@@ -167,11 +169,11 @@ Le service worker, donc le mode hors ligne, **ne fonctionne qu'en HTTPS** (ou su
 
 ### Données et serveur
 
-- Racine web = `public/` uniquement. La base SQLite vit dans `var/`, jamais accessible par URL.
+- Racine web = `public/` uniquement. `.env.local` (adresse et mot de passe de la base) et `var/` ne sont jamais accessibles par URL.
 - `.env.local`, la base et les sauvegardes ne sont jamais commités (`.gitignore`).
 - `APP_ENV=prod` et `APP_DEBUG=0` en production ; aucune page d'erreur détaillée en production.
 - **Aucune donnée personnelle des clients** : pas de nom, pas de téléphone, pas d'e-mail. Une commande est un numéro. Garder ce principe, il évite l'essentiel des obligations RGPD.
-- Commande de sauvegarde : `php bin/console app:backup` copie la base horodatée dans `var/backups/`.
+- Commande de sauvegarde : `php bin/console app:backup` écrit, en PHP (sans `mysqldump`, absent de nombreux mutualisés), un fichier SQL horodaté dans `var/backups/`, lu dans un instantané cohérent et importable avec phpMyAdmin.
 - Les montants, annulations et changements de prix sont tracés dans `AuditLog`.
 
 ### Dépendances et dépôt
@@ -266,7 +268,8 @@ Règles :
 - Avancer par petites étapes, une branche et une pull request par étape.
 - Proposer le plan avant de coder une étape importante.
 - Écrire un test pour la logique sensible : idempotence des commandes, calcul du stock, calcul de la monnaie, numérotation, consigne.
-- Relire chaque migration générée. Sur SQLite, Doctrine recrée parfois une table entière (copie, suppression, recréation) : avec les clés étrangères actives, supprimer `event` ou `product` efface en cascade les données liées. Préférer `ALTER TABLE … ADD COLUMN` / `DROP COLUMN`, y compris dans `down()`.
+- Migrations : `doctrine:migrations:diff` après chaque modification d'entité, puis relire la migration générée avant de l'appliquer. Elle doit être écrite pour MySQL 8. Les migrations SQLite d'origine ont été remplacées par un schéma initial unique (`Version20261026131450`).
+- MySQL : ne jamais nommer une colonne avec un mot réservé (`before`, `order`, `key`…) ; Doctrine ne les met pas entre guillemets à l'enregistrement. Ne pas compter sur l'ordre des lignes sans `ORDER BY`, ni sur l'ordre des clés d'une colonne JSON (MySQL les réordonne).
 - Avant de terminer une étape : lancer les tests et vérifier l'écran concerné.
 - Chaque route de l'API (`/api/…`) a sa requête dans la collection Bruno (`bruno/`), avec des tests sur le code de réponse et le contenu, y compris les cas de refus. La collection ne contient jamais de jeton ni de secret.
 

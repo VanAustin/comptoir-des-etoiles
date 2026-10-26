@@ -1,6 +1,10 @@
 doctrine:
     dbal:
         url: '%env(resolve:DATABASE_URL)%'
+        # Tables identiques quel que soit le réglage par défaut du serveur MySQL
+        default_table_options:
+            charset: utf8mb4
+            collation: utf8mb4_unicode_ci
 
         profiling_collect_backtrace: '%kernel.debug%'
         use_savepoints: true
@@ -40,3 +44,9 @@ when@prod:
                     adapter: cache.app
                 doctrine.system_cache_pool:
                     adapter: cache.system
+
+when@test:
+    doctrine:
+        dbal:
+            # Base séparée pour les tests : comptoir_test
+            dbname_suffix: '_test'
