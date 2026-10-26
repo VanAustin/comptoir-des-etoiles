@@ -157,6 +157,7 @@ Usage prévu : une APE, petite échelle. Mais le code est écrit **comme s'il é
   - `Permissions-Policy: camera=(), microphone=(), geolocation=()` (à assouplir pour la caméra si le scan du QR code d'appairage se fait dans l'app)
   - `Strict-Transport-Security: max-age=31536000` quand le site est servi en HTTPS
 - Cookies de session : `secure: auto`, `httponly: true`, `samesite: lax`.
+- Sessions rangées dans `var/sessions/` (pas dans le dossier de l'hébergeur, vidé selon ses propres règles sur un mutualisé : l'administrateur était déconnecté).
 - Le jeton de tablette est stocké dans IndexedDB et n'est jamais mis dans une URL.
 
 ### HTTPS (point technique important)

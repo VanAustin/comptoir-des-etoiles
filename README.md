@@ -134,7 +134,7 @@ Le jour de l'événement, les tablettes se connectent à un serveur en ligne, en
    php bin/console app:install
    ```
 
-5. Donnez au serveur web le droit d'écrire dans `var/` (cache, journaux et sauvegardes y sont créés). Par exemple, si le serveur web tourne sous l'utilisateur `www-data` :
+5. Donnez au serveur web le droit d'écrire dans `var/` (cache, journaux, sessions de l'administration et sauvegardes y sont créés). Par exemple, si le serveur web tourne sous l'utilisateur `www-data` :
 
    ```
    sudo chown -R www-data:www-data var
