@@ -1,10 +1,18 @@
+# Temps réel facultatif. Sans hub (MERCURE_URL vide, cas de la production), le bundle reçoit
+# une adresse factice, jamais contactée : App\Realtime\Realtime lit MERCURE_URL lui-même et
+# reste désactivé. Sans elle, le bundle chercherait le hub intégré de FrankenPHP et ferait
+# échouer Twig, donc cache:clear et toutes les pages.
+parameters:
+    mercure.disabled_url: 'http://mercure-desactive.invalid/.well-known/mercure'
+    mercure.disabled_secret: 'hub-desactive-aucune-publication-ne-part'
+
 mercure:
     hubs:
         default:
-            url: '%env(default::MERCURE_URL)%'
+            url: '%env(default:mercure.disabled_url:MERCURE_URL)%'
             public_url: '%env(default::MERCURE_PUBLIC_URL)%'
             jwt:
-                secret: '%env(default::MERCURE_JWT_SECRET)%'
+                secret: '%env(default:mercure.disabled_secret:MERCURE_JWT_SECRET)%'
                 publish: '*'
                 claims:
                     iss: '%env(default::MERCURE_JWT_ISSUER)%'
