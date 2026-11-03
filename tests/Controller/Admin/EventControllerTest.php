@@ -4,7 +4,12 @@ namespace App\Tests\Controller\Admin;
 
 use App\Entity\AdminUser;
 use App\Entity\AuditLog;
+use App\Entity\Device;
 use App\Entity\Event;
+use App\Entity\Order;
+use App\Enum\DeviceRole;
+use App\Enum\PaymentMethod;
+use App\Service\DevicePairing;
 use App\Tests\ResetDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -116,8 +121,87 @@ class EventControllerTest extends WebTestCase
         $log = $this->entityManager->getRepository(AuditLog::class)->findOneBy(['action' => 'event.update']);
         self::assertSame('admin:camille', $log?->getActor());
         // assertEquals : MySQL ne garde pas l'ordre des clés d'une colonne JSON
-        self::assertEquals(['name' => 'Loto', 'date' => '2026-12-18', 'deposit_cents' => 0], $log->getBefore());
-        self::assertEquals(['name' => 'Loto de Noël', 'date' => '2026-12-19', 'deposit_cents' => 150], $log->getAfter());
+        self::assertEquals(['name' => 'Loto', 'date' => '2026-12-18', 'deposit_cents' => 0, 'with_kitchen' => true], $log->getBefore());
+        self::assertEquals(['name' => 'Loto de Noël', 'date' => '2026-12-19', 'deposit_cents' => 150, 'with_kitchen' => true], $log->getAfter());
+    }
+
+    public function testNewEventHasKitchenByDefault(): void
+    {
+        $crawler = $this->client->request('GET', '/admin/evenements/nouveau');
+        self::assertNotNull($crawler->filterXPath('//input[@name="with_kitchen"]')->attr('checked'));
+
+        $this->client->submit($crawler->selectButton('Créer l\'événement')->form(['name' => 'Loto de Noël', 'date' => '2026-12-18']));
+
+        self::assertResponseRedirects('/admin/evenements');
+        self::assertTrue($this->findEvent('Loto de Noël')?->hasKitchen());
+    }
+
+    public function testCreateEventWithoutKitchen(): void
+    {
+        $crawler = $this->client->request('GET', '/admin/evenements/nouveau');
+        $form = $crawler->selectButton('Créer l\'événement')->form(['name' => 'Stand de Noël', 'date' => '2026-12-11']);
+        $form['with_kitchen']->untick();
+        $this->client->submit($form);
+
+        self::assertResponseRedirects('/admin/evenements');
+        self::assertFalse($this->findEvent('Stand de Noël')?->hasKitchen());
+        $crawler = $this->client->followRedirect();
+        self::assertStringContainsString('Sans cuisine', $crawler->filterXPath('//tr[td[contains(., "Stand de Noël")]]')->text());
+    }
+
+    public function testTurningKitchenOffWarnsAboutKitchenAndDisplayDevices(): void
+    {
+        $event = $this->createEvent('Stand de Noël', '2026-12-11');
+        $this->createDevice($event, 'Caisse buvette', DeviceRole::Till);
+        $this->createDevice($event, 'Cuisine 1', DeviceRole::Kitchen);
+        $this->createDevice($event, 'Écran salle', DeviceRole::Display);
+        $this->createDevice($event, 'Ancienne cuisine', DeviceRole::Kitchen)->setRevokedAt(new \DateTimeImmutable());
+        $this->entityManager->flush();
+
+        $crawler = $this->client->request('GET', '/admin/evenements/'.$event->getId().'/modifier');
+        self::assertStringContainsString('Si vous décochez « Avec cuisine », 2 tablettes (« Cuisine 1 », « Écran salle ») ne fonctionneront plus.', $crawler->filterXPath('//*[@id="kitchen-devices"]')->text());
+
+        $form = $crawler->selectButton('Enregistrer l\'événement')->form();
+        $form['with_kitchen']->untick();
+        $this->client->submit($form);
+
+        self::assertResponseRedirects('/admin/evenements');
+        $this->entityManager->clear();
+        self::assertFalse($this->findEvent('Stand de Noël')?->hasKitchen());
+        $log = $this->entityManager->getRepository(AuditLog::class)->findOneBy(['action' => 'event.update']);
+        self::assertTrue($log?->getBefore()['with_kitchen']);
+        self::assertFalse($log->getAfter()['with_kitchen']);
+
+        $this->client->followRedirect();
+        self::assertStringContainsString(
+            'Événement sans cuisine : 2 tablettes (« Cuisine 1 », « Écran salle ») ne fonctionnent plus.',
+            (string) $this->client->getResponse()->getContent(),
+        );
+    }
+
+    public function testKitchenSettingIsLockedOnceTheEventHasOrders(): void
+    {
+        $event = $this->createEvent('Loto de Noël', '2026-12-18');
+        $this->entityManager->persist(new Order('2b6a1f0e-3c4d-4e5f-8a9b-0c1d2e3f4a5b', $event, 'A', 1, PaymentMethod::Cash));
+        $this->entityManager->flush();
+
+        $crawler = $this->client->request('GET', '/admin/evenements/'.$event->getId().'/modifier');
+        self::assertNotNull($crawler->filterXPath('//input[@name="with_kitchen"]')->attr('disabled'));
+        self::assertStringContainsString('l\'événement a déjà des commandes', $crawler->filterXPath('//*[@id="kitchen-help"]')->text());
+
+        // Case contournée : la valeur envoyée est ignorée, le reste est enregistré
+        $this->client->request('POST', '/admin/evenements/'.$event->getId().'/modifier', [
+            'name' => 'Loto du 18',
+            'date' => '2026-12-18',
+            'deposit' => '0',
+            '_token' => $crawler->filterXPath('//input[@name="_token"]')->attr('value'),
+        ]);
+
+        self::assertResponseRedirects('/admin/evenements');
+        $this->entityManager->clear();
+        $event = $this->findEvent('Loto du 18');
+        self::assertNotNull($event);
+        self::assertTrue($event->hasKitchen());
     }
 
     public function testOnlyOneEventIsActive(): void
@@ -170,6 +254,16 @@ class EventControllerTest extends WebTestCase
         $this->entityManager->flush();
 
         return $event;
+    }
+
+    private function createDevice(Event $event, string $name, DeviceRole $role): Device
+    {
+        $device = new Device($event, $name, $role);
+        self::getContainer()->get(DevicePairing::class)->generateCode($device);
+        $this->entityManager->persist($device);
+        $this->entityManager->flush();
+
+        return $device;
     }
 
     private function findEvent(string $name): ?Event

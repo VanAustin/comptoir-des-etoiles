@@ -2,8 +2,11 @@
 
 namespace App\Controller\Admin;
 
+use App\Entity\Device;
 use App\Entity\Event;
+use App\Repository\DeviceRepository;
 use App\Repository\EventRepository;
+use App\Repository\OrderRepository;
 use App\Service\AuditLogger;
 use App\Service\Money;
 use Doctrine\ORM\EntityManagerInterface;
@@ -22,6 +25,8 @@ class EventController extends AbstractController
 
     public function __construct(
         private readonly EventRepository $events,
+        private readonly OrderRepository $orders,
+        private readonly DeviceRepository $devices,
         private readonly EntityManagerInterface $entityManager,
         private readonly AuditLogger $auditLogger,
     ) {
@@ -38,7 +43,7 @@ class EventController extends AbstractController
     #[Route('/nouveau', name: 'admin_event_new', methods: ['GET', 'POST'])]
     public function new(Request $request): Response
     {
-        $values = ['name' => '', 'date' => '', 'deposit' => '0,00'];
+        $values = ['name' => '', 'date' => '', 'deposit' => '0,00', 'kitchen' => true];
         $errors = [];
 
         if ($request->isMethod('POST')) {
@@ -46,7 +51,7 @@ class EventController extends AbstractController
             [$values, $errors, $name, $date, $depositCents] = $this->validate($request);
 
             if (!$errors) {
-                $event = (new Event($name, $date))->setDepositCents($depositCents);
+                $event = (new Event($name, $date))->setDepositCents($depositCents)->setWithKitchen($values['kitchen']);
                 $this->entityManager->persist($event);
                 $this->auditLogger->log('event.create', 'event:'.$name, after: self::snapshot($event));
                 $this->entityManager->flush();
@@ -60,25 +65,46 @@ class EventController extends AbstractController
             'event' => null,
             'values' => $values,
             'errors' => $errors,
+            'kitchen_locked' => false,
+            'kitchen_devices' => [],
         ], new Response(status: $errors ? 422 : 200));
     }
 
     #[Route('/{id<\d+>}/modifier', name: 'admin_event_edit', methods: ['GET', 'POST'])]
     public function edit(Event $event, Request $request): Response
     {
-        $values = ['name' => $event->getName(), 'date' => $event->getDate()->format('Y-m-d'), 'deposit' => Money::formatEuros($event->getDepositCents())];
+        $values = [
+            'name' => $event->getName(),
+            'date' => $event->getDate()->format('Y-m-d'),
+            'deposit' => Money::formatEuros($event->getDepositCents()),
+            'kitchen' => $event->hasKitchen(),
+        ];
         $errors = [];
+        // Après la première commande, changer le réglage fausserait les commandes déjà passées
+        $kitchenLocked = $this->orders->hasOrders($event);
+        $kitchenDevices = $this->kitchenDevices($event);
 
         if ($request->isMethod('POST')) {
             $this->denyUnlessCsrfValid($request, 'event-form');
             [$values, $errors, $name, $date, $depositCents] = $this->validate($request);
+            if ($kitchenLocked) {
+                // La case est désactivée dans la page : la valeur envoyée est ignorée
+                $values['kitchen'] = $event->hasKitchen();
+            }
 
             if (!$errors) {
                 $before = self::snapshot($event);
-                $event->setName($name)->setDate($date)->setDepositCents($depositCents);
+                $event->setName($name)->setDate($date)->setDepositCents($depositCents)->setWithKitchen($values['kitchen']);
                 $this->auditLogger->log('event.update', 'event:'.$event->getId().' '.$name, $before, self::snapshot($event));
                 $this->entityManager->flush();
                 $this->addFlash('info', \sprintf('L\'événement « %s » est enregistré.', $name));
+                if (!$event->hasKitchen() && $kitchenDevices) {
+                    $this->addFlash('info', \sprintf(
+                        'Événement sans cuisine : %s ne %s plus. Seules les caisses fonctionnent.',
+                        self::deviceList($kitchenDevices),
+                        \count($kitchenDevices) > 1 ? 'fonctionnent' : 'fonctionne',
+                    ));
+                }
 
                 return $this->redirectToRoute('admin_event_index');
             }
@@ -88,6 +114,9 @@ class EventController extends AbstractController
             'event' => $event,
             'values' => $values,
             'errors' => $errors,
+            'kitchen_locked' => $kitchenLocked,
+            'kitchen_devices' => $kitchenDevices,
+            'kitchen_devices_text' => self::deviceList($kitchenDevices),
         ], new Response(status: $errors ? 422 : 200));
     }
 
@@ -120,7 +149,7 @@ class EventController extends AbstractController
     }
 
     /**
-     * @return array{array{name: string, date: string, deposit: string}, array<string, string>, string, ?\DateTimeImmutable, int}
+     * @return array{array{name: string, date: string, deposit: string, kitchen: bool}, array<string, string>, string, ?\DateTimeImmutable, int}
      */
     private function validate(Request $request): array
     {
@@ -129,6 +158,8 @@ class EventController extends AbstractController
             'name' => trim($payload->getString('name')),
             'date' => trim($payload->getString('date')),
             'deposit' => trim($payload->getString('deposit')),
+            // Case à cocher : absente du formulaire envoyé quand elle est décochée
+            'kitchen' => $payload->has('with_kitchen'),
         ];
         $errors = [];
 
@@ -157,6 +188,40 @@ class EventController extends AbstractController
     /** @return array<string, mixed> */
     private static function snapshot(Event $event): array
     {
-        return ['name' => $event->getName(), 'date' => $event->getDate()->format('Y-m-d'), 'deposit_cents' => $event->getDepositCents()];
+        return [
+            'name' => $event->getName(),
+            'date' => $event->getDate()->format('Y-m-d'),
+            'deposit_cents' => $event->getDepositCents(),
+            'with_kitchen' => $event->hasKitchen(),
+        ];
+    }
+
+    /**
+     * Tablettes cuisine et affichage encore utilisables (appairées ou en attente de leur code),
+     * qui ne fonctionnent pas lors d'un événement sans cuisine.
+     *
+     * @return list<Device>
+     */
+    private function kitchenDevices(Event $event): array
+    {
+        $now = new \DateTimeImmutable();
+
+        return array_values(array_filter(
+            $this->devices->findForEvent($event),
+            static fn (Device $d): bool => $d->getRole()->needsKitchen()
+                && \in_array($d->getState($now), [Device::STATE_PAIRED, Device::STATE_WAITING], true),
+        ));
+    }
+
+    /**
+     * « la tablette « Cuisine 1 » » ou « 2 tablettes (« Cuisine 1 », « Écran salle ») ».
+     *
+     * @param list<Device> $devices
+     */
+    private static function deviceList(array $devices): string
+    {
+        $names = array_map(static fn (Device $d): string => '« '.$d->getName().' »', $devices);
+
+        return 1 === \count($names) ? 'la tablette '.$names[0] : \sprintf('%d tablettes (%s)', \count($names), implode(', ', $names));
     }
 }

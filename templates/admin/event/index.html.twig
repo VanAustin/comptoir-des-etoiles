@@ -22,7 +22,7 @@
                 <tbody>
                     {% for event in events %}
                         <tr>
-                            <td class="stack-title">{{ event.name }}</td>
+                            <td class="stack-title">{{ event.name }}{% if not event.hasKitchen %} <span class="pill">Sans cuisine</span>{% endif %}</td>
                             <td class="num" data-label="Date">{{ event.date|date('d/m/Y') }}</td>
                             <td class="num" data-label="Consigne">{{ event.depositCents ? event.depositCents|euros : '—' }}</td>
                             <td data-label="État">

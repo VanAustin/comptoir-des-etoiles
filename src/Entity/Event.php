@@ -27,6 +27,13 @@ class Event
     #[ORM\Column(options: ['default' => 0])]
     private int $depositCents = 0;
 
+    /**
+     * Sans cuisine (stand de Noël…) : toute commande est servie au comptoir,
+     * seules les tablettes caisse fonctionnent.
+     */
+    #[ORM\Column(options: ['default' => true])]
+    private bool $withKitchen = true;
+
     public function __construct(string $name, \DateTimeImmutable $date)
     {
         $this->name = $name;
@@ -82,6 +89,18 @@ class Event
     public function setDepositCents(int $depositCents): static
     {
         $this->depositCents = $depositCents;
+
+        return $this;
+    }
+
+    public function hasKitchen(): bool
+    {
+        return $this->withKitchen;
+    }
+
+    public function setWithKitchen(bool $withKitchen): static
+    {
+        $this->withKitchen = $withKitchen;
 
         return $this;
     }
