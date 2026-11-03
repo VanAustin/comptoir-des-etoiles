@@ -50,6 +50,8 @@
                 <label class="check"><input type="checkbox" name="kitchen" value="1" {{ values.kitchen ? 'checked' }}> Passe en cuisine</label>
             {% endif %}
             <label class="check"><input type="checkbox" name="deposit" value="1" {{ values.deposit ? 'checked' }}> Avec consigne{% if event.depositCents %} ({{ event.depositCents|euros }}){% endif %}</label>
+            <label class="check"><input type="checkbox" name="alone" value="1" {{ values.alone ? 'checked' }} aria-describedby="alone-help"> Vendu seul</label>
+            <p class="field-help" id="alone-help">Décochez pour un article vendu seulement dans les formules (saucisse d'un menu…) : il n'apparaît plus sur les caisses, mais son stock est toujours décompté.</p>
 
             <input type="hidden" name="_token" value="{{ csrf_token('menu-product-' ~ (product.id ?? 'new')) }}">
             <div class="form-actions">

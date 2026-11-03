@@ -48,6 +48,14 @@ class Product
     #[ORM\Column(options: ['default' => false])]
     private bool $hasDeposit = false;
 
+    /**
+     * Faux pour un article vendu seulement dans les formules (saucisse d'un menu…) :
+     * absent de la grille des caisses, son stock reste décompté par les formules.
+     * Une formule est toujours vendue seule.
+     */
+    #[ORM\Column(options: ['default' => true])]
+    private bool $soldAlone = true;
+
     #[ORM\Column]
     private int $position = 0;
 
@@ -164,6 +172,18 @@ class Product
     public function setHasDeposit(bool $hasDeposit): static
     {
         $this->hasDeposit = $hasDeposit;
+
+        return $this;
+    }
+
+    public function isSoldAlone(): bool
+    {
+        return $this->soldAlone || $this->isFormula();
+    }
+
+    public function setSoldAlone(bool $soldAlone): static
+    {
+        $this->soldAlone = $soldAlone;
 
         return $this;
     }

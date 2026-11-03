@@ -80,6 +80,8 @@ class DevImportSalesCommandTest extends KernelTestCase
         self::assertNull($products['Menu saucisses']->getInitialStock());
         self::assertSame(2, $products['Menu saucisses']->componentQuantity($products['Saucisse']));
         self::assertTrue($products['Jus de pomme']->hasDeposit());
+        self::assertFalse($products['Saucisse']->isSoldAlone());
+        self::assertTrue($products['Portion de frites']->isSoldAlone(), 'vendu seul par défaut');
 
         $device = $em->getRepository(Device::class)->findOneBy(['event' => $event]);
         self::assertSame(DevImportSalesCommand::DEVICE_NAME, $device?->getName());
@@ -170,6 +172,7 @@ class DevImportSalesCommandTest extends KernelTestCase
         yield 'formule dans une formule' => [static function (array &$d): void { $d['products'][2]['components'][0]['product'] = 'MENU'; }, 'ne peut pas en contenir une autre'];
         yield 'autre lettre' => [static function (array &$d): void { $d['orders'][0]['letter'] = 'B'; }, 'seule la lettre A'];
         yield 'date invalide' => [static function (array &$d): void { $d['event']['date'] = '2026-02-30'; }, 'event.date'];
+        yield 'formule non vendue seule' => [static function (array &$d): void { $d['products'][2]['soldAlone'] = false; }, 'une formule est toujours vendue seule'];
         yield 'expected incomplet' => [static function (array &$d): void { unset($d['expected']['items']); }, 'clé « items » manquante'];
     }
 

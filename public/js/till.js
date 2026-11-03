@@ -183,8 +183,13 @@ function render() {
   renderCart();
 }
 
+/** Articles de la grille : pas ceux vendus seulement dans les formules (menu gardé avant le réglage : tous). */
+function onSale() {
+  return menu.products.filter((product) => product.soldAlone !== false);
+}
+
 function categories() {
-  return [ALL, ...new Set(menu.products.map((product) => product.category))];
+  return [ALL, ...new Set(onSale().map((product) => product.category))];
 }
 
 function renderCategories() {
@@ -193,7 +198,7 @@ function renderCategories() {
     activeCategory = ALL;
   }
   const container = $("till-cats");
-  container.hidden = menu.products.length === 0 || list.length <= 2;
+  container.hidden = list.length <= 2;
   container.replaceChildren(
     ...list.map((category) =>
       el("button", {
@@ -206,8 +211,9 @@ function renderCategories() {
 }
 
 function renderGrid() {
-  $("till-empty-menu").hidden = menu.products.length > 0;
-  const products = menu.products.filter((p) => activeCategory === ALL || p.category === activeCategory);
+  const sold = onSale();
+  $("till-empty-menu").hidden = sold.length > 0;
+  const products = sold.filter((p) => activeCategory === ALL || p.category === activeCategory);
   $("till-grid").replaceChildren(...products.map(productButton));
 }
 

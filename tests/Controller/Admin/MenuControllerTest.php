@@ -483,6 +483,64 @@ class MenuControllerTest extends WebTestCase
         self::assertCount(1, $crawler->filterXPath('//input[contains(@name, "[kitchen]")]'));
     }
 
+    public function testSoldAloneCanBeUncheckedInTheTable(): void
+    {
+        self::createEvent();
+        $sausage = $this->createProduct('Saucisse', 0);
+        $this->createProduct('Café', 100, position: 2);
+
+        $crawler = $this->client->request('GET', '/admin/menu');
+        self::assertNotNull($crawler->filterXPath('//input[@name="products['.$sausage->getId().'][alone]"]')->attr('checked'), 'coché par défaut');
+        $form = $crawler->selectButton('Enregistrer le menu')->form();
+        $form['products['.$sausage->getId().'][alone]']->untick();
+        $this->client->submit($form);
+
+        self::assertResponseRedirects('/admin/menu');
+        self::assertFalse($this->findProduct('Saucisse')->isSoldAlone());
+        self::assertTrue($this->findProduct('Café')->isSoldAlone());
+        $log = self::entityManager()->getRepository(AuditLog::class)->findOneBy(['action' => 'product.update']);
+        self::assertSame(['sold_alone' => true], $log?->getBefore());
+        self::assertSame(['sold_alone' => false], $log->getAfter());
+    }
+
+    public function testSoldAloneOnTheArticlePageButNotOnFormulas(): void
+    {
+        self::createEvent();
+        $sausage = $this->createProduct('Saucisse', 200);
+        $formula = $this->createProduct('Menu', 500, position: 2)->setComponentQuantity($sausage, 2);
+        self::entityManager()->flush();
+
+        $this->client->request('GET', '/admin/menu/'.$sausage->getId().'/modifier');
+        $this->client->submitForm('Enregistrer l\'article', ['alone' => false]);
+        self::assertResponseRedirects();
+        self::assertFalse($this->findProduct('Saucisse')->isSoldAlone());
+
+        $crawler = $this->client->request('GET', '/admin/menu/'.$formula->getId().'/modifier');
+        self::assertCount(0, $crawler->filterXPath('//input[@name="alone"]'));
+        $this->client->submitForm('Enregistrer la formule');
+        self::assertResponseRedirects();
+        self::assertTrue($this->findProduct('Menu')->isSoldAlone(), 'une formule est toujours vendue seule');
+
+        $crawler = $this->client->request('GET', '/admin/menu');
+        self::assertCount(0, $crawler->filterXPath('//input[@name="products['.$formula->getId().'][alone]"]'));
+    }
+
+    public function testArticleSoldNeitherAloneNorInAFormulaIsReported(): void
+    {
+        self::createEvent();
+        $this->createProduct('Saucisse', 200)->setSoldAlone(false);
+        self::entityManager()->flush();
+
+        $crawler = $this->client->request('GET', '/admin/menu');
+        self::assertStringContainsString('« Saucisse » n\'est vendu ni seul ni dans une formule', $crawler->filterXPath('//*[@id="unsellable"]')->text());
+
+        $sausage = $this->findProduct('Saucisse');
+        $this->createProduct('Menu', 500, position: 2)->setComponentQuantity($sausage, 2);
+        self::entityManager()->flush();
+        $crawler = $this->client->request('GET', '/admin/menu');
+        self::assertCount(0, $crawler->filterXPath('//*[@id="unsellable"]'));
+    }
+
     private function createProduct(string $name, int $priceCents, ?int $stock = null, int $position = 1, ?Event $event = null): Product
     {
         $event = self::entityManager()->find(Event::class, ($event ?? self::entityManager()->getRepository(Event::class)->findOneBy(['active' => true]))->getId());

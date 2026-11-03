@@ -26,7 +26,7 @@ final class SalesImportFile
 
     private const ROOT_KEYS = ['format', 'version', 'source', 'event', 'assumptions', 'skipped', 'products', 'orders', 'expected'];
     private const EVENT_KEYS = ['name', 'date', 'withKitchen', 'depositCents'];
-    private const PRODUCT_KEYS = ['key', 'name', 'category', 'priceCents', 'kitchen', 'deposit', 'startStock', 'stockSource', 'components'];
+    private const PRODUCT_KEYS = ['key', 'name', 'category', 'priceCents', 'kitchen', 'deposit', 'startStock', 'stockSource', 'components', 'soldAlone'];
     private const COMPONENT_KEYS = ['product', 'qty'];
     private const ORDER_KEYS = ['letter', 'number', 'lines', 'importNote'];
     private const LINE_KEYS = ['product', 'qty'];
@@ -34,7 +34,7 @@ final class SalesImportFile
 
     /**
      * @param array{name: string, date: \DateTimeImmutable, withKitchen: bool, depositCents: int}                                                                                    $event
-     * @param list<array{key: string, name: string, category: string, priceCents: int, kitchen: bool, deposit: bool, startStock: ?int, components: list<array{product: string, qty: int}>}> $products
+     * @param list<array{key: string, name: string, category: string, priceCents: int, kitchen: bool, deposit: bool, startStock: ?int, soldAlone: bool, components: list<array{product: string, qty: int}>}> $products
      * @param list<array{letter: string, number: int, lines: list<array{product: string, qty: int}>, importNote: ?string}>                                                           $orders
      * @param array{orders: int, items: int, totalCents: int, itemsByProduct: array<string, int>}                                                                                   $expected
      * @param list<string>                                                                                                                                                         $assumptions
@@ -115,7 +115,7 @@ final class SalesImportFile
         ];
     }
 
-    /** @return array<string, array{key: string, name: string, category: string, priceCents: int, kitchen: bool, deposit: bool, startStock: ?int, components: list<array{product: string, qty: int}>}> */
+    /** @return array<string, array{key: string, name: string, category: string, priceCents: int, kitchen: bool, deposit: bool, startStock: ?int, soldAlone: bool, components: list<array{product: string, qty: int}>}> */
     private static function readProducts(mixed $value): array
     {
         $products = [];
@@ -153,8 +153,13 @@ final class SalesImportFile
                 'kitchen' => self::bool($p['kitchen'], $where.'.kitchen'),
                 'deposit' => self::bool($p['deposit'], $where.'.deposit'),
                 'startStock' => null === $p['startStock'] ? null : self::int($p['startStock'], $where.'.startStock', 0, self::MAX_STOCK),
+                // Facultatif : false pour un article vendu seulement dans les formules
+                'soldAlone' => \array_key_exists('soldAlone', $p) ? self::bool($p['soldAlone'], $where.'.soldAlone') : true,
                 'components' => $components,
             ];
+            if ([] !== $components && !$products[$key]['soldAlone']) {
+                throw new \InvalidArgumentException($where.'.soldAlone : une formule est toujours vendue seule.');
+            }
         }
 
         // Une formule ne contient que des articles simples, chacun une seule fois

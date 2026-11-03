@@ -9,7 +9,7 @@
    ```
 
 2. Dans l'administration, **Événements** : l'événement du jour existe, avec la bonne date, le montant de la consigne (0 s'il n'y en a pas) et la case **Avec cuisine** (décochée pour un stand sans préparation, comme le stand de Noël : toutes les commandes sont servies au comptoir et seules les tablettes caisse fonctionnent). Cette case ne se modifie plus après la première commande. Activez-le avec **Activer** : un seul événement est actif à la fois, et les tablettes rattachées à un autre événement (la répétition, par exemple) cessent de fonctionner.
-3. **Menu** : prix, stocks de départ (approximatifs, ils ne bloquent jamais une vente), articles qui passent en cuisine (colonne absente pour un événement sans cuisine), articles avec consigne, formules.
+3. **Menu** : prix, stocks de départ (approximatifs, ils ne bloquent jamais une vente), articles qui passent en cuisine (colonne absente pour un événement sans cuisine), articles avec consigne, formules. Décochez « Vendu seul » pour un article vendu seulement dans les formules (saucisse d'un menu) : il disparaît des caisses, son stock reste décompté.
 4. **Tablettes**, une fois l'événement du jour activé : créez une fiche par tablette (« Caisse buvette », « Cuisine », « Écran Arrivées »…) avec son rôle. Les fiches sont rattachées à l'événement actif : celles de la répétition ne servent plus, il faut les recréer. L'appairage peut se faire la veille ou sur place : le jeton d'une tablette reste valable jusqu'au lendemain de l'événement, 6 h.
 5. Vérifiez que vous pouvez vous connecter à l'administration. Mot de passe oublié : voir [Incidents](incidents.md).
 6. Chargez toutes les tablettes et le ou les téléphones qui partageront la 4G. Prévoyez rallonges et chargeurs.

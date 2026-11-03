@@ -50,6 +50,7 @@ tests {
       expect(p.priceCents).to.be.a("number");
       expect(p).to.have.property("remainingStock");
       expect(p.components).to.be.an("array");
+      expect(p.soldAlone).to.be.a("boolean");
     });
   });
 }
