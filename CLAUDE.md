@@ -2,26 +2,26 @@
 
 Application de caisse pour l'APE (Association des Parents d'Élèves) de l'école Antoine de St Exupéry, à Uzein. Elle relie caisse, cuisine et écran d'appel client pendant les événements (Halloween, Loto, Carnaval, Vide-grenier, Kermesse), suit les stocks et produit un bilan pour ajuster les courses suivantes.
 
-Premier événement réel : **Loto du 18 décembre 2026**. Répétition générale avec des bénévoles début décembre.
+Premiers événements réels : **stand de Noël vers le 11 décembre 2026** (sans cuisine), qui sert de répétition générale, puis **Loto du 18 décembre 2026** (avec cuisine).
 
 ## Contraintes du projet (non négociables)
 
 - **Budget : 0 €.** Aucun service payant, aucun matériel à acheter.
 - **Léger et maintenable, avec le moins de dépendances possible.** Le projet sera repris par des parents bénévoles. Ne jamais ajouter de dépendance Composer ou JavaScript sans le demander d'abord.
 - **Tablettes Android, navigateur Chrome.** L'application est installable (PWA) depuis le navigateur.
-- **Réseau incertain.** Le jour J, les tablettes se connectent à un serveur en ligne (HTTPS), via le partage 4G d'un téléphone ou le Wi-Fi de la salle. Pas de portable sur place : le mode « serveur sur un portable en réseau local » est abandonné (tablettes personnelles des parents, aucun certificat à leur faire installer). Une coupure est couverte par le mode hors ligne.
+- **Une seule installation, en ligne : la production** (voir Production). Les tablettes s'y connectent par le partage de connexion d'un téléphone, avec si possible un second téléphone en secours : c'est le même serveur, passer de l'un à l'autre ne change rien pour l'application. Pas de serveur sur place cette année, ni portable, ni Raspberry (voir « Plus tard »). Une coupure est couverte par le mode hors ligne.
 - **Aucune commande ne doit être perdue**, même pendant une coupure réseau.
 
 ## Stack
 
 Dépendances de production autorisées, et rien d'autre :
 
-- `symfony/skeleton` (Symfony 7.4 LTS, PHP 8.2+)
+- `symfony/skeleton` (Symfony 7.4 LTS, PHP 8.3+)
 - `symfony/twig-bundle`
 - `doctrine/doctrine-bundle`, `doctrine/orm`, `doctrine/doctrine-migrations-bundle`
 - `symfony/security-bundle` et `symfony/rate-limiter` : seule exception à la règle du minimum, réservée à l'authentification de l'administration (hachage du mot de passe, protection CSRF, limitation des tentatives, protection de session). Pour un projet qui pourrait devenir public, un composant audité vaut mieux qu'une authentification écrite à la main.
-- `symfony/mercure-bundle` (avec `symfony/mercure`, `symfony/http-client`, `lcobucci/jwt`) : temps réel facultatif, voir Architecture. Extensions PHP `sodium` et `openssl` requises.
-- Base de données : **MySQL 8** (`utf8mb4`, interclassement `utf8mb4_unicode_ci` fixé dans `config/packages/doctrine.yaml`), fournie par l'hébergeur en production. SQLite a été abandonné le 26 octobre 2026.
+- `symfony/mercure-bundle` (avec `symfony/mercure`, `symfony/http-client`, `lcobucci/jwt`) : temps réel facultatif, désactivé en production (on n'y touche pas), voir Architecture. Extensions PHP `sodium` et `openssl` requises.
+- Base de données : **MySQL 8.4** en développement, en CI et en production (`utf8mb4`, interclassement `utf8mb4_unicode_ci` fixé dans `config/packages/doctrine.yaml`). SQLite a été abandonné le 26 octobre 2026.
 
 Développement uniquement : `symfony/maker-bundle`, PHPUnit.
 
@@ -31,7 +31,7 @@ Explicitement exclus : EasyAdmin, Symfony Form, Stimulus, AssetMapper, Webpack E
 
 PHP, Composer et Symfony ne sont **pas** installés sur le Mac : tout tourne dans Docker.
 
-- Une seule image, basée sur l'image officielle **`dunglas/frankenphp`** (version fixée, PHP 8.3), avec les extensions `pdo_mysql` et `intl` (`opcache`, `sodium`, `openssl` incluses), et Composer copié depuis l'image officielle `composer:2`. FrankenPHP (adopté le 26 octobre 2026, après un premier essai écarté) sert l'application **et** le hub Mercure intégré. Développement uniquement : la production n'en dépend pas pour l'instant (Apache ou Nginx).
+- Une seule image, basée sur l'image officielle **`dunglas/frankenphp`** (version fixée, PHP 8.3), avec les extensions `pdo_mysql` et `intl` (`opcache`, `sodium`, `openssl` incluses), et Composer copié depuis l'image officielle `composer:2`. FrankenPHP (adopté le 26 octobre 2026, après un premier essai écarté) sert l'application **et** le hub Mercure intégré. Développement uniquement : la production n'utilise pas Docker (voir Production).
 - `docker/Caddyfile` : racine `public/`, `php_server`, hub Mercure sur `/.well-known/mercure` (émetteur `{$MERCURE_JWT_ISSUER}`, clé `MERCURE_JWT_SECRET`, abonnés anonymes), pas de HTTPS. Le projet est monté dans `/app`. **Pas** de `symfony/apache-pack`.
 - Le site est servi sur **`http://localhost:8080`**. Pas de HTTPS en développement : Chrome autorise le service worker sur `localhost`, ce qui suffit pour développer et tester le mode hors ligne sur le Mac.
 - Fichiers attendus, et rien de plus : `Dockerfile`, `compose.yaml`, `docker/Caddyfile` et `docker/mysql/init.sql`. Pas de Redis, pas de Node.
@@ -44,8 +44,19 @@ PHP, Composer et Symfony ne sont **pas** installés sur le Mac : tout tourne dan
   - `docker compose exec php bin/console …`
   - `docker compose exec php bin/phpunit`
 - Le nom du service dans `compose.yaml` est `php`.
-- En production sur un hébergement mutualisé (sans Docker), le même code tourne avec le PHP de l'hébergeur : ne rien faire qui dépende de Docker dans le code de l'application.
+- En production (sans Docker), le même code tourne avec le PHP du serveur : ne rien faire qui dépende de Docker dans le code de l'application.
 - Apache ne transmet pas l'en-tête `Authorization` à PHP par défaut (FrankenPHP, si). Sur un serveur Apache, `public/.htaccess` le fait avec `SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1` (avec la redirection vers le HTTPS), sinon aucune tablette ne peut s'authentifier. Exemple Nginx : `docs/deploiement/nginx.conf`. Installation décrite dans `README.md`.
+
+## Production
+
+Une seule installation, déjà en ligne. Détail des opérations : `docs/hebergement.md`.
+
+- Serveur privé virtuel (VPS) chez OVHcloud : Apache, HTTPS (Let's Encrypt), PHP 8.4, MySQL 8.4. Pas de Docker.
+- Le site pointe sur `public/` ; `public/.htaccess` redirige vers le HTTPS et transmet l'en-tête `Authorization`.
+- L'adresse du site n'est écrite ni dans le dépôt ni dans le code : elle est dans `DEFAULT_URI`, dans le `.env.local` du serveur.
+- Mise à jour en SSH, dans le dossier du projet : `app:backup`, `git pull`, `composer install --no-dev --optimize-autoloader --classmap-authoritative`, `doctrine:migrations:migrate`, `cache:clear`. Jamais pendant un événement.
+- Pas de hub Mercure : interrogation seule.
+- Avant d'exiger une version plus récente de PHP ou de MySQL (`composer.json`, CI, Docker), vérifier celle du serveur.
 
 ## Architecture
 
@@ -63,7 +74,8 @@ PHP, Composer et Symfony ne sont **pas** installés sur le Mac : tout tourne dan
   - Le dernier menu reçu est gardé dans la tablette : une caisse rechargée sans réseau reste utilisable.
   - Application installable : `/manifest.webmanifest`, icônes dans `public/img/app/` (générées depuis le logo générique), démarrage sur `/demarrer`, qui ouvre l'écran du rôle de la tablette.
 - **Idempotence** : chaque commande reçoit un UUID créé sur la tablette. `POST /api/orders` avec un UUID déjà connu ne crée pas de doublon et renvoie la commande existante.
-- **Temps réel** : l'écran cuisine (`GET /api/orders`) et l'écran Arrivées (`GET /api/board`) interrogent le serveur toutes les 5 secondes, sauf si un hub Mercure est configuré (`App\Realtime`) :
+- **Événement sans cuisine** (`Event.withKitchen` décoché) : toute commande passe directement à `served`, quel que soit le réglage cuisine de ses articles, et la remarque pour la cuisine n'est ni proposée ni gardée. Les écrans Cuisine et Arrivées ne sont pas proposés, ni le suivi des commandes de la caisse ; seul le rôle `caisse` est proposé à l'appairage, et l'API refuse les rôles `cuisine` et `affichage` (403). Le Carnet de bord fonctionne normalement.
+- **Temps réel** : l'écran cuisine (`GET /api/orders`) et l'écran Arrivées (`GET /api/board`) interrogent le serveur toutes les 5 secondes, sauf si un hub Mercure est configuré (`App\Realtime`, désactivé en production) :
   - `OrderChangePublisher` (Doctrine, après chaque enregistrement qui crée ou modifie une `Order`) publie `{}` sur le sujet `urn:comptoir:evenement:{id}:commandes`. **Aucune donnée dans les messages** : `EventSource` ne peut pas envoyer `Authorization`, et le jeton ne va jamais dans une URL ; la tablette relit l'API. Un hub injoignable ne fait jamais échouer un enregistrement (journal, délai de 2 s).
   - `RealtimeLinkListener` : sur les `GET /api/…` d'une tablette, en-têtes `Link: <hub>; rel="mercure"` et `<sujet>; rel="self"`. Absents sans hub (`MERCURE_URL` ou `MERCURE_PUBLIC_URL` vide).
   - `public/js/poller.js` : abonnement avec `match=<sujet>` (protocole Mercure récent) ; chaque message et chaque (re)connexion déclenchent une relecture complète ; interrogation de contrôle toutes les 30 s au plus, même hub injoignable. Sans hub, interrogation comme avant.
@@ -79,7 +91,7 @@ PHP, Composer et Symfony ne sont **pas** installés sur le Mac : tout tourne dan
 
 ## Modèle de données (point de départ)
 
-- `Event` : nom, date, actif ou non, montant de la consigne (centimes, 0 = pas de consigne).
+- `Event` : nom, date, actif ou non, avec cuisine (`withKitchen`, bool, coché par défaut ; modifiable seulement tant que l'événement n'a aucune commande), montant de la consigne (centimes, 0 = pas de consigne).
 - `Product` : événement, nom, icône (clé du catalogue d'icônes, voir Charte), catégorie, prix (centimes, entier), stock de départ (nullable = non compté), passe en cuisine (bool), avec consigne (bool), ordre d'affichage, composants si formule, retiré le (`archivedAt`). Un article retiré du menu est archivé, jamais supprimé : il disparaît des caisses mais reste accepté dans une commande encaissée hors ligne avant le retrait.
 - `ProductComponent` : article inclus dans une formule, avec sa quantité (« 2 crêpes »). Une formule ne contient que des articles simples, jamais une autre formule.
 - `Order` : UUID (identifiant venu de la tablette), événement, lettre de caisse et numéro (voir Numérotation), moyen de paiement (espèces ou carte), montant reçu, total recalculé par le serveur, état, créé le, modifié le, tablette d'origine, remarque pour la cuisine (facultative, 140 caractères, texte brut sur une ligne, gardée seulement si la commande passe en cuisine ; l'aide « Pas de nom ni de téléphone » rappelle la règle des données personnelles).
@@ -116,7 +128,7 @@ Le numéro donné au client est la **lettre de la caisse suivie d'un numéro** :
 | Cuisine | Cuisine | Tickets à préparer, boutons « Je prépare », « Prête », « Remise au client », alerte au-delà de 10 min |
 | Appel client | Arrivées | Numéros prêts et en préparation, très grands, façon tableau d'aéroport |
 | Bilan | Carnet de bord | `/admin/carnet` (`App\Service\Logbook`) : CA hors consignes, commandes, panier moyen, espèces et carte, consignes (encaissées, rendues, gobelets non rendus), espèces attendues par caisse (hors fond de caisse) et écarts des commandes hors ligne, ventes et stock restant par article (articles retirés compris), historique filtrable, annulation confirmée dans la page et tracée (`order.cancel`), événements passés ; export CSV pour Excel (`App\Service\LogbookExport` : commandes, une ligne par commande avec CA, consignes encaissées et rendues, total, reçu, rendu, écart ; détail des lignes sans aucun montant de commande répété ; bilan par article. Commandes annulées exclues : chaque colonne de montant doit se sommer sans double compte. UTF-8 avec BOM, point-virgule, virgule décimale ; toute cellule de texte commençant par `=`, `+`, `-`, `@` est précédée d'une apostrophe contre l'injection de formules) |
-| Administration | Menu | Deux parties, Articles et Formules : tableau de modification rapide (prix, stock, cuisine, consigne, ordre ↑ ↓) et une page par article ou formule (nom, icône, catégorie, composition avec quantités) |
+| Administration | Menu | Deux parties, Articles et Formules : tableau de modification rapide (prix, stock, cuisine, consigne, ordre ↑ ↓) et une page par article ou formule (nom, icône, catégorie, composition avec quantités). Colonne cuisine masquée si l'événement est sans cuisine |
 
 Le prototype validé par l'APE sert de référence pour l'ergonomie : `docs/prototype.html`.
 
@@ -140,7 +152,7 @@ Usage prévu : une APE, petite échelle. Mais le code est écrit **comme s'il é
 
 ### Tablettes : appairage, sans comptes
 
-- L'administration crée une tablette (nom + rôle) et affiche un **code d'appairage** à usage unique (8 caractères, valable 10 minutes) et son QR code.
+- L'administration crée une tablette (nom + rôle) et affiche un **code d'appairage** à usage unique (8 caractères, valable 10 minutes). QR code : plus tard.
 - La tablette échange ce code contre un **jeton** aléatoire (32 octets, `random_bytes`). Le serveur n'en garde que l'empreinte SHA-256. La tablette le conserve et l'envoie dans l'en-tête `Authorization: Bearer`.
 - Le jeton expire à la fin de l'événement (par défaut le lendemain à 6 h) et peut être révoqué à tout moment depuis l'administration.
 - Chaque rôle n'accède qu'à ce dont il a besoin :
@@ -158,6 +170,7 @@ Usage prévu : une APE, petite échelle. Mais le code est écrit **comme s'il é
 - En-têtes envoyés sur toutes les réponses (un écouteur `kernel.response`, sans dépendance) :
   - `Content-Security-Policy: default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'`
   - `X-Content-Type-Options: nosniff`
+  - `X-Robots-Tag: noindex` (le site n'apparaît pas dans les moteurs de recherche)
   - `Referrer-Policy: same-origin`
   - `Permissions-Policy: camera=(), microphone=(), geolocation=()` (à assouplir pour la caméra si le scan du QR code d'appairage se fait dans l'app)
   - `Strict-Transport-Security: max-age=31536000` quand le site est servi en HTTPS
@@ -171,7 +184,7 @@ Le service worker, donc le mode hors ligne, **ne fonctionne qu'en HTTPS** (ou su
 
 - En ligne : HTTPS obligatoire (Let's Encrypt, gratuit chez la plupart des hébergeurs), HTTP redirigé vers HTTPS par `public/.htaccess`. Derrière un proxy qui assure le HTTPS, `SYMFONY_TRUSTED_PROXIES` dans `.env.local`, sinon ni HSTS ni cookies sécurisés.
 - Développement sur le Mac : `http://localhost:8080` suffit, `localhost` étant considéré comme sécurisé par Chrome.
-- Pas de mode portable en réseau local (abandonné, voir Contraintes). Ne jamais désactiver la vérification des certificats ni recourir aux options de Chrome qui traitent un site HTTP comme sécurisé.
+- Pas de serveur sur place cette année (voir Contraintes). Ne jamais désactiver la vérification des certificats ni recourir aux options de Chrome qui traitent un site HTTP comme sécurisé.
 
 ### Données et serveur
 
@@ -187,7 +200,7 @@ Le service worker, donc le mode hors ligne, **ne fonctionne qu'en HTTPS** (ou su
 - `composer.lock` commité. `composer audit` lancé par une GitHub Action à chaque pull request et chaque semaine (gratuit pour un dépôt public).
 - Dependabot activé pour Composer et GitHub Actions.
 - `.github/workflows/tests.yml` à chaque pull request et fusion sur `main` : PHP 8.3 (`shivammathur/setup-php`), MySQL 8.4 en service, `composer validate`, `lint:yaml`, `lint:twig`, `lint:container`, migrations sur une base neuve (aller, `schema:validate`, retour, aller), puis PHPUnit. Ne jamais fusionner une PR sans la coche verte. PHPUnit 12 exige PHP 8.3 : PHP 8.2 n'est plus testé.
-- Tests obligatoires pour : authentification et CSRF de l'administration, appairage et expiration des jetons, droits de chaque rôle sur l'API (une tablette `affichage` ne peut pas créer de commande, etc.), recalcul des totaux par le serveur, idempotence.
+- Tests obligatoires pour : authentification et CSRF de l'administration, appairage et expiration des jetons, droits de chaque rôle sur l'API (une tablette `affichage` ne peut pas créer de commande, etc.), recalcul des totaux par le serveur, idempotence, événement sans cuisine (état `served`, rôles refusés).
 
 ## Si le projet devient public
 
@@ -282,8 +295,20 @@ Règles :
 
 ## Planning
 
-1. Fin octobre – début novembre : squelette Symfony, entités, migrations, `app:install`, connexion de l'administration, en-têtes de sécurité, appairage des tablettes, puis Caisse et Menu.
-2. Mi-novembre : Cuisine, Arrivées, synchronisation.
-3. Fin novembre : hors ligne (service worker, file IndexedDB), Carnet de bord et export.
-4. Début décembre : répétition générale avec des bénévoles, corrections.
-5. Semaine du 14 décembre : installation, prise en main, marge de sécurité.
+Fait au 3 novembre : Caisse, Menu, Cuisine, Arrivées, hors ligne (service worker, file IndexedDB), Carnet de bord et export CSV, CI, production en ligne.
+
+1. Semaine du 2 novembre : réglage « Avec cuisine » sur l'événement, en-tête `X-Robots-Tag`, `composer.json` en PHP 8.3.
+2. D'ici le 20 novembre : vérifier que la production est à jour et fonctionne avec le réglage « Avec cuisine » ; fiche bénévoles (`docs/procedures/benevoles.md`, une page, sans connaissance technique : allumer et appairer les tablettes, régler le téléphone — partage de connexion, branché sur secteur, pas de mise en veille —, passer sur le second téléphone, que faire si le réseau tombe — la caisse continue, la cuisine passe aux tickets papier —, exporter le Carnet de bord en fin de soirée) ; `docs/hebergement.md` pour notre serveur (mise à jour, sauvegarde, vérifications avant un événement).
+3. Début décembre : essai seule à la maison (une tablette en caisse, un appareil en cuisine, partage de connexion du téléphone, coupure du réseau), puis corrections. Pas de répétition avec des bénévoles : le stand de Noël sert de répétition générale.
+4. **Stand de Noël vers le 11 décembre** (sans cuisine).
+5. Semaine du 14 décembre : retours du stand, corrections, marge de sécurité. **Loto le 18 décembre** (avec cuisine).
+
+## Plus tard (après le Loto)
+
+Pistes, rien à faire avant le 18 décembre :
+
+- Raspberry Pi (point d'accès Wi-Fi et serveur local), pour les lieux sans réseau.
+- Export et import du menu d'un événement en JSON.
+- Heure du serveur : `serverTime` dans toutes les réponses de l'API, avertissement dans l'administration si l'heure du serveur s'écarte de celle de l'appareil.
+- QR code d'appairage.
+- Mercure : on n'y touche pas, il reste désactivé.
