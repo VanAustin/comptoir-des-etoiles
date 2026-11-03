@@ -188,6 +188,7 @@ class EventControllerTest extends WebTestCase
         $crawler = $this->client->request('GET', '/admin/evenements/'.$event->getId().'/modifier');
         self::assertNotNull($crawler->filterXPath('//input[@name="with_kitchen"]')->attr('disabled'));
         self::assertStringContainsString('l\'événement a déjà des commandes', $crawler->filterXPath('//*[@id="kitchen-help"]')->text());
+        self::assertCount(0, $crawler->filterXPath('//*[@id="kitchen-devices"]'), 'aucune tablette cuisine : pas d\'annonce');
 
         // Case contournée : la valeur envoyée est ignorée, le reste est enregistré
         $this->client->request('POST', '/admin/evenements/'.$event->getId().'/modifier', [
@@ -254,6 +255,23 @@ class EventControllerTest extends WebTestCase
         $this->entityManager->flush();
 
         return $event;
+    }
+
+    public function testLockedEventWithoutKitchenOnlySuggestsRevokingDevices(): void
+    {
+        $event = $this->createEvent('Stand de Noël', '2026-12-11')->setWithKitchen(false);
+        $this->createDevice($event, 'Cuisine 1', DeviceRole::Kitchen);
+
+        $crawler = $this->client->request('GET', '/admin/evenements/'.$event->getId().'/modifier');
+        self::assertStringContainsString('Révoquez-la dans Tablettes, ou cochez « Avec cuisine ».', $crawler->filterXPath('//*[@id="kitchen-devices"]')->text());
+
+        $this->entityManager->persist(new Order('2b6a1f0e-3c4d-4e5f-8a9b-0c1d2e3f4a5b', $event, 'A', 1, PaymentMethod::Cash));
+        $this->entityManager->flush();
+
+        $crawler = $this->client->request('GET', '/admin/evenements/'.$event->getId().'/modifier');
+        $warning = $crawler->filterXPath('//*[@id="kitchen-devices"]')->text();
+        self::assertStringContainsString('Sans cuisine, la tablette « Cuisine 1 » ne fonctionne pas. Révoquez-la dans Tablettes.', $warning);
+        self::assertStringNotContainsString('cochez', $warning, 'la case ne peut plus être cochée');
     }
 
     private function createDevice(Event $event, string $name, DeviceRole $role): Device

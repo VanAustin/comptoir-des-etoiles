@@ -50,7 +50,7 @@
                         {% if event.hasKitchen %}
                             Si vous décochez « Avec cuisine », {{ kitchen_devices_text }} ne {{ kitchen_devices|length > 1 ? 'fonctionneront' : 'fonctionnera' }} plus.
                         {% else %}
-                            Sans cuisine, {{ kitchen_devices_text }} ne {{ kitchen_devices|length > 1 ? 'fonctionnent' : 'fonctionne' }} pas. Révoquez-{{ kitchen_devices|length > 1 ? 'les' : 'la' }} dans Tablettes, ou cochez « Avec cuisine ».
+                            Sans cuisine, {{ kitchen_devices_text }} ne {{ kitchen_devices|length > 1 ? 'fonctionnent' : 'fonctionne' }} pas. Révoquez-{{ kitchen_devices|length > 1 ? 'les' : 'la' }} dans Tablettes{{ kitchen_locked ? '' : ', ou cochez « Avec cuisine »' }}.
                         {% endif %}
                     </p>
                 {% endif %}
