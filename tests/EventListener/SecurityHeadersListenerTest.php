@@ -30,6 +30,7 @@ class SecurityHeadersListenerTest extends WebTestCase
 
         self::assertResponseHeaderSame('Content-Security-Policy', SecurityHeadersListener::CONTENT_SECURITY_POLICY);
         self::assertResponseHeaderSame('X-Content-Type-Options', 'nosniff');
+        self::assertResponseHeaderSame('X-Robots-Tag', 'noindex');
         self::assertResponseHeaderSame('Referrer-Policy', 'same-origin');
         self::assertResponseHeaderSame('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
     }
