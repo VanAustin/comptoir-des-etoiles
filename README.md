@@ -62,6 +62,14 @@ docker compose exec php bin/console doctrine:migrations:migrate
 
 Relisez toujours la migration générée dans `migrations/` avant de l'appliquer et de la commiter.
 
+Pour voir dans le Carnet de bord des ventes reconstituées (bons papier d'un événement passé), importez-les dans la base de développement :
+
+```
+docker compose exec php bin/console app:dev:import-sales var/import/ventes.json
+```
+
+Format du fichier : `comptoir-import-ventes`, version 1 (exemple : `tests/fixtures/import-ventes-exemple.json`). Chaque commande passe par le même code que l'API ; l'import est annulé en entier si le résultat diffère du bloc `expected`. L'événement créé est inactif ; `--replace` remplace un import précédent. La commande refuse de tourner hors développement. Le dossier `var/` n'est jamais commité : gardez-y les fichiers qui contiennent des données réelles.
+
 Sur GitHub, chaque pull request lance automatiquement les tests, la vérification des migrations et de la configuration (onglet « Actions », fichier `.github/workflows/tests.yml`). Attendez la coche verte avant de fusionner.
 
 ## Consulter la base de données (phpMyAdmin)

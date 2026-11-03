@@ -1,0 +1,31 @@
+{
+  "format": "comptoir-import-ventes",
+  "version": 1,
+  "source": "Exemple inventé pour les tests",
+  "event": {
+    "name": "Kermesse d'essai (bons papier)",
+    "date": "2026-06-20",
+    "withKitchen": true,
+    "depositCents": 100
+  },
+  "assumptions": ["Données inventées."],
+  "skipped": [{"bon": 4, "article": "Glace", "quantite": 1, "raison": "prix inconnu"}],
+  "products": [
+    {"key": "SAUC", "name": "Saucisse", "category": "Composants", "priceCents": 200, "kitchen": true, "deposit": false, "startStock": 20, "stockSource": "20 achetées"},
+    {"key": "FRITE", "name": "Portion de frites", "category": "Salé", "priceCents": 250, "kitchen": true, "deposit": false, "startStock": 30},
+    {"key": "MENU", "name": "Menu saucisses", "category": "Formules", "priceCents": 600, "kitchen": true, "deposit": false, "startStock": null,
+     "components": [{"product": "SAUC", "qty": 2}, {"product": "FRITE", "qty": 1}]},
+    {"key": "JUS", "name": "Jus de pomme", "category": "Boissons", "priceCents": 150, "kitchen": false, "deposit": true, "startStock": null}
+  ],
+  "orders": [
+    {"letter": "A", "number": 5, "lines": [{"product": "FRITE", "qty": 2}]},
+    {"letter": "A", "number": 2, "lines": [{"product": "MENU", "qty": 1}, {"product": "JUS", "qty": 2}], "importNote": "Menu lu sur le talon"},
+    {"letter": "A", "number": 3, "lines": [{"product": "JUS", "qty": 1}], "importNote": "Jus seul, sans cuisine"}
+  ],
+  "expected": {
+    "orders": 3,
+    "items": 6,
+    "totalCents": 1850,
+    "itemsByProduct": {"MENU": 1, "JUS": 3, "FRITE": 2}
+  }
+}
