@@ -264,6 +264,31 @@ class TillApiTest extends WebTestCase
         self::assertSame('served', $this->post($this->order(['Café' => 2]))['status']);
     }
 
+    public function testWithoutKitchenEveryOrderIsServedAndKeepsNoNote(): void
+    {
+        $this->setKitchen(false);
+        $order = $this->order(['Hot-dog' => 1, 'Menu Loto' => 1]);
+        $order['note'] = 'Sans moutarde';
+
+        $data = $this->post($order);
+
+        self::assertSame('served', $data['status']);
+        self::assertNull($data['note']);
+        self::assertSame(38, array_column($this->getMenu()['products'], null, 'name')['Hot-dog']['remainingStock'], 'le stock compte toujours');
+    }
+
+    public function testMenuTellsWhetherTheEventHasAKitchen(): void
+    {
+        $menu = $this->getMenu();
+        self::assertTrue($menu['event']['withKitchen']);
+        self::assertTrue(array_column($menu['products'], null, 'name')['Hot-dog']['goesToKitchen']);
+
+        $this->setKitchen(false);
+        $menu = $this->getMenu();
+        self::assertFalse($menu['event']['withKitchen']);
+        self::assertSame([false], array_values(array_unique(array_column($menu['products'], 'goesToKitchen'))));
+    }
+
     // --- Idempotence ---
 
     public function testSameUuidDoesNotCreateADuplicate(): void
@@ -713,6 +738,12 @@ class TillApiTest extends WebTestCase
         }
 
         return null;
+    }
+
+    private function setKitchen(bool $withKitchen): void
+    {
+        self::entityManager()->find(Event::class, $this->event->getId())->setWithKitchen($withKitchen);
+        self::entityManager()->flush();
     }
 
     private function setDeposit(int $cents): void

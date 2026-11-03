@@ -96,7 +96,8 @@ class MenuController extends AbstractController
             $product
                 ->setPriceCents($clean['priceCents'])
                 ->setInitialStock($clean['initialStock'])
-                ->setGoesToKitchen($clean['kitchen'])
+                // Colonne masquée sans cuisine : la valeur de l'article est gardée pour un prochain événement
+                ->setGoesToKitchen($event->hasKitchen() ? $clean['kitchen'] : $product->goesToKitchen())
                 ->setHasDeposit($clean['deposit']);
             if ($this->logChanges($product, $before)) {
                 ++$updated;
@@ -213,7 +214,8 @@ class MenuController extends AbstractController
                     ->setCategory($clean['category'])
                     ->setPriceCents($clean['priceCents'])
                     ->setInitialStock($clean['initialStock'])
-                    ->setGoesToKitchen($clean['kitchen'])
+                    // Case masquée sans cuisine : la valeur de l'article est gardée
+                    ->setGoesToKitchen($event->hasKitchen() ? $clean['kitchen'] : $product->goesToKitchen())
                     ->setHasDeposit($clean['deposit']);
                 foreach ($candidates as $candidate) {
                     $product->setComponentQuantity($candidate, $quantities[$candidate->getId()] ?? 0);
