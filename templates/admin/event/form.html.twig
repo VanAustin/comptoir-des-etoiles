@@ -35,6 +35,26 @@
                 <p class="field-help" id="deposit-help">Par écocup ou gobelet, ajouté automatiquement aux articles « avec consigne ». 0 si pas de consigne.</p>
                 {% if errors.deposit is defined %}<p class="field-error" id="deposit-error">{{ errors.deposit }}</p>{% endif %}
             </div>
+            <div class="field">
+                <label class="check"><input type="checkbox" name="with_kitchen" value="1" {{ values.kitchen ? 'checked' }}
+                       {{ kitchen_locked ? 'disabled' }} aria-describedby="kitchen-help{{ kitchen_devices is not empty ? ' kitchen-devices' }}"> Avec cuisine</label>
+                <p class="field-help" id="kitchen-help">
+                    {% if kitchen_locked %}
+                        Ne peut plus être modifié : l'événement a déjà des commandes.
+                    {% else %}
+                        Décochez pour un stand sans préparation : chaque commande est servie directement au comptoir, et seules les tablettes caisse fonctionnent.
+                    {% endif %}
+                </p>
+                {% if kitchen_devices is not empty %}
+                    <p class="alert alert-warning" id="kitchen-devices">
+                        {% if event.hasKitchen %}
+                            Si vous décochez « Avec cuisine », {{ kitchen_devices_text }} ne {{ kitchen_devices|length > 1 ? 'fonctionneront' : 'fonctionnera' }} plus.
+                        {% else %}
+                            Sans cuisine, {{ kitchen_devices_text }} ne {{ kitchen_devices|length > 1 ? 'fonctionnent' : 'fonctionne' }} pas. Révoquez-{{ kitchen_devices|length > 1 ? 'les' : 'la' }} dans Tablettes{{ kitchen_locked ? '' : ', ou cochez « Avec cuisine »' }}.
+                        {% endif %}
+                    </p>
+                {% endif %}
+            </div>
             <input type="hidden" name="_token" value="{{ csrf_token('event-form') }}">
             <button type="submit" class="btn btn-primary">{{ event ? 'Enregistrer l\'événement' : 'Créer l\'événement' }}</button>
         </form>

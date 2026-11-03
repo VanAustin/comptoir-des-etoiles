@@ -230,7 +230,18 @@ class Device implements UserInterface
     /** @return list<string> */
     public function getRoles(): array
     {
+        // Événement sans cuisine : une tablette cuisine ou affichage n'a plus accès qu'à /api/me
+        if (!$this->isRoleAvailable()) {
+            return ['ROLE_DEVICE'];
+        }
+
         return ['ROLE_DEVICE', $this->role->securityRole()];
+    }
+
+    /** Faux pour une tablette cuisine ou affichage d'un événement sans cuisine. */
+    public function isRoleAvailable(): bool
+    {
+        return !$this->role->needsKitchen() || $this->event->hasKitchen();
     }
 
     public function eraseCredentials(): void

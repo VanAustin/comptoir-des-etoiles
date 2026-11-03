@@ -18,6 +18,12 @@ enum DeviceRole: string
         };
     }
 
+    /** Cuisine et affichage n'ont rien à montrer lors d'un événement sans cuisine. */
+    public function needsKitchen(): bool
+    {
+        return self::Till !== $this;
+    }
+
     public function label(): string
     {
         return match ($this) {

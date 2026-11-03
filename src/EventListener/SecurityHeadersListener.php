@@ -25,6 +25,8 @@ final class SecurityHeadersListener
         $headers = $event->getResponse()->headers;
         $headers->set('Content-Security-Policy', self::CONTENT_SECURITY_POLICY);
         $headers->set('X-Content-Type-Options', 'nosniff');
+        // Outil interne de l'association : rien à trouver dans les moteurs de recherche
+        $headers->set('X-Robots-Tag', 'noindex');
         $headers->set('Referrer-Policy', 'same-origin');
         $headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 

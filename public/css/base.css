@@ -94,6 +94,7 @@ main { padding-block: var(--espace) calc(var(--espace) * 1.5); }
 .alert { padding: 12px 14px; border-radius: var(--rayon-bouton); font-weight: 700; margin-bottom: 16px; }
 .alert-error { background: var(--erreur-fond); color: var(--erreur); }
 .alert-info { background: var(--sauge-fond); color: var(--sauge-texte); }
+.alert-warning { background: var(--or-fond); color: var(--or-texte); }
 
 /* Page de connexion */
 .login { max-width: 420px; margin: 8vh auto 0; }

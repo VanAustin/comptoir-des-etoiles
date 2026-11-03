@@ -83,6 +83,12 @@ class OrderRepository extends ServiceEntityRepository
         return $this->findOneBy(['event' => $event, 'uuid' => $uuid]);
     }
 
+    /** Vrai dès la première commande, même annulée. */
+    public function hasOrders(Event $event): bool
+    {
+        return null !== $this->findOneBy(['event' => $event]);
+    }
+
     public function numberExists(Event $event, string $tillLetter, int $number): bool
     {
         return null !== $this->findOneBy(['event' => $event, 'tillLetter' => $tillLetter, 'number' => $number]);

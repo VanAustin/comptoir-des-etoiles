@@ -22,7 +22,7 @@ export class TillTracking {
     this.loaded = false;
     this.pending = new Map();
     this.notices = new Map();
-    this.handlers = { onFatal };
+    this.handlers = { onClose, onFatal };
 
     this.poller = new Poller("/api/till/orders", {
       interval: 10000,
@@ -43,9 +43,20 @@ export class TillTracking {
     setInterval(() => this.render(), 15000);
   }
 
-  start() {
-    $("till-track").hidden = false;
-    this.poller.start();
+  /** Pas de suivi pour un événement sans cuisine : tout est servi au comptoir. */
+  setEnabled(enabled) {
+    if (enabled === this.poller.running) {
+      return;
+    }
+    $("till-track").hidden = !enabled;
+    if (enabled) {
+      this.poller.start();
+      return;
+    }
+    this.poller.stop();
+    if (!$("till-track-view").hidden) {
+      this.handlers.onClose();
+    }
   }
 
   /** Après un encaissement : la nouvelle commande apparaît tout de suite. */

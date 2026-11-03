@@ -93,7 +93,7 @@ Le jour de l'événement, les tablettes se connectent à un serveur en ligne, en
 ### Ce qu'il faut
 
 - Un serveur web **Apache** ou **Nginx**, joignable depuis internet avec un nom de domaine et un certificat HTTPS (Let's Encrypt, gratuit).
-- **PHP 8.2 ou plus récent**, avec les extensions `pdo_mysql`, `intl`, `ctype`, `iconv`, `sodium` et `openssl` (`php -m` les liste).
+- **PHP 8.3 ou plus récent**, avec les extensions `pdo_mysql`, `intl`, `ctype`, `iconv`, `sodium` et `openssl` (`php -m` les liste).
 - Une base **MySQL 8** vide, créée chez votre hébergeur (souvent depuis son panneau, avec phpMyAdmin), en `utf8mb4`. Notez son nom, son utilisateur, son mot de passe et l'adresse du serveur MySQL.
 - Un accès **SSH** au serveur.
 - **Composer**. S'il n'est pas installé sur le serveur : `curl -sS https://getcomposer.org/installer | php`, puis remplacez `composer` par `php composer.phar` dans les commandes ci-dessous.

@@ -11,7 +11,7 @@
     </span>
 {% endmacro %}
 
-{% macro row_inputs(product, v, e, with_stock) %}
+{% macro row_inputs(product, v, e, with_stock, with_kitchen) %}
     {% import 'admin/menu/_macros.html.twig' as m %}
     {% set prefix = 'products[' ~ product.id ~ ']' %}
     <td data-label="Prix (€)">
@@ -24,7 +24,9 @@
             {{ m.error(e, 'stock') }}
         </td>
     {% endif %}
-    <td data-label="Cuisine"><input type="checkbox" form="menu-save" name="{{ prefix }}[kitchen]" value="1" {{ v.kitchen ? 'checked' }} aria-label="{{ product.name }} passe en cuisine"></td>
+    {% if with_kitchen %}
+        <td data-label="Cuisine"><input type="checkbox" form="menu-save" name="{{ prefix }}[kitchen]" value="1" {{ v.kitchen ? 'checked' }} aria-label="{{ product.name }} passe en cuisine"></td>
+    {% endif %}
     <td data-label="Consigne"><input type="checkbox" form="menu-save" name="{{ prefix }}[deposit]" value="1" {{ v.deposit ? 'checked' }} aria-label="{{ product.name }} avec consigne"></td>
 {% endmacro %}
 
@@ -66,7 +68,7 @@
             <div class="tablewrap">
                 <table class="menu-table stack-table">
                     <thead>
-                        <tr><th>Ordre</th><th>Article</th><th>Prix (€)</th><th>Stock de départ</th><th>Cuisine</th><th>Consigne</th><th><span class="visually-hidden">Actions</span></th></tr>
+                        <tr><th>Ordre</th><th>Article</th><th>Prix (€)</th><th>Stock de départ</th>{% if event.hasKitchen %}<th>Cuisine</th>{% endif %}<th>Consigne</th><th><span class="visually-hidden">Actions</span></th></tr>
                     </thead>
                     <tbody>
                         {% for product in articles %}
@@ -77,7 +79,7 @@
                                     <span class="product-name"><span class="{{ icon_class(product.icon) }}" aria-hidden="true"></span> {{ product.name }}</span>
                                     <span class="seen">{{ product.category }}</span>
                                 </td>
-                                {{ _self.row_inputs(product, row_values[product.id], e, true) }}
+                                {{ _self.row_inputs(product, row_values[product.id], e, true, event.hasKitchen) }}
                                 <td class="actions"><a class="btn btn-small" href="{{ path('admin_menu_edit', {id: product.id}) }}">Modifier</a></td>
                             </tr>
                         {% endfor %}
@@ -105,7 +107,7 @@
             <div class="tablewrap">
                 <table class="menu-table stack-table">
                     <thead>
-                        <tr><th>Ordre</th><th>Formule</th><th>Prix (€)</th><th>Cuisine</th><th>Consigne</th><th><span class="visually-hidden">Actions</span></th></tr>
+                        <tr><th>Ordre</th><th>Formule</th><th>Prix (€)</th>{% if event.hasKitchen %}<th>Cuisine</th>{% endif %}<th>Consigne</th><th><span class="visually-hidden">Actions</span></th></tr>
                     </thead>
                     <tbody>
                         {% for product in formulas %}
@@ -116,7 +118,7 @@
                                     <span class="product-name"><span class="{{ icon_class(product.icon) }}" aria-hidden="true"></span> {{ product.name }}</span>
                                     <span class="seen">{{ product.describeComposition }}</span>
                                 </td>
-                                {{ _self.row_inputs(product, row_values[product.id], e, false) }}
+                                {{ _self.row_inputs(product, row_values[product.id], e, false, event.hasKitchen) }}
                                 <td class="actions"><a class="btn btn-small" href="{{ path('admin_menu_edit', {id: product.id}) }}">Modifier</a></td>
                             </tr>
                         {% endfor %}

@@ -38,6 +38,8 @@ class TillController extends AbstractController
                 'name' => $event->getName(),
                 'date' => $event->getDate()->format('Y-m-d'),
                 'depositCents' => $event->getDepositCents(),
+                // Sans cuisine : pas de remarque ni de suivi des commandes à la caisse
+                'withKitchen' => $event->hasKitchen(),
             ],
             'tillLetter' => $device->getTillLetter(),
             // La caisse reprend sa numérotation après ce numéro (tablette réinstallée…)
@@ -49,7 +51,7 @@ class TillController extends AbstractController
                 'icon' => IconCatalog::has($p->getIcon()) ? $p->getIcon() : null,
                 'category' => $p->getCategory(),
                 'priceCents' => $p->getPriceCents(),
-                'goesToKitchen' => $p->goesToKitchen(),
+                'goesToKitchen' => $event->hasKitchen() && $p->goesToKitchen(),
                 'hasDeposit' => $p->hasDeposit(),
                 'components' => array_values(array_map(static fn (ProductComponent $c): array => [
                     'productId' => $c->getComponent()->getId(),

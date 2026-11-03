@@ -109,7 +109,8 @@ class OrderPlacement
                 throw new OrderRejectedException('Un article de la commande n\'est plus au menu. Rechargez le menu, puis encaissez à nouveau.');
             }
             OrderLine::article($order, $product, $quantity);
-            $kitchen = $kitchen || $product->goesToKitchen();
+            // Événement sans cuisine : tout est servi au comptoir, quel que soit l'article
+            $kitchen = $kitchen || ($event->hasKitchen() && $product->goesToKitchen());
             if ($product->hasDeposit()) {
                 $depositCount += $quantity;
             }

@@ -443,6 +443,46 @@ class MenuControllerTest extends WebTestCase
         self::assertStringContainsString("Consigne : 1,00\u{00A0}€", $this->content());
     }
 
+    public function testWithoutKitchenTheKitchenSettingIsHiddenAndKept(): void
+    {
+        $event = self::createEvent();
+        $event->setWithKitchen(false);
+        $hotdog = $this->createProduct('Hot-dog', 300)->setGoesToKitchen(true);
+        $formula = $this->createProduct('Menu', 500, position: 2)->setGoesToKitchen(true)->setComponentQuantity($hotdog, 1);
+        self::entityManager()->flush();
+
+        $crawler = $this->client->request('GET', '/admin/menu');
+        self::assertCount(0, $crawler->filterXPath('//th[normalize-space()="Cuisine"]'));
+        self::assertCount(0, $crawler->filterXPath('//input[contains(@name, "[kitchen]")]'));
+
+        $form = $crawler->selectButton('Enregistrer le menu')->form();
+        $form['products['.$hotdog->getId().'][price]'] = '3,50';
+        $this->client->submit($form);
+        self::assertResponseRedirects('/admin/menu');
+        self::assertSame(350, $this->findProduct('Hot-dog')->getPriceCents());
+        self::assertTrue($this->findProduct('Hot-dog')->goesToKitchen(), 'gardé pour un prochain événement avec cuisine');
+
+        foreach (['/admin/menu/'.$hotdog->getId().'/modifier' => 'Enregistrer l\'article', '/admin/menu/'.$formula->getId().'/modifier' => 'Enregistrer la formule'] as $url => $button) {
+            $crawler = $this->client->request('GET', $url);
+            self::assertCount(0, $crawler->filterXPath('//input[@name="kitchen"]'), $url);
+            $this->client->submitForm($button);
+            self::assertResponseRedirects();
+        }
+        self::assertTrue($this->findProduct('Hot-dog')->goesToKitchen());
+        self::assertTrue($this->findProduct('Menu')->goesToKitchen());
+    }
+
+    public function testWithKitchenTheKitchenColumnIsShown(): void
+    {
+        self::createEvent();
+        $this->createProduct('Hot-dog', 300);
+
+        $crawler = $this->client->request('GET', '/admin/menu');
+
+        self::assertCount(1, $crawler->filterXPath('//th[normalize-space()="Cuisine"]'));
+        self::assertCount(1, $crawler->filterXPath('//input[contains(@name, "[kitchen]")]'));
+    }
+
     private function createProduct(string $name, int $priceCents, ?int $stock = null, int $position = 1, ?Event $event = null): Product
     {
         $event = self::entityManager()->find(Event::class, ($event ?? self::entityManager()->getRepository(Event::class)->findOneBy(['active' => true]))->getId());

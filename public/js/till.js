@@ -110,7 +110,6 @@ async function start() {
   owner = { tillLetter: pairing.device.tillLetter, event: pairing.device.event?.name ?? "" };
   await outbox.start(owner);
   await loadMenu({ initial: true });
-  tracking.start();
   setInterval(refreshMenu, MENU_REFRESH_MS);
   document.addEventListener("visibilitychange", refreshMenu);
 }
@@ -154,6 +153,8 @@ async function loadMenu({ initial = false, background = false } = {}) {
 
   menu = indexMenu(data);
   cart.keepOnly(menu);
+  // Menu gardé avant l'arrivée du réglage : avec cuisine
+  tracking.setEnabled(menu.event.withKitchen !== false);
   $("till-who").textContent = `Caisse ${menu.tillLetter} · ${menu.event.name}`;
 
   // Numérotation : on reprend après le plus grand numéro connu, ici ou sur le serveur
