@@ -89,6 +89,9 @@ class DevicePairing
         if (!$event->isActive()) {
             throw new PairingException('L\'événement de cette tablette n\'est plus l\'événement actif. Activez-le, ou ajoutez la tablette au nouvel événement.');
         }
+        if (!$device->isRoleAvailable()) {
+            throw new PairingException('Cet événement est sans cuisine : seules les tablettes caisse peuvent être appairées.');
+        }
         $expiresAt = $this->tokenExpiry($event);
         if ($expiresAt <= $now) {
             throw new PairingException('Cet événement est terminé : une tablette ne peut plus y être appairée.');

@@ -23,6 +23,9 @@
 
             <fieldset class="field"{% if errors.role is defined %} aria-describedby="role-error"{% endif %}>
                 <legend>Rôle</legend>
+                {% if not event.hasKitchen %}
+                    <p class="field-help">Cet événement est sans cuisine : seules les tablettes caisse sont proposées.</p>
+                {% endif %}
                 {% for role in roles %}
                     <label class="choice">
                         <input type="radio" name="role" value="{{ role.value }}" {{ values.role == role.value ? 'checked' }}>

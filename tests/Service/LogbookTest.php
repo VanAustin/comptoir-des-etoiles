@@ -69,6 +69,21 @@ class LogbookTest extends KernelTestCase
         self::assertSame([1, 650, 1, 450], [$totals['cashCount'], $totals['cashAmount'], $totals['cardCount'], $totals['cardAmount']]);
     }
 
+    public function testEventWithoutKitchenIsSummarizedTheSameWay(): void
+    {
+        $this->event->setWithKitchen(false);
+        self::entityManager()->flush();
+
+        $crepes = $this->place('A', ['Crêpe' => 2, 'Soda' => 1], cash: 1000);
+        $this->place('B', ['Duo' => 1], card: true);
+
+        self::assertSame(OrderStatus::Served, $crepes->getStatus());
+        $totals = $this->summary()['totals'];
+        self::assertSame(1000, $totals['revenue']);
+        self::assertSame(2, $totals['orders']);
+        self::assertSame([1, 650, 1, 450], [$totals['cashCount'], $totals['cashAmount'], $totals['cardCount'], $totals['cardAmount']]);
+    }
+
     public function testDepositsAreCountedApart(): void
     {
         $this->place('A', ['Soda' => 3], cash: 1000);   // 3 consignes encaissées

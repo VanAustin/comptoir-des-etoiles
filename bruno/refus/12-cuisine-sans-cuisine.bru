@@ -1,0 +1,35 @@
+meta {
+  name: 12. Une cuisine est refusée sans cuisine
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseUrl}}/api/orders
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_cuisine}}
+}
+
+tests {
+  test("refusé (403)", function () {
+    expect(res.status).to.equal(403);
+  });
+
+  test("le message explique pourquoi", function () {
+    expect(res.body.error).to.contain("sans cuisine");
+  });
+
+  test("aucune commande dans la réponse", function () {
+    expect(res.body).to.not.have.property("orders");
+  });
+}
+
+docs {
+  Lors d'un événement **sans cuisine** (case « Avec cuisine » décochée dans la fiche de l'événement), une tablette cuisine ou affichage n'a rien à afficher : l'API la refuse, avec un message clair. « Appairage / 2. Qui suis-je » lui reste accessible.
+
+  Nécessite une tablette **cuisine** appairée avant de décocher « Avec cuisine ». Avec cuisine, cette requête répond 200 : ce n'est pas une erreur.
+}

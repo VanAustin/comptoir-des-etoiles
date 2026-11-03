@@ -63,6 +63,24 @@ class DeviceControllerTest extends WebTestCase
         self::assertDoesNotMatchRegularExpression('/\b'.$matches[1].'-'.$matches[2].'\b/', $this->content());
     }
 
+    public function testWithoutKitchenOnlyTillsAreOffered(): void
+    {
+        self::createEvent()->setWithKitchen(false);
+        self::entityManager()->flush();
+
+        $crawler = $this->client->request('GET', '/admin/tablettes/nouvelle');
+        self::assertSame(['caisse'], $crawler->filterXPath('//input[@name="role"]')->each(static fn ($i) => $i->attr('value')));
+        self::assertNotNull($crawler->filterXPath('//input[@name="role"]')->attr('checked'), 'choisi d\'office');
+        self::assertStringContainsString('seules les tablettes caisse sont proposées', $this->content());
+
+        // Rôle forcé dans la requête : refusé par le serveur
+        $token = $crawler->filterXPath('//input[@name="_token"]')->attr('value');
+        $this->client->request('POST', '/admin/tablettes/nouvelle', ['name' => 'Cuisine 1', 'role' => 'cuisine', '_token' => $token]);
+        self::assertResponseStatusCodeSame(422);
+        self::assertStringContainsString('Cet événement est sans cuisine', $this->content());
+        self::assertSame(0, self::entityManager()->getRepository(Device::class)->count([]));
+    }
+
     public function testInvalidFormIsShownAgain(): void
     {
         self::createEvent();

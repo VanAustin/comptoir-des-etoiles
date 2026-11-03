@@ -60,7 +60,9 @@ class DeviceController extends AbstractController
             return $this->redirectToRoute('admin_event_index');
         }
 
-        $values = ['name' => '', 'role' => ''];
+        // Sans cuisine, seules les caisses ont un écran : le rôle est choisi d'office
+        $roles = array_values(array_filter(DeviceRole::cases(), static fn (DeviceRole $r): bool => !$r->needsKitchen() || $event->hasKitchen()));
+        $values = ['name' => '', 'role' => 1 === \count($roles) ? $roles[0]->value : ''];
         $errors = [];
 
         if ($request->isMethod('POST')) {
@@ -76,6 +78,8 @@ class DeviceController extends AbstractController
             }
             if (null === $role) {
                 $errors['role'] = 'Choisissez le rôle de la tablette.';
+            } elseif (!\in_array($role, $roles, true)) {
+                $errors['role'] = 'Cet événement est sans cuisine : seules les tablettes caisse sont utiles.';
             }
 
             if (!$errors) {
@@ -94,7 +98,7 @@ class DeviceController extends AbstractController
             'event' => $event,
             'values' => $values,
             'errors' => $errors,
-            'roles' => DeviceRole::cases(),
+            'roles' => $roles,
         ], new Response(status: $errors ? 422 : 200));
     }
 
