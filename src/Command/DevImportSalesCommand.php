@@ -155,6 +155,7 @@ class DevImportSalesCommand extends Command
                 ->setGoesToKitchen($p['kitchen'])
                 ->setHasDeposit($p['deposit'])
                 ->setInitialStock($p['startStock'])
+                ->setSoldAlone($p['soldAlone'])
                 ->setPosition($position + 1);
             $this->entityManager->persist($products[$p['key']]);
         }

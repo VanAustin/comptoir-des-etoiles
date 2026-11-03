@@ -277,6 +277,25 @@ class TillApiTest extends WebTestCase
         self::assertSame(38, array_column($this->getMenu()['products'], null, 'name')['Hot-dog']['remainingStock'], 'le stock compte toujours');
     }
 
+    public function testArticleSoldOnlyInFormulasStaysCountedAndAccepted(): void
+    {
+        $hotdog = self::entityManager()->find(Product::class, $this->ids['Hot-dog'])->setSoldAlone(false);
+        self::entityManager()->flush();
+
+        $byName = array_column($this->getMenu()['products'], null, 'name');
+        self::assertFalse($byName['Hot-dog']['soldAlone']);
+        self::assertTrue($byName['Menu Loto']['soldAlone']);
+        self::assertTrue($byName['Café']['soldAlone']);
+
+        // Vendu dans la formule : stock décompté ; seul (commande hors ligne d'avant le réglage) : accepté
+        $this->post($this->order(['Menu Loto' => 1], number: 1));
+        self::assertResponseStatusCodeSame(201);
+        $this->post($this->order(['Hot-dog' => 1], number: 2) + ['offline' => true]);
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame(38, $this->stockOf('Hot-dog'));
+        self::assertNotNull($hotdog->getId());
+    }
+
     public function testMenuTellsWhetherTheEventHasAKitchen(): void
     {
         $menu = $this->getMenu();

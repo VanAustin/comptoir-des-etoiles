@@ -53,6 +53,8 @@ class TillController extends AbstractController
                 'priceCents' => $p->getPriceCents(),
                 'goesToKitchen' => $event->hasKitchen() && $p->goesToKitchen(),
                 'hasDeposit' => $p->hasDeposit(),
+                // Faux : vendu seulement dans les formules, absent de la grille de la caisse
+                'soldAlone' => $p->isSoldAlone(),
                 'components' => array_values(array_map(static fn (ProductComponent $c): array => [
                     'productId' => $c->getComponent()->getId(),
                     'quantity' => $c->getQuantity(),

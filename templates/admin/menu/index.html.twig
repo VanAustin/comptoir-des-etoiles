@@ -11,7 +11,7 @@
     </span>
 {% endmacro %}
 
-{% macro row_inputs(product, v, e, with_stock, with_kitchen) %}
+{% macro row_inputs(product, v, e, with_stock, with_kitchen, with_alone) %}
     {% import 'admin/menu/_macros.html.twig' as m %}
     {% set prefix = 'products[' ~ product.id ~ ']' %}
     <td data-label="Prix (€)">
@@ -28,6 +28,9 @@
         <td data-label="Cuisine"><input type="checkbox" form="menu-save" name="{{ prefix }}[kitchen]" value="1" {{ v.kitchen ? 'checked' }} aria-label="{{ product.name }} passe en cuisine"></td>
     {% endif %}
     <td data-label="Consigne"><input type="checkbox" form="menu-save" name="{{ prefix }}[deposit]" value="1" {{ v.deposit ? 'checked' }} aria-label="{{ product.name }} avec consigne"></td>
+    {% if with_alone %}
+        <td data-label="Vendu seul"><input type="checkbox" form="menu-save" name="{{ prefix }}[alone]" value="1" {{ v.alone ? 'checked' }} aria-label="{{ product.name }} vendu seul"></td>
+    {% endif %}
 {% endmacro %}
 
 {% block body %}
@@ -51,10 +54,17 @@
         <div class="section-head">
             <div>
                 <h2 id="articles-title">Articles</h2>
-                <p class="lede">Ce qui se vend à l'unité. Laissez le stock vide pour un article non compté (café, thé…).</p>
+                <p class="lede">Ce qui se vend à l'unité. Laissez le stock vide pour un article non compté (café, thé…). Décochez « Vendu seul » pour un article vendu seulement dans les formules : il n'apparaît plus sur les caisses, mais son stock est toujours décompté.</p>
             </div>
             <a class="btn" href="{{ path('admin_menu_product_new') }}">Ajouter un article</a>
         </div>
+
+        {% if unsellable is not empty %}
+            <p class="alert alert-warning" id="unsellable">
+                {% for product in unsellable %}« {{ product.name }} »{{ not loop.last ? ', ' }}{% endfor %}
+                {{ unsellable|length > 1 ? 'ne sont vendus' : 'n\'est vendu' }} ni seul{{ unsellable|length > 1 ? 's' }} ni dans une formule : {{ unsellable|length > 1 ? 'ils sont invisibles' : 'il est invisible' }} sur les caisses. Cochez « Vendu seul », ou ajoutez-{{ unsellable|length > 1 ? 'les' : 'le' }} à une formule.
+            </p>
+        {% endif %}
 
         {% if articles is empty %}
             <div class="card empty">
@@ -68,7 +78,7 @@
             <div class="tablewrap">
                 <table class="menu-table stack-table">
                     <thead>
-                        <tr><th>Ordre</th><th>Article</th><th>Prix (€)</th><th>Stock de départ</th>{% if event.hasKitchen %}<th>Cuisine</th>{% endif %}<th>Consigne</th><th><span class="visually-hidden">Actions</span></th></tr>
+                        <tr><th>Ordre</th><th>Article</th><th>Prix (€)</th><th>Stock de départ</th>{% if event.hasKitchen %}<th>Cuisine</th>{% endif %}<th>Consigne</th><th>Vendu seul</th><th><span class="visually-hidden">Actions</span></th></tr>
                     </thead>
                     <tbody>
                         {% for product in articles %}
@@ -79,7 +89,7 @@
                                     <span class="product-name"><span class="{{ icon_class(product.icon) }}" aria-hidden="true"></span> {{ product.name }}</span>
                                     <span class="seen">{{ product.category }}</span>
                                 </td>
-                                {{ _self.row_inputs(product, row_values[product.id], e, true, event.hasKitchen) }}
+                                {{ _self.row_inputs(product, row_values[product.id], e, true, event.hasKitchen, true) }}
                                 <td class="actions"><a class="btn btn-small" href="{{ path('admin_menu_edit', {id: product.id}) }}">Modifier</a></td>
                             </tr>
                         {% endfor %}
@@ -118,7 +128,7 @@
                                     <span class="product-name"><span class="{{ icon_class(product.icon) }}" aria-hidden="true"></span> {{ product.name }}</span>
                                     <span class="seen">{{ product.describeComposition }}</span>
                                 </td>
-                                {{ _self.row_inputs(product, row_values[product.id], e, false, event.hasKitchen) }}
+                                {{ _self.row_inputs(product, row_values[product.id], e, false, event.hasKitchen, false) }}
                                 <td class="actions"><a class="btn btn-small" href="{{ path('admin_menu_edit', {id: product.id}) }}">Modifier</a></td>
                             </tr>
                         {% endfor %}

@@ -98,7 +98,9 @@ class MenuController extends AbstractController
                 ->setInitialStock($clean['initialStock'])
                 // Colonne masquée sans cuisine : la valeur de l'article est gardée pour un prochain événement
                 ->setGoesToKitchen($event->hasKitchen() ? $clean['kitchen'] : $product->goesToKitchen())
-                ->setHasDeposit($clean['deposit']);
+                ->setHasDeposit($clean['deposit'])
+                // Une formule est toujours vendue seule : sa ligne n'a pas la case
+                ->setSoldAlone($product->isFormula() || $clean['alone']);
             if ($this->logChanges($product, $before)) {
                 ++$updated;
             }
@@ -216,7 +218,8 @@ class MenuController extends AbstractController
                     ->setInitialStock($clean['initialStock'])
                     // Case masquée sans cuisine : la valeur de l'article est gardée
                     ->setGoesToKitchen($event->hasKitchen() ? $clean['kitchen'] : $product->goesToKitchen())
-                    ->setHasDeposit($clean['deposit']);
+                    ->setHasDeposit($clean['deposit'])
+                    ->setSoldAlone($isFormula || $clean['alone']);
                 foreach ($candidates as $candidate) {
                     $product->setComponentQuantity($candidate, $quantities[$candidate->getId()] ?? 0);
                 }
@@ -261,10 +264,21 @@ class MenuController extends AbstractController
             $rowValues[$product->getId()] ??= self::rowOf($product);
         }
 
+        $articles = array_values(array_filter($products, static fn (Product $p) => !$p->isFormula()));
+        $formulas = array_values(array_filter($products, static fn (Product $p) => $p->isFormula()));
+        $inFormulas = [];
+        foreach ($formulas as $formula) {
+            foreach ($formula->getComponents() as $component) {
+                $inFormulas[$component->getComponent()->getId()] = true;
+            }
+        }
+
         return $this->render('admin/menu/index.html.twig', [
             'event' => $event,
-            'articles' => array_values(array_filter($products, static fn (Product $p) => !$p->isFormula())),
-            'formulas' => array_values(array_filter($products, static fn (Product $p) => $p->isFormula())),
+            'articles' => $articles,
+            'formulas' => $formulas,
+            // Ni vendus seuls, ni dans une formule : invisibles sur les caisses
+            'unsellable' => array_values(array_filter($articles, static fn (Product $p) => !$p->isSoldAlone() && !isset($inFormulas[$p->getId()]))),
             'row_values' => $rowValues,
             'row_errors' => $rowErrors,
         ], new Response(status: $status));
@@ -284,9 +298,10 @@ class MenuController extends AbstractController
             'stock' => self::text($input, 'stock'),
             'kitchen' => isset($input['kitchen']),
             'deposit' => isset($input['deposit']),
+            'alone' => isset($input['alone']),
         ];
         $errors = [];
-        $clean = ['kitchen' => $values['kitchen'], 'deposit' => $values['deposit']];
+        $clean = ['kitchen' => $values['kitchen'], 'deposit' => $values['deposit'], 'alone' => $values['alone']];
         self::validatePriceAndStock($values, $isFormula, $errors, $clean);
 
         return [$values, $errors, $clean];
@@ -309,9 +324,11 @@ class MenuController extends AbstractController
             'stock' => $isFormula ? '' : self::text($input, 'stock'),
             'kitchen' => isset($input['kitchen']),
             'deposit' => isset($input['deposit']),
+            'alone' => isset($input['alone']),
         ];
         $errors = [];
         $clean = [
+            'alone' => $values['alone'],
             'name' => $values['name'],
             'icon' => '' === $values['icon'] ? null : $values['icon'],
             'category' => '' === $values['category'] ? ($isFormula ? self::FORMULA_CATEGORY : self::DEFAULT_CATEGORY) : $values['category'],
@@ -496,6 +513,7 @@ class MenuController extends AbstractController
             'stock' => null === $product->getInitialStock() ? '' : (string) $product->getInitialStock(),
             'kitchen' => $product->goesToKitchen(),
             'deposit' => $product->hasDeposit(),
+            'alone' => $product->isSoldAlone(),
         ];
     }
 
@@ -510,6 +528,7 @@ class MenuController extends AbstractController
             'stock' => null === $product->getInitialStock() ? '' : (string) $product->getInitialStock(),
             'kitchen' => $product->goesToKitchen(),
             'deposit' => $product->hasDeposit(),
+            'alone' => $product->isSoldAlone(),
         ];
     }
 
@@ -540,6 +559,7 @@ class MenuController extends AbstractController
             'initial_stock' => $product->getInitialStock(),
             'kitchen' => $product->goesToKitchen(),
             'deposit' => $product->hasDeposit(),
+            'sold_alone' => $product->isSoldAlone(),
             'composition' => $product->describeComposition(),
         ];
     }
