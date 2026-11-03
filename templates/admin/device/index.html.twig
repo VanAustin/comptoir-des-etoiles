@@ -23,13 +23,21 @@
             <a class="btn btn-primary" href="{{ path('admin_device_new') }}">Ajouter une tablette</a>
         </div>
 
+        {% if unsold_categories is not empty %}
+            <p class="alert alert-warning" id="unsold-categories">
+                Aucune caisse ne vend {{ unsold_categories|length > 1 ? 'les catégories' : 'la catégorie' }}
+                {% for category in unsold_categories %}« {{ category }} »{{ not loop.last ? ', ' }}{% endfor %} :
+                {{ unsold_categories|length > 1 ? 'elles ne peuvent' : 'elle ne peut' }} pas être encaissée{{ unsold_categories|length > 1 ? 's' }}. Cochez-{{ unsold_categories|length > 1 ? 'les' : 'la' }} dans les « Réglages » d'une caisse.
+            </p>
+        {% endif %}
+
         {% if devices is empty %}
             <p class="card empty">Aucune tablette pour l'instant. Ajoutez la première, par exemple « Caisse buvette ».</p>
         {% else %}
             <div class="tablewrap">
                 <table class="stack-table">
                     <thead>
-                        <tr><th>Tablette</th><th>Rôle</th><th>Lettre</th><th>État</th><th><span class="visually-hidden">Actions</span></th></tr>
+                        <tr><th>Tablette</th><th>Rôle</th><th>Lettre</th><th>Vend</th><th>État</th><th><span class="visually-hidden">Actions</span></th></tr>
                     </thead>
                     <tbody>
                         {% for device in devices %}
@@ -38,6 +46,12 @@
                                 <td class="stack-title">{{ device.name }}</td>
                                 <td data-label="Rôle">{{ device.role.label }}</td>
                                 <td class="num" data-label="Lettre">{{ device.tillLetter ?? '—' }}</td>
+                                <td data-label="Vend">
+                                    {% if device.role.value == 'caisse' %}
+                                        {{ device.categories is empty ? 'Tout le menu' : device.categories|join(', ') }}
+                                        {% if device.directSale %}<span class="seen">vente directe</span>{% endif %}
+                                    {% else %}—{% endif %}
+                                </td>
                                 <td data-label="État">
                                     <span class="pill {{ state_labels[state][1] }}">{{ state_labels[state][0] }}</span>
                                     {% if state == 'paired' %}
@@ -45,6 +59,9 @@
                                     {% endif %}
                                 </td>
                                 <td class="actions">
+                                    {% if device.role.value == 'caisse' and state != 'revoked' %}
+                                        <a class="btn btn-small" href="{{ path('admin_device_settings', {id: device.id}) }}">Réglages</a>
+                                    {% endif %}
                                     {% if state in ['waiting', 'code_expired'] %}
                                         <form class="inline-form" method="post" action="{{ path('admin_device_regenerate', {id: device.id}) }}">
                                             <input type="hidden" name="_token" value="{{ csrf_token('device-regenerate-' ~ device.id) }}">

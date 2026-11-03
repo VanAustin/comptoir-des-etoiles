@@ -3,9 +3,11 @@
 namespace App\Controller\Admin;
 
 use App\Entity\Device;
+use App\Entity\Event;
 use App\Enum\DeviceRole;
 use App\Repository\DeviceRepository;
 use App\Repository\EventRepository;
+use App\Repository\ProductRepository;
 use App\Service\AuditLogger;
 use App\Service\DevicePairing;
 use Doctrine\ORM\EntityManagerInterface;
@@ -27,6 +29,7 @@ class DeviceController extends AbstractController
     public function __construct(
         private readonly DeviceRepository $devices,
         private readonly EventRepository $events,
+        private readonly ProductRepository $products,
         private readonly DevicePairing $pairing,
         private readonly EntityManagerInterface $entityManager,
         private readonly AuditLogger $auditLogger,
@@ -43,6 +46,7 @@ class DeviceController extends AbstractController
         return $this->render('admin/device/index.html.twig', [
             'event' => $event,
             'devices' => $devices,
+            'unsold_categories' => $event ? $this->unsoldCategories($event, $devices, $now) : [],
             'states' => array_combine(
                 array_map(static fn (Device $d) => $d->getId(), $devices),
                 array_map(static fn (Device $d) => $d->getState($now), $devices),
@@ -62,7 +66,8 @@ class DeviceController extends AbstractController
 
         // Sans cuisine, seules les caisses ont un écran : le rôle est choisi d'office
         $roles = array_values(array_filter(DeviceRole::cases(), static fn (DeviceRole $r): bool => !$r->needsKitchen() || $event->hasKitchen()));
-        $values = ['name' => '', 'role' => 1 === \count($roles) ? $roles[0]->value : ''];
+        $categories = $this->products->saleCategories($event);
+        $values = ['name' => '', 'role' => 1 === \count($roles) ? $roles[0]->value : '', 'categories' => $categories, 'direct_sale' => false];
         $errors = [];
 
         if ($request->isMethod('POST')) {
@@ -70,6 +75,11 @@ class DeviceController extends AbstractController
             $payload = $request->getPayload();
             $values = ['name' => trim($payload->getString('name')), 'role' => $payload->getString('role')];
             $role = DeviceRole::tryFrom($values['role']);
+            // Réglages de caisse : ignorés pour les autres rôles
+            [$values['categories'], $values['direct_sale'], $tillSettings, $categoryError] = $this->readTillSettings($request, $categories, DeviceRole::Till === $role);
+            if (null !== $categoryError) {
+                $errors['categories'] = $categoryError;
+            }
 
             if ('' === $values['name']) {
                 $errors['name'] = 'Donnez un nom à la tablette, par exemple « Caisse buvette ».';
@@ -84,10 +94,13 @@ class DeviceController extends AbstractController
 
             if (!$errors) {
                 $device = new Device($event, $values['name'], $role);
+                if (DeviceRole::Till === $role) {
+                    $device->setCategories($tillSettings['categories'])->setDirectSale($tillSettings['direct_sale']);
+                }
                 $code = $this->pairing->generateCode($device);
                 $this->entityManager->persist($device);
                 $this->entityManager->flush();
-                $this->auditLogger->log('device.create', 'device:'.$device->getId().' '.$device->getName(), after: ['role' => $role->value]);
+                $this->auditLogger->log('device.create', 'device:'.$device->getId().' '.$device->getName(), after: ['role' => $role->value] + (DeviceRole::Till === $role ? self::tillSnapshot($device) : []));
                 $this->entityManager->flush();
 
                 return $this->showCodeOnce($request, $device, $code);
@@ -99,6 +112,49 @@ class DeviceController extends AbstractController
             'values' => $values,
             'errors' => $errors,
             'roles' => $roles,
+            'categories' => $categories,
+        ], new Response(status: $errors ? 422 : 200));
+    }
+
+    /** Réglages d'une caisse, modifiables à tout moment : elle les relit avec le menu. */
+    #[Route('/{id<\d+>}/reglages', name: 'admin_device_settings', methods: ['GET', 'POST'])]
+    public function settings(Device $device, Request $request): Response
+    {
+        if (DeviceRole::Till !== $device->getRole() || $device->isRevoked() || $device->getEvent() !== $this->events->findActive()) {
+            throw $this->createNotFoundException('Seule une caisse de l\'événement actif, non révoquée, a des réglages.');
+        }
+
+        // Catégories du menu, et celles que la caisse vend encore alors qu'elles n'y sont plus (renommées)
+        $categories = array_values(array_unique([...$this->products->saleCategories($device->getEvent()), ...$device->getCategories()]));
+        $values = [
+            'categories' => [] === $device->getCategories() ? $categories : $device->getCategories(),
+            'direct_sale' => $device->isDirectSale(),
+        ];
+        $errors = [];
+
+        if ($request->isMethod('POST')) {
+            $this->denyUnlessCsrfValid($request, 'device-settings-'.$device->getId());
+            [$values['categories'], $values['direct_sale'], $settings, $categoryError] = $this->readTillSettings($request, $categories, true);
+            if (null !== $categoryError) {
+                $errors['categories'] = $categoryError;
+            } else {
+                $before = self::tillSnapshot($device);
+                $device->setCategories($settings['categories'])->setDirectSale($settings['direct_sale']);
+                if ($before !== self::tillSnapshot($device)) {
+                    $this->auditLogger->log('device.update', 'device:'.$device->getId().' '.$device->getName(), $before, self::tillSnapshot($device));
+                }
+                $this->entityManager->flush();
+                $this->addFlash('info', \sprintf('Les réglages de « %s » sont enregistrés. La caisse les applique d\'ici 30 secondes.', $device->getName()));
+
+                return $this->redirectToRoute('admin_device_index');
+            }
+        }
+
+        return $this->render('admin/device/settings.html.twig', [
+            'device' => $device,
+            'values' => $values,
+            'errors' => $errors,
+            'categories' => $categories,
         ], new Response(status: $errors ? 422 : 200));
     }
 
@@ -147,6 +203,59 @@ class DeviceController extends AbstractController
         }
 
         return $this->redirectToRoute('admin_device_index');
+    }
+
+    /**
+     * Catégories du menu qu'aucune caisse en service (appairée ou en attente) ne vend.
+     * Aucune caisse : rien à signaler, l'installation n'est pas commencée.
+     *
+     * @param list<Device> $devices
+     *
+     * @return list<string>
+     */
+    private function unsoldCategories(Event $event, array $devices, \DateTimeImmutable $now): array
+    {
+        $tills = array_filter($devices, static fn (Device $d): bool => DeviceRole::Till === $d->getRole() && \in_array($d->getState($now), ['waiting', 'paired'], true));
+        if ([] === $tills) {
+            return [];
+        }
+        $sold = [];
+        foreach ($tills as $till) {
+            if ([] === $till->getCategories()) {
+                return [];
+            }
+            $sold = [...$sold, ...$till->getCategories()];
+        }
+
+        return array_values(array_diff($this->products->saleCategories($event), $sold));
+    }
+
+    /**
+     * Catégories cochées et vente directe. Toutes cochées : la caisse vend tout le menu,
+     * y compris les catégories ajoutées plus tard (liste vide).
+     *
+     * @param list<string> $offered
+     *
+     * @return array{list<string>, bool, array{categories: list<string>, direct_sale: bool}, ?string}
+     */
+    private function readTillSettings(Request $request, array $offered, bool $isTill): array
+    {
+        $payload = $request->getPayload();
+        $checked = array_values(array_filter($payload->all('categories'), static fn ($c): bool => \is_string($c) && \in_array($c, $offered, true)));
+        $directSale = $payload->has('direct_sale');
+        $error = $isTill && [] !== $offered && [] === $checked ? 'Cochez au moins une catégorie : une caisse sans catégorie n\'aurait rien à vendre.' : null;
+        $all = [] === array_diff($offered, $checked);
+
+        return [$checked, $directSale, ['categories' => $all ? [] : $checked, 'direct_sale' => $directSale], $error];
+    }
+
+    /** @return array{categories: string, direct_sale: bool} */
+    private static function tillSnapshot(Device $device): array
+    {
+        return [
+            'categories' => [] === $device->getCategories() ? 'tout le menu' : implode(', ', $device->getCategories()),
+            'direct_sale' => $device->isDirectSale(),
+        ];
     }
 
     /** Redirection, pour qu'un rechargement de la page ne recrée pas de tablette ni de code. */

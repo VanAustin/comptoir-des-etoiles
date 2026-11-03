@@ -29,6 +29,7 @@ tests {
 
   test("la lettre de la caisse et le dernier numéro sont indiqués", function () {
     expect(res.body.tillLetter).to.match(/^[A-HJ-NP-Z]$/);
+    expect(res.body.directSale).to.be.a("boolean");
     expect(res.body.lastNumber).to.be.a("number");
   });
 
@@ -51,6 +52,7 @@ tests {
       expect(p).to.have.property("remainingStock");
       expect(p.components).to.be.an("array");
       expect(p.soldAlone).to.be.a("boolean");
+      expect(p.soldHere).to.be.a("boolean");
     });
   });
 }

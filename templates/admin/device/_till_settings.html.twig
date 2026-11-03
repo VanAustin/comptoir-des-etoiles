@@ -1,0 +1,15 @@
+{# Réglages d'une caisse : catégories vendues et vente directe #}
+<fieldset class="field"{% if errors.categories is defined %} aria-describedby="categories-error"{% endif %}>
+    <legend>Catégories vendues</legend>
+    <p class="field-help">La caisse n'affiche que ces catégories et le serveur refuse les autres. Toutes cochées : tout le menu, y compris les catégories ajoutées plus tard. Par exemple, « Loto » seul pour la caisse de l'entrée, tout sauf « Loto » pour la buvette.</p>
+    {% for category in categories %}
+        <label class="check"><input type="checkbox" name="categories[]" value="{{ category }}" {{ category in values.categories ? 'checked' }}> {{ category }}</label>
+    {% else %}
+        <p class="field-help">Le menu est encore vide : la caisse vendra tout le menu.</p>
+    {% endfor %}
+    {% if errors.categories is defined %}<p class="field-error" id="categories-error">{{ errors.categories }}</p>{% endif %}
+</fieldset>
+<div class="field">
+    <label class="check"><input type="checkbox" name="direct_sale" value="1" {{ values.direct_sale ? 'checked' }} aria-describedby="direct-sale-help"> Vente directe</label>
+    <p class="field-help" id="direct-sale-help">Pas de numéro à donner au client (cartons, jetons…) : après l'encaissement, la caisse affiche « Vente enregistrée » et revient seule à la grille, sauf s'il y a de la monnaie à rendre.</p>
+</div>
