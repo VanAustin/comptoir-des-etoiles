@@ -42,6 +42,8 @@ class TillController extends AbstractController
                 'withKitchen' => $event->hasKitchen(),
             ],
             'tillLetter' => $device->getTillLetter(),
+            // Poste de vente : pas de grand numéro à la fin (cartons, jetons…)
+            'directSale' => $device->isDirectSale(),
             // La caisse reprend sa numérotation après ce numéro (tablette réinstallée…)
             'lastNumber' => $orders->lastNumber($event, (string) $device->getTillLetter()),
             'products' => array_map(static fn (Product $p): array => [
@@ -55,6 +57,8 @@ class TillController extends AbstractController
                 'hasDeposit' => $p->hasDeposit(),
                 // Faux : vendu seulement dans les formules, absent de la grille de la caisse
                 'soldAlone' => $p->isSoldAlone(),
+                // Faux : catégorie que cette caisse ne vend pas (gardé pour décrire les formules)
+                'soldHere' => $device->sells($p),
                 'components' => array_values(array_map(static fn (ProductComponent $c): array => [
                     'productId' => $c->getComponent()->getId(),
                     'quantity' => $c->getQuantity(),

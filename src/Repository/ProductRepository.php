@@ -34,6 +34,18 @@ class ProductRepository extends ServiceEntityRepository
         return $this->findBy(['event' => $event], ['position' => 'ASC', 'id' => 'ASC']);
     }
 
+    /**
+     * Catégories de la grille des caisses (articles vendus seuls), dans l'ordre du menu.
+     *
+     * @return list<string>
+     */
+    public function saleCategories(Event $event): array
+    {
+        $sold = array_filter($this->findForEvent($event), static fn (Product $p): bool => $p->isSoldAlone());
+
+        return array_values(array_unique(array_map(static fn (Product $p): string => $p->getCategory(), $sold)));
+    }
+
     public function nextPosition(Event $event): int
     {
         $max = $this->createQueryBuilder('p')

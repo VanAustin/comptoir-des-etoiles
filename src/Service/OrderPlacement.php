@@ -97,6 +97,9 @@ class OrderPlacement
             $catalog[$product->getId()] = $product;
         }
 
+        // Commande encaissée hors ligne et envoyée plus tard : l'argent est déjà dans la caisse
+        $offline = true === ($payload['offline'] ?? false);
+
         $order = new Order($uuid, $event, $letter, $number, $method);
         $order->setDevice($device);
         $order->setCreatedAt($this->readCreatedAt($payload['createdAt'] ?? null));
@@ -107,6 +110,10 @@ class OrderPlacement
             $product = $catalog[$productId] ?? null;
             if (!$product instanceof Product) {
                 throw new OrderRejectedException('Un article de la commande n\'est plus au menu. Rechargez le menu, puis encaissez à nouveau.');
+            }
+            // Catégorie que cette caisse ne vend pas ; hors ligne, réglage changé après l'encaissement : acceptée
+            if (!$offline && !$device->sells($product)) {
+                throw new OrderRejectedException(\sprintf('Cette caisse ne vend pas « %s ». Rechargez le menu, puis encaissez à nouveau.', $product->getName()), Response::HTTP_UNPROCESSABLE_ENTITY);
             }
             OrderLine::article($order, $product, $quantity);
             // Événement sans cuisine : tout est servi au comptoir, quel que soit l'article
@@ -126,8 +133,6 @@ class OrderPlacement
 
         $total = array_sum(array_map(static fn (OrderLine $l): int => $l->getTotalCents(), $order->getLines()->toArray()));
         $order->setTotalCents($total);
-        // Commande encaissée hors ligne et envoyée plus tard : l'argent est déjà dans la caisse
-        $offline = true === ($payload['offline'] ?? false);
         $order->setAmountReceivedCents($this->readPayment($method, $total, $payload['amountReceivedCents'] ?? null, $offline));
         $order->setStatus($kitchen ? OrderStatus::New : OrderStatus::Served);
         // La remarque n'a de sens que pour la cuisine

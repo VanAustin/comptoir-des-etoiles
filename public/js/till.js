@@ -183,9 +183,12 @@ function render() {
   renderCart();
 }
 
-/** Articles de la grille : pas ceux vendus seulement dans les formules (menu gardé avant le réglage : tous). */
+/**
+ * Articles de la grille : pas ceux vendus seulement dans les formules, ni les catégories
+ * que cette caisse ne vend pas (menu gardé avant ces réglages : tous).
+ */
 function onSale() {
-  return menu.products.filter((product) => product.soldAlone !== false);
+  return menu.products.filter((product) => product.soldAlone !== false && product.soldHere !== false);
 }
 
 function categories() {
@@ -627,6 +630,32 @@ $("outbox-send").addEventListener("click", () => outbox.flush());
 
 // --- Confirmation ---
 
+const DIRECT_SALE_DELAY = 2000;
+let directSaleTimer = null;
+
+/** Vente directe (cartons, jetons…) : pas de numéro à annoncer, retour seul à la grille sans monnaie à rendre. */
+function finishDirectSale(hasChange) {
+  $("done-number").hidden = Boolean(menu.directSale);
+  if (!menu.directSale) {
+    return;
+  }
+  $("done-lede").textContent = "Vente enregistrée";
+  $("done-queue").hidden = true;
+  $("done-help").textContent = hasChange ? "Rendez la monnaie, puis touchez « Commande suivante »." : "Retour à la grille dans un instant.";
+  if (!hasChange) {
+    directSaleTimer = setTimeout(nextOrder, DIRECT_SALE_DELAY);
+  }
+}
+
+function nextOrder() {
+  clearTimeout(directSaleTimer);
+  directSaleTimer = null;
+  if (!views.done.hidden) {
+    show("main");
+    render();
+  }
+}
+
 function showDoneOffline(entry) {
   $("done-lede").textContent = "Commande enregistrée sur la tablette";
   $("done-number").textContent = entry.displayNumber;
@@ -643,6 +672,7 @@ function showDoneOffline(entry) {
     $("done-change-amount").textContent = formatEuros(amount);
     $("done-change-breakdown").textContent = describeBreakdown(changeBreakdown(amount));
   }
+  finishDirectSale(!$("done-change").hidden);
   show("done");
   $("done-next").focus();
 }
@@ -669,13 +699,11 @@ function showDone(order) {
     // Décomposition calculée par le serveur, qui fait référence
     $("done-change-breakdown").textContent = order.changeBreakdown ? describeBreakdown(order.changeBreakdown) : "";
   }
+  finishDirectSale(!$("done-change").hidden);
   show("done");
   $("done-next").focus();
 }
 
-$("done-next").addEventListener("click", () => {
-  show("main");
-  render();
-});
+$("done-next").addEventListener("click", nextOrder);
 
 start();

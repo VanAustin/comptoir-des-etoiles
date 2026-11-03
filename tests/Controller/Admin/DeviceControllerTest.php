@@ -5,6 +5,9 @@ namespace App\Tests\Controller\Admin;
 use App\Entity\AdminUser;
 use App\Entity\AuditLog;
 use App\Entity\Device;
+use App\Entity\Event;
+use App\Entity\Product;
+use App\Enum\DeviceRole;
 use App\Tests\FixturesTrait;
 use App\Tests\ResetDatabaseTrait;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -155,6 +158,103 @@ class DeviceControllerTest extends WebTestCase
         self::assertStringContainsString('Appairée', $content);
         self::assertStringContainsString('En attente d&#039;appairage', $content);
         self::assertMatchesRegularExpression('/<td class="num" data-label="Lettre">A<\/td>/', $content);
+    }
+
+    public function testNewTillSellsCheckedCategories(): void
+    {
+        $event = self::createEvent();
+        $this->menu($event, ['Carton' => 'Loto', 'Jetons' => 'Loto', 'Crêpe' => 'Sucré', 'Café' => 'Boissons']);
+
+        $crawler = $this->client->request('GET', '/admin/tablettes/nouvelle');
+        self::assertCount(3, $crawler->filterXPath('//input[@name="categories[]"][@checked]'), 'tout coché par défaut');
+        $form = $crawler->selectButton('Ajouter la tablette')->form(['name' => 'Caisse entrée', 'role' => 'caisse', 'direct_sale' => true]);
+        $form['categories'][1]->untick();
+        $form['categories'][2]->untick();
+        $this->client->submit($form);
+        self::assertResponseRedirects();
+
+        $device = $this->findDevice('Caisse entrée');
+        self::assertSame(['Loto'], $device->getCategories());
+        self::assertTrue($device->isDirectSale());
+
+        // Toutes cochées : tout le menu, y compris les catégories ajoutées plus tard
+        $crawler = $this->client->request('GET', '/admin/tablettes/nouvelle');
+        $this->client->submit($crawler->selectButton('Ajouter la tablette')->form(['name' => 'Caisse buvette', 'role' => 'caisse']));
+        self::assertSame([], $this->findDevice('Caisse buvette')->getCategories());
+        self::assertFalse($this->findDevice('Caisse buvette')->isDirectSale());
+    }
+
+    public function testTillNeedsAtLeastOneCategory(): void
+    {
+        $event = self::createEvent();
+        $this->menu($event, ['Carton' => 'Loto', 'Café' => 'Boissons']);
+
+        $crawler = $this->client->request('GET', '/admin/tablettes/nouvelle');
+        $form = $crawler->selectButton('Ajouter la tablette')->form(['name' => 'Caisse entrée', 'role' => 'caisse']);
+        $form['categories'][0]->untick();
+        $form['categories'][1]->untick();
+        $this->client->submit($form);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertStringContainsString('Cochez au moins une catégorie', $this->content());
+        self::assertSame(0, self::entityManager()->getRepository(Device::class)->count([]));
+    }
+
+    public function testKitchenDeviceIgnoresTillSettings(): void
+    {
+        $event = self::createEvent();
+        $this->menu($event, ['Carton' => 'Loto', 'Café' => 'Boissons']);
+
+        $crawler = $this->client->request('GET', '/admin/tablettes/nouvelle');
+        $form = $crawler->selectButton('Ajouter la tablette')->form(['name' => 'Cuisine', 'role' => 'cuisine', 'direct_sale' => true]);
+        $form['categories'][0]->untick();
+        $form['categories'][1]->untick();
+        $this->client->submit($form);
+
+        self::assertResponseRedirects();
+        self::assertSame([], $this->findDevice('Cuisine')->getCategories());
+        self::assertFalse($this->findDevice('Cuisine')->isDirectSale());
+    }
+
+    public function testSettingsOfAPairedTillAreTracedAndUnsoldCategoriesReported(): void
+    {
+        $event = self::createEvent();
+        $this->menu($event, ['Carton' => 'Loto', 'Café' => 'Boissons']);
+        [$till] = self::createPairedDevice($event, 'Caisse entrée');
+        [$kitchen] = self::createPairedDevice($event, 'Cuisine', DeviceRole::Kitchen);
+
+        $crawler = $this->client->request('GET', '/admin/tablettes');
+        self::assertCount(0, $crawler->filterXPath('//*[@id="unsold-categories"]'));
+        self::assertCount(1, $crawler->filterXPath('//a[normalize-space()="Réglages"]'), 'caisse seulement');
+
+        $crawler = $this->client->request('GET', '/admin/tablettes/'.$till->getId().'/reglages');
+        $form = $crawler->selectButton('Enregistrer les réglages')->form(['direct_sale' => true]);
+        $form['categories'][1]->untick(); // Boissons
+        $this->client->submit($form);
+        self::assertResponseRedirects('/admin/tablettes');
+
+        self::assertSame(['Loto'], $this->findDevice('Caisse entrée')->getCategories());
+        $log = self::entityManager()->getRepository(AuditLog::class)->findOneBy(['action' => 'device.update']);
+        self::assertSame(['categories' => 'tout le menu', 'direct_sale' => false], $log?->getBefore());
+        self::assertSame(['categories' => 'Loto', 'direct_sale' => true], $log->getAfter());
+
+        $crawler = $this->client->followRedirect();
+        self::assertStringContainsString('Aucune caisse ne vend la catégorie « Boissons »', $crawler->filterXPath('//*[@id="unsold-categories"]')->text());
+        self::assertStringContainsString('vente directe', $this->content());
+
+        $this->client->request('GET', '/admin/tablettes/'.$kitchen->getId().'/reglages');
+        self::assertResponseStatusCodeSame(404);
+        $this->client->request('POST', '/admin/tablettes/'.$till->getId().'/reglages', ['_token' => 'jeton-invalide']);
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    /** @param array<string, string> $categories catégorie par nom d'article */
+    private function menu(Event $event, array $categories): void
+    {
+        foreach ($categories as $name => $category) {
+            self::entityManager()->persist((new Product($event, $name))->setCategory($category));
+        }
+        self::entityManager()->flush();
     }
 
     private function clickInRow(string $name, string $button): void

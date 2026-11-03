@@ -1,0 +1,22 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Réglages de « {{ device.name }} » · Administration{% endblock %}
+
+{% block body %}
+    <p><a href="{{ path('admin_device_index') }}">← Retour aux tablettes</a></p>
+
+    <section class="card form-card">
+        <h1>Réglages de « {{ device.name }} »</h1>
+        <p class="lede">Caisse {{ device.tillLetter ?? '(lettre attribuée à l\'appairage)' }}. Modifiables à tout moment, même pendant l'événement : la caisse les applique d'ici 30 secondes.</p>
+
+        {% if errors is not empty %}
+            <p class="alert alert-error" role="alert">Le formulaire contient des erreurs : corrigez les champs signalés.</p>
+        {% endif %}
+
+        <form method="post" novalidate>
+            {% include 'admin/device/_till_settings.html.twig' %}
+            <input type="hidden" name="_token" value="{{ csrf_token('device-settings-' ~ device.id) }}">
+            <button type="submit" class="btn btn-primary">Enregistrer les réglages</button>
+        </form>
+    </section>
+{% endblock %}

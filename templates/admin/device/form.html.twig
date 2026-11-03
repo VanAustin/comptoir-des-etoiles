@@ -40,6 +40,10 @@
                 {% if errors.role is defined %}<p class="field-error" id="role-error">{{ errors.role }}</p>{% endif %}
             </fieldset>
 
+            <h2>Si c'est une caisse</h2>
+            <p class="field-help">Ignoré pour les autres rôles. Modifiable ensuite avec « Réglages », dans la liste des tablettes.</p>
+            {% include 'admin/device/_till_settings.html.twig' %}
+
             <input type="hidden" name="_token" value="{{ csrf_token('device-form') }}">
             <button type="submit" class="btn btn-primary">Ajouter la tablette</button>
         </form>

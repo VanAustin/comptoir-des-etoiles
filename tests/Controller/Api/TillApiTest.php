@@ -2,6 +2,7 @@
 
 namespace App\Tests\Controller\Api;
 
+use App\Entity\Device;
 use App\Entity\Event;
 use App\Entity\Order;
 use App\Entity\Product;
@@ -294,6 +295,39 @@ class TillApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(201);
         self::assertSame(38, $this->stockOf('Hot-dog'));
         self::assertNotNull($hotdog->getId());
+    }
+
+    public function testTillSellsOnlyItsCategories(): void
+    {
+        $em = self::entityManager();
+        $em->find(Product::class, $this->ids['Café'])->setCategory('Loto');
+        $em->getRepository(Device::class)->findOneBy(['name' => 'Caisse buvette'])->setCategories(['Loto'])->setDirectSale(true);
+        $em->flush();
+
+        $menu = $this->getMenu();
+        self::assertTrue($menu['directSale']);
+        $byName = array_column($menu['products'], null, 'name');
+        self::assertTrue($byName['Café']['soldHere']);
+        self::assertFalse($byName['Soda']['soldHere']);
+        self::assertFalse($byName['Menu Loto']['soldHere']);
+
+        $this->post($this->order(['Café' => 2], number: 1));
+        self::assertResponseStatusCodeSame(201);
+        $this->post($this->order(['Soda' => 1], number: 2));
+        self::assertResponseStatusCodeSame(422);
+        self::assertStringContainsString('Cette caisse ne vend pas « Soda »', $this->error());
+        self::assertSame(1, $this->orderCount());
+
+        // Encaissée hors ligne avant le changement de réglage : l'argent est là, acceptée
+        $this->post($this->order(['Soda' => 1], number: 2) + ['offline' => true]);
+        self::assertResponseStatusCodeSame(201);
+    }
+
+    public function testTillWithoutCategoriesSellsTheWholeMenu(): void
+    {
+        $menu = $this->getMenu();
+        self::assertFalse($menu['directSale']);
+        self::assertSame([true], array_values(array_unique(array_column($menu['products'], 'soldHere'))));
     }
 
     public function testMenuTellsWhetherTheEventHasAKitchen(): void

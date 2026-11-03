@@ -4,6 +4,7 @@ namespace App\Entity;
 
 use App\Enum\DeviceRole;
 use App\Repository\DeviceRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -44,6 +45,19 @@ class Device implements UserInterface
      */
     #[ORM\Column(length: 1, nullable: true)]
     private ?string $tillLetter = null;
+
+    /**
+     * Caisse : catégories du menu qu'elle vend (caisse de l'entrée : « Loto »).
+     * Vide = tout le menu, y compris les catégories ajoutées plus tard.
+     *
+     * @var list<string>
+     */
+    #[ORM\Column(type: Types::JSON)]
+    private array $categories = [];
+
+    /** Caisse en vente directe : rien à appeler au comptoir, pas de grand numéro à la fin. */
+    #[ORM\Column(options: ['default' => false])]
+    private bool $directSale = false;
 
     #[ORM\Column(length: 64, unique: true, nullable: true)]
     private ?string $tokenHash = null;
@@ -109,6 +123,40 @@ class Device implements UserInterface
     public function setTillLetter(?string $tillLetter): static
     {
         $this->tillLetter = $tillLetter;
+
+        return $this;
+    }
+
+    /** @return list<string> vide = tout le menu */
+    public function getCategories(): array
+    {
+        return $this->categories;
+    }
+
+    /** @param list<string> $categories */
+    public function setCategories(array $categories): static
+    {
+        $categories = array_values(array_unique($categories));
+        sort($categories);
+        $this->categories = $categories;
+
+        return $this;
+    }
+
+    /** Vrai si la caisse vend cet article (sa catégorie fait partie des siennes). */
+    public function sells(Product $product): bool
+    {
+        return [] === $this->categories || \in_array($product->getCategory(), $this->categories, true);
+    }
+
+    public function isDirectSale(): bool
+    {
+        return $this->directSale;
+    }
+
+    public function setDirectSale(bool $directSale): static
+    {
+        $this->directSale = $directSale;
 
         return $this;
     }
