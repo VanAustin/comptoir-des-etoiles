@@ -199,7 +199,7 @@ Le service worker, donc le mode hors ligne, **ne fonctionne qu'en HTTPS** (ou su
 
 - `composer.lock` commité. `composer audit` lancé par une GitHub Action à chaque pull request et chaque semaine (gratuit pour un dépôt public).
 - Dependabot activé pour Composer et GitHub Actions.
-- `.github/workflows/tests.yml` à chaque pull request et fusion sur `main` : PHP 8.3 (`shivammathur/setup-php`), MySQL 8.4 en service, `composer validate`, `lint:yaml`, `lint:twig`, `lint:container`, migrations sur une base neuve (aller, `schema:validate`, retour, aller), puis PHPUnit. Ne jamais fusionner une PR sans la coche verte. PHPUnit 12 exige PHP 8.3 : PHP 8.2 n'est plus testé.
+- `.github/workflows/tests.yml` à chaque pull request et fusion sur `main` : PHP 8.3 (développement) et PHP 8.4 (production), en parallèle (`shivammathur/setup-php`), MySQL 8.4 en service, `composer validate`, `lint:yaml`, `lint:twig`, `lint:container`, migrations sur une base neuve (aller, `schema:validate`, retour, aller), puis PHPUnit. Ne jamais fusionner une PR sans la coche verte. PHPUnit 12 exige PHP 8.3 : PHP 8.2 n'est plus testé.
 - Tests obligatoires pour : authentification et CSRF de l'administration, appairage et expiration des jetons, droits de chaque rôle sur l'API (une tablette `affichage` ne peut pas créer de commande, etc.), recalcul des totaux par le serveur, idempotence, événement sans cuisine (état `served`, rôles refusés).
 
 ## Si le projet devient public
