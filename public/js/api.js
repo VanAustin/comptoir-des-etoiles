@@ -1,6 +1,7 @@
 // Appels à l'API des tablettes : jeton dans l'en-tête Authorization, réponses JSON.
 
 import { getPairing } from "./device-store.js";
+import { REQUEST_TIMEOUT_MS } from "./poll-rules.js";
 
 const BASE_PATH = document.documentElement.dataset.basePath ?? "";
 
@@ -62,19 +63,21 @@ export async function apiFetch(path, options = {}) {
 }
 
 /**
- * Lecture d'une route interrogée en boucle (cuisine, Arrivées, suivi). La tablette
- * renvoie l'empreinte reçue : tant que rien n'a changé, le serveur répond 304
- * sans contenu, et data vaut null.
+ * Lecture d'une route interrogée en boucle (cuisine, Arrivées, suivi et menu de la caisse).
+ * La tablette renvoie l'empreinte reçue : tant que rien n'a changé, le serveur répond 304
+ * sans contenu, et data vaut null. Abandonnée sans réponse au bout de 8 s.
  *
  * @param {string} path
  * @param {string|null} etag empreinte de la réponse précédente
- * @returns {Promise<{data: object|null, etag: string|null}>}
+ * @returns {Promise<{data: object|null, etag: string|null, date: string|null}>}
+ *   date : en-tête Date, l'heure du serveur (aussi sur une 304)
  */
 export async function apiPoll(path, etag) {
   // no-store : le navigateur ne répond pas lui-même 200 depuis son cache, le 304 arrive jusqu'ici
-  const response = await send(path, { headers: etag ? { "If-None-Match": etag } : {}, cache: "no-store" });
+  const response = await send(path, { headers: etag ? { "If-None-Match": etag } : {}, cache: "no-store", timeout: REQUEST_TIMEOUT_MS });
+  const date = response.headers.get("Date");
   if (response.status === 304) {
-    return { data: null, etag };
+    return { data: null, etag, date };
   }
-  return { data: await read(response), etag: response.headers.get("ETag") };
+  return { data: await read(response), etag: response.headers.get("ETag"), date };
 }

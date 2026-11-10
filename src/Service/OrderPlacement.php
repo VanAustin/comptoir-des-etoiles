@@ -39,6 +39,7 @@ class OrderPlacement
         private readonly ManagerRegistry $registry,
         private readonly OrderRepository $orders,
         private readonly ProductRepository $products,
+        private readonly Revisions $revisions,
     ) {
     }
 
@@ -144,7 +145,7 @@ class OrderPlacement
 
         $this->em->persist($order);
         try {
-            $this->em->flush();
+            $this->revisions->flushOrders($event);
         } catch (UniqueConstraintViolationException) {
             // Deux envois simultanés : la base a tranché. Le gestionnaire d'entités
             // est fermé après l'erreur, on relit l'état avec un gestionnaire neuf.

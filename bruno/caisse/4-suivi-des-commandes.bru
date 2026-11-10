@@ -28,7 +28,8 @@ tests {
   test("la liste est renvoyée (200)", function () {
     expect(res.status).to.equal(200);
     expect(res.body.orders).to.be.an("array");
-    expect(res.body.serverTime).to.match(/^\d{4}-\d{2}-\d{2}T/);
+    // Heure du serveur dans l'en-tête Date, aussi sur une 304
+    expect(Date.parse(res.headers.date)).to.be.a("number").and.not.NaN;
   });
 
   test("numéros et états seulement, ni montant ni article", function () {

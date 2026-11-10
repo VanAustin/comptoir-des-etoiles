@@ -5,6 +5,7 @@ namespace App\Repository;
 use App\Entity\Device;
 use App\Entity\Event;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\Query;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -23,9 +24,21 @@ class DeviceRepository extends ServiceEntityRepository
         return $this->findBy(['event' => $event], ['createdAt' => 'ASC', 'id' => 'ASC']);
     }
 
+    /**
+     * Avec son événement, dans la même requête : l'authentification vérifie qu'il est actif, et
+     * ses numéros de révision suffisent à répondre 304 aux interrogations (une seule lecture).
+     */
     public function findOneByTokenHash(string $tokenHash): ?Device
     {
-        return $this->findOneBy(['tokenHash' => $tokenHash]);
+        return $this->createQueryBuilder('d')
+            ->addSelect('e')
+            ->join('d.event', 'e')
+            ->where('d.tokenHash = :hash')
+            ->setParameter('hash', $tokenHash)
+            ->getQuery()
+            // Révisions telles qu'en base, même si l'événement était déjà en mémoire
+            ->setHint(Query::HINT_REFRESH, true)
+            ->getOneOrNullResult();
     }
 
     public function findOneByPairingCodeHash(string $codeHash): ?Device

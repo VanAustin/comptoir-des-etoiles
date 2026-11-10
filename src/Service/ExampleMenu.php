@@ -31,6 +31,7 @@ class ExampleMenu
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly AuditLogger $auditLogger,
+        private readonly Revisions $revisions,
     ) {
     }
 
@@ -53,7 +54,7 @@ class ExampleMenu
         }
 
         $this->auditLogger->log('menu.example', 'event:'.$event->getId().' '.$event->getName(), after: ['products' => \count($products)]);
-        $this->entityManager->flush();
+        $this->revisions->flushMenu($event);
 
         return \count($products);
     }

@@ -8,7 +8,7 @@ framework:
             interval: '15 minutes'
 
         # API des tablettes : 120 requêtes par minute et par tablette
-        # (interrogation toutes les 5 secondes, avec beaucoup de marge).
+        # (cuisine et Arrivées : 30 par minute au plus rapide, toutes les 2 secondes ; large marge).
         device_api:
             policy: sliding_window
             limit: 120

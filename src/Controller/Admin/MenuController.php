@@ -11,6 +11,7 @@ use App\Repository\ProductRepository;
 use App\Service\AuditLogger;
 use App\Service\ExampleMenu;
 use App\Service\Money;
+use App\Service\Revisions;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -43,6 +44,7 @@ class MenuController extends AbstractController
         private readonly ProductRepository $products,
         private readonly EntityManagerInterface $entityManager,
         private readonly AuditLogger $auditLogger,
+        private readonly Revisions $revisions,
     ) {
     }
 
@@ -107,7 +109,7 @@ class MenuController extends AbstractController
         }
 
         $moved = $this->move($event, $request->getPayload()->getString('move'));
-        $this->entityManager->flush();
+        $this->revisions->flushMenu($event);
 
         if ($updated > 0 || null === $moved) {
             $this->addFlash('info', match ($updated) {
@@ -163,7 +165,7 @@ class MenuController extends AbstractController
                 }
             }
             $product->archive();
-            $this->entityManager->flush();
+            $this->revisions->flushMenu($event);
             $this->addFlash('info', \sprintf('« %s » est retiré du menu.', $product->getName()));
 
             return $this->redirectToRoute('admin_menu');
@@ -224,17 +226,19 @@ class MenuController extends AbstractController
                     $product->setComponentQuantity($candidate, $quantities[$candidate->getId()] ?? 0);
                 }
 
-                if ($isNew) {
-                    $product->setPosition($this->products->nextPosition($event));
-                    $this->entityManager->persist($product);
-                    $this->entityManager->flush();
-                    $this->auditLogger->log('product.create', 'product:'.$product->getId().' '.$product->getName(), after: self::snapshot($product));
-                    $this->addFlash('info', \sprintf($isFormula ? 'La formule « %s » est ajoutée au menu.' : '« %s » est ajouté au menu.', $product->getName()));
-                } else {
-                    $this->logChanges($product, $before);
-                    $this->addFlash('info', \sprintf('« %s » est enregistré.', $product->getName()));
-                }
-                $this->entityManager->flush();
+                $this->revisions->flushMenu($event, function () use ($isNew, $isFormula, $product, $event, $before): void {
+                    if ($isNew) {
+                        $product->setPosition($this->products->nextPosition($event));
+                        $this->entityManager->persist($product);
+                        // Identifiant nécessaire au journal d'audit
+                        $this->entityManager->flush();
+                        $this->auditLogger->log('product.create', 'product:'.$product->getId().' '.$product->getName(), after: self::snapshot($product));
+                        $this->addFlash('info', \sprintf($isFormula ? 'La formule « %s » est ajoutée au menu.' : '« %s » est ajouté au menu.', $product->getName()));
+                    } else {
+                        $this->logChanges($product, $before);
+                        $this->addFlash('info', \sprintf('« %s » est enregistré.', $product->getName()));
+                    }
+                });
 
                 return $this->redirect($this->generateUrl('admin_menu').'#produit-'.$product->getId());
             }

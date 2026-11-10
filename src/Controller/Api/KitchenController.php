@@ -9,7 +9,7 @@ use App\Enum\LineKind;
 use App\Enum\OrderStatus;
 use App\Repository\OrderRepository;
 use App\Repository\ProductRepository;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Service\Revisions;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -29,17 +29,16 @@ class KitchenController extends AbstractController
      * manqué une réponse se recale toute seule à la suivante.
      */
     #[Route('/api/orders', name: 'api_orders_open', methods: ['GET'])]
-    public function open(#[CurrentUser] Device $device, Request $request, OrderRepository $orders, ProductRepository $products): JsonResponse
+    public function open(#[CurrentUser] Device $device, Request $request, PollResponse $poll, OrderRepository $orders, ProductRepository $products): Response
     {
         $event = $device->getEvent();
-        $names = self::productNames($products->findAllForEvent($event));
 
-        return PollResponse::create(
-            $request,
-            ['orders' => array_map(static fn (Order $o): array => self::describe($o, $names), $orders->findOpen($event))],
-            // Les temps d'attente se calculent sur l'heure du serveur, pas sur celle de la tablette
-            ['serverTime' => (new \DateTimeImmutable())->format(\DATE_ATOM)],
-        );
+        // Noms des articles dans les formules : dépend aussi du menu
+        return $poll->create($request, $event, true, static function () use ($event, $orders, $products): array {
+            $names = self::productNames($products->findAllForEvent($event));
+
+            return ['orders' => array_map(static fn (Order $o): array => self::describe($o, $names), $orders->findOpen($event))];
+        });
     }
 
     /**
@@ -47,7 +46,7 @@ class KitchenController extends AbstractController
      * Demander l'état où elle est déjà ne change rien (deux tablettes cuisine).
      */
     #[Route('/api/orders/{uuid}/status', name: 'api_orders_status', requirements: ['uuid' => self::UUID], methods: ['POST'])]
-    public function status(#[CurrentUser] Device $device, string $uuid, Request $request, OrderRepository $orders, ProductRepository $products, EntityManagerInterface $entityManager): JsonResponse
+    public function status(#[CurrentUser] Device $device, string $uuid, Request $request, OrderRepository $orders, ProductRepository $products, Revisions $revisions): JsonResponse
     {
         try {
             $next = OrderStatus::tryFrom($request->toArray()['status'] ?? '');
@@ -75,7 +74,7 @@ class KitchenController extends AbstractController
                 ], Response::HTTP_CONFLICT);
             }
             $order->setStatus($next);
-            $entityManager->flush();
+            $revisions->flushOrders($event);
         }
 
         return new JsonResponse(self::describe($order, self::productNames($products->findAllForEvent($event))));

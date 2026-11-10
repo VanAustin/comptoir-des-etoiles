@@ -20,6 +20,8 @@ script:post-response {
     bru.setVar("kitchenOrderUuid", res.body.orders[0].uuid);
     bru.setVar("kitchenOrderStatus", res.body.orders[0].status);
   }
+  // Pour « 3. Rien de neuf (304) »
+  bru.setVar("kitchenEtag", res.headers.etag);
 }
 
 tests {
@@ -28,8 +30,9 @@ tests {
     expect(res.body.orders).to.be.an("array");
   });
 
-  test("l'heure du serveur est jointe", function () {
-    expect(res.body.serverTime).to.match(/^\d{4}-\d{2}-\d{2}T/);
+  test("l'heure du serveur est dans l'en-tête Date, plus dans le contenu", function () {
+    expect(Date.parse(res.headers.date)).to.be.a("number").and.not.NaN;
+    expect(res.body).to.not.have.property("serverTime");
   });
 
   test("seulement des commandes en cours, sans montant", function () {
@@ -41,15 +44,16 @@ tests {
     });
   });
 
-  test("une empreinte permet de répondre « rien de neuf »", function () {
-    expect(res.headers.etag).to.be.a("string");
+  test("une empreinte permet de répondre « rien de neuf », jamais gardée par un intermédiaire", function () {
+    expect(res.headers.etag).to.match(/^"e\d+-o\d+-m\d+-v\d+(-gzip)?"$/);
+    expect(res.headers["cache-control"]).to.equal("no-cache, private");
   });
 }
 
 docs {
-  Liste complète des commandes en cours (nouvelle, en préparation, prête), de la plus ancienne à la plus récente. La tablette cuisine l'interroge toutes les 2 à 3 secondes.
+  Liste complète des commandes en cours (nouvelle, en préparation, prête), de la plus ancienne à la plus récente. La tablette cuisine l'interroge toutes les 3 secondes (2 secondes pendant les 30 secondes qui suivent un changement).
 
-  Avec l'en-tête `If-None-Match` contenant l'empreinte (`ETag`) reçue, le serveur répond 304 sans contenu tant que rien n'a changé.
+  L'empreinte (`ETag`) est faite des numéros de révision de l'événement. Renvoyée dans `If-None-Match`, le serveur répond 304 sans contenu tant que rien n'a changé, sans relire les commandes (« 3. Rien de neuf »). L'heure du serveur, pour les temps d'attente, est dans l'en-tête `Date`.
 
   Nécessite une tablette **cuisine** appairée et au moins une commande avec un article cuisine (« Caisse / 2. Créer une commande », ou l'écran Caisse).
 }

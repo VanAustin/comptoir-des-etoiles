@@ -9,6 +9,7 @@ use App\Entity\Product;
 use App\Menu\IconCatalog;
 use App\Tests\FixturesTrait;
 use App\Tests\ResetDatabaseTrait;
+use App\Tests\RevisionsTrait;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
@@ -16,6 +17,7 @@ class MenuControllerTest extends WebTestCase
 {
     use FixturesTrait;
     use ResetDatabaseTrait;
+    use RevisionsTrait;
 
     private KernelBrowser $client;
 
@@ -43,8 +45,10 @@ class MenuControllerTest extends WebTestCase
         self::createEvent();
 
         $token = $this->tokenOnPage('/admin/menu', '/admin/menu/exemple');
+        $before = self::revisionsOf();
         $this->client->request('POST', '/admin/menu/exemple', ['_token' => $token]);
         self::assertResponseRedirects('/admin/menu');
+        self::assertRevisionsMoved($before, 0, 1);
 
         self::assertSame(12, $this->productRepository()->count());
         $formula = $this->findProduct('Menu Loto');
@@ -58,6 +62,7 @@ class MenuControllerTest extends WebTestCase
         // Une seconde fois : refusé, le menu n'est pas vide
         $this->client->request('POST', '/admin/menu/exemple', ['_token' => $token]);
         self::assertSame(12, $this->productRepository()->count());
+        self::assertRevisionsMoved($before, 0, 1, message: 'refus : rien de changé');
     }
 
     public function testAddProduct(): void
@@ -68,6 +73,7 @@ class MenuControllerTest extends WebTestCase
         $crawler = $this->client->request('GET', '/admin/menu');
         $this->client->click($crawler->selectLink('Ajouter un article')->link());
         self::assertResponseIsSuccessful();
+        $before = self::revisionsOf();
         $this->client->submitForm('Ajouter l\'article', [
             'name' => ' Soda ',
             'icon' => 'cup-soda',
@@ -87,6 +93,7 @@ class MenuControllerTest extends WebTestCase
         self::assertTrue($soda->hasDeposit());
         self::assertSame(5, $soda->getPosition(), 'ajouté à la fin du menu');
         self::assertSame(1, $this->auditCount('product.create'));
+        self::assertRevisionsMoved($before, 0, 1, message: 'les caisses voient le nouvel article');
     }
 
     public function testAddInvalidProduct(): void
@@ -141,9 +148,11 @@ class MenuControllerTest extends WebTestCase
         $cafe = $this->createProduct('Café', 100);
 
         $this->client->request('GET', '/admin/menu/'.$cafe->getId().'/modifier');
+        $before = self::revisionsOf();
         $this->client->submitForm('Enregistrer l\'article', ['name' => 'Café long', 'icon' => 'coffee']);
 
         self::assertResponseRedirects('/admin/menu#produit-'.$cafe->getId());
+        self::assertRevisionsMoved($before, 0, 1);
         $cafe = $this->findProduct('Café long');
         self::assertSame('coffee', $cafe->getIcon());
         $log = self::entityManager()->getRepository(AuditLog::class)->findOneBy(['action' => 'product.update']);
@@ -331,9 +340,11 @@ class MenuControllerTest extends WebTestCase
         $form = $crawler->selectButton('Enregistrer le menu')->form();
         $form['products['.$crepe->getId().'][price]'] = '1,80';
         $form['products['.$crepe->getId().'][stock]'] = '80';
+        $before = self::revisionsOf();
         $this->client->submit($form);
 
         self::assertResponseRedirects('/admin/menu');
+        self::assertRevisionsMoved($before, 0, 1, message: 'prix et stocks : les caisses les voient');
         $crepe = $this->findProduct('Crêpe sucre');
         self::assertSame(180, $crepe->getPriceCents());
         self::assertSame(80, $crepe->getInitialStock());
@@ -358,9 +369,11 @@ class MenuControllerTest extends WebTestCase
         $form = $crawler->selectButton('Enregistrer le menu')->form();
         $form['products['.$crepe->getId().'][price]'] = '1,80';
         $form['products['.$cafe->getId().'][price]'] = 'gratuit';
+        $before = self::revisionsOf();
         $this->client->submit($form);
 
         self::assertResponseStatusCodeSame(422);
+        self::assertRevisionsMoved($before, 0, 0, message: 'rien enregistré, révision inchangée');
         self::assertStringContainsString('Rien n\'a été enregistré', $this->content());
         self::assertSame(150, $this->findProduct('Crêpe sucre')->getPriceCents());
         self::assertSame(0, $this->auditCount('product.update'));
@@ -390,9 +403,11 @@ class MenuControllerTest extends WebTestCase
         self::assertStringContainsString('Retirer « Café » du menu ?', $this->content());
         self::assertSame(1, $this->productRepository()->count(), 'Rien n\'est retiré avant confirmation');
 
+        $before = self::revisionsOf();
         $this->client->submit($crawler->selectButton('Retirer l\'article')->form());
 
         self::assertResponseRedirects('/admin/menu');
+        self::assertRevisionsMoved($before, 0, 1, message: 'l\'article disparaît des caisses');
         // Archivé : hors du menu, mais toujours en base pour l'historique
         self::assertSame(1, $this->productRepository()->count());
         self::assertTrue($this->findProductById($cafe->getId())->isArchived());

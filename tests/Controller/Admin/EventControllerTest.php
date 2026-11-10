@@ -11,6 +11,7 @@ use App\Enum\DeviceRole;
 use App\Enum\PaymentMethod;
 use App\Service\DevicePairing;
 use App\Tests\ResetDatabaseTrait;
+use App\Tests\RevisionsTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -18,6 +19,7 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 class EventControllerTest extends WebTestCase
 {
     use ResetDatabaseTrait;
+    use RevisionsTrait;
 
     private KernelBrowser $client;
     private EntityManagerInterface $entityManager;
@@ -106,6 +108,7 @@ class EventControllerTest extends WebTestCase
         $event = $this->createEvent('Loto', '2026-12-18');
 
         $crawler = $this->client->request('GET', '/admin/evenements/'.$event->getId().'/modifier');
+        $before = self::revisionsOf($event->getId());
         $this->client->submit($crawler->selectButton('Enregistrer l\'événement')->form([
             'name' => 'Loto de Noël',
             'date' => '2026-12-19',
@@ -113,6 +116,7 @@ class EventControllerTest extends WebTestCase
         ]));
 
         self::assertResponseRedirects('/admin/evenements');
+        self::assertRevisionsMoved($before, 0, 1, $event->getId(), 'nom, date et consigne font partie du menu des caisses');
         $this->entityManager->clear();
         $event = $this->findEvent('Loto de Noël');
         self::assertSame('2026-12-19', $event?->getDate()->format('Y-m-d'));

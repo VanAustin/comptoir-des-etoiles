@@ -10,6 +10,7 @@ use App\Entity\Product;
 use App\Enum\DeviceRole;
 use App\Tests\FixturesTrait;
 use App\Tests\ResetDatabaseTrait;
+use App\Tests\RevisionsTrait;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
@@ -17,6 +18,7 @@ class DeviceControllerTest extends WebTestCase
 {
     use FixturesTrait;
     use ResetDatabaseTrait;
+    use RevisionsTrait;
 
     private KernelBrowser $client;
 
@@ -230,8 +232,10 @@ class DeviceControllerTest extends WebTestCase
         $crawler = $this->client->request('GET', '/admin/tablettes/'.$till->getId().'/reglages');
         $form = $crawler->selectButton('Enregistrer les réglages')->form(['direct_sale' => true]);
         $form['categories'][1]->untick(); // Boissons
+        $before = self::revisionsOf($event->getId());
         $this->client->submit($form);
         self::assertResponseRedirects('/admin/tablettes');
+        self::assertRevisionsMoved($before, 0, 1, $event->getId(), 'la caisse reçoit ses nouvelles catégories');
 
         self::assertSame(['Loto'], $this->findDevice('Caisse entrée')->getCategories());
         $log = self::entityManager()->getRepository(AuditLog::class)->findOneBy(['action' => 'device.update']);
