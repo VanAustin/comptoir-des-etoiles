@@ -1,4 +1,4 @@
-// Écran Cuisine : tickets des commandes en cours, mis à jour en direct (hub Mercure) ou toutes les 5 secondes.
+// Écran Cuisine : tickets des commandes en cours, mis à jour toutes les 5 secondes.
 // Chaque appui (« Je prépare », « Prête », « Remise au client ») part après 5 secondes,
 // le temps de l'annuler en cas d'erreur.
 

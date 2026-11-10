@@ -2,8 +2,6 @@
 
 Sans réseau, **les caisses continuent d'encaisser** : chaque commande est gardée sur la tablette et part toute seule au retour du réseau. En revanche, **la cuisine et l'écran Arrivées ne reçoivent plus rien** : pendant la coupure, les commandes passent en cuisine sur papier et les numéros s'annoncent à voix haute.
 
-Avec ou sans temps réel : si le serveur dispose d'un hub Mercure (voir `README.md`, « Temps réel »), les commandes s'affichent en cuisine et sur l'écran Arrivées en moins d'une seconde ; sinon, en 5 secondes au plus. Cela ne change rien à cette fiche : sans réseau, ni l'un ni l'autre ne fonctionne.
-
 ## Comment la reconnaître
 
 | Écran | Message |
@@ -35,10 +33,6 @@ Avec ou sans temps réel : si le serveur dispose d'un hub Mercure (voir `README.
 ### Arrivées
 
 L'écran n'est plus à jour : ne vous y fiez pas pendant la coupure. Les numéros s'annoncent à voix haute.
-
-### Commandes en retard, sans message d'erreur
-
-Le réseau fonctionne, aucun bandeau ne s'affiche, mais les commandes mettent jusqu'à 30 secondes à arriver en cuisine : le temps réel (hub Mercure) est coupé, pas l'application. Rien n'est perdu, le service peut continuer ainsi. Prévenez le ou la responsable, qui vérifie le hub sur le serveur après le service. Si le délai gêne, la caisse annonce de vive voix les commandes avec des plats, comme pendant une coupure.
 
 ### Rétablir le réseau
 

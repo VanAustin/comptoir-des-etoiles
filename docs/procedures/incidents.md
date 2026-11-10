@@ -30,8 +30,7 @@ Avant de le faire sur une caisse, vérifiez qu'elle n'a plus de commande « en a
 
 1. Sur la caisse, l'en-tête indique-t-il des commandes « en attente d'envoi » ? C'est une coupure réseau : fiche [Coupure réseau](coupure-reseau.md).
 2. La commande ne contenait-elle que des articles hors cuisine (boissons…) ? Elle est servie directement au comptoir et n'apparaît jamais en cuisine.
-3. Les commandes arrivent, mais avec jusqu'à 30 secondes de retard et sans message d'erreur : le temps réel est coupé (voir [Coupure réseau](coupure-reseau.md), « Commandes en retard »). Après le service, vérifiez sur le serveur que le hub Mercure tourne.
-4. Sinon, cherchez le numéro (par exemple A12) dans **Carnet de bord**, historique des commandes.
+3. Sinon, cherchez le numéro (par exemple A12) dans **Carnet de bord**, historique des commandes.
 
 ## Erreur d'encaissement
 

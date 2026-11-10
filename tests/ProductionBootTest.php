@@ -1,27 +1,23 @@
 <?php
 
-namespace App\Tests\Realtime;
+namespace App\Tests;
 
 use PHPUnit\Framework\TestCase;
 
 /**
- * Production sans hub Mercure (MERCURE_URL vide) : le cache se prépare et les pages s'affichent.
- * Dans un processus à part, en environnement prod : les tests remplacent le hub (RecordingHub)
- * et ne passeraient jamais par sa construction.
+ * Environnement prod : le cache se prépare et les pages s'affichent.
+ * Dans un processus à part : les autres tests tournent en environnement test et ne
+ * verraient jamais une configuration réservée à la production.
  */
-final class ProductionWithoutHubTest extends TestCase
+final class ProductionBootTest extends TestCase
 {
     private const ENV = [
         'APP_ENV' => 'prod',
         'APP_DEBUG' => '0',
-        'APP_SECRET' => 'secret-de-test-production-sans-hub',
-        'MERCURE_URL' => '',
-        'MERCURE_PUBLIC_URL' => '',
-        'MERCURE_JWT_SECRET' => '',
-        'MERCURE_JWT_ISSUER' => '',
+        'APP_SECRET' => 'secret-de-test-production',
     ];
 
-    public function testCacheClearAndPagesWorkWithoutHub(): void
+    public function testCacheClearAndPagesWorkInProduction(): void
     {
         [$code, $output] = self::execute([\PHP_BINARY, 'bin/console', 'cache:clear', '--no-interaction']);
         self::assertSame(0, $code, $output);
@@ -45,7 +41,7 @@ final class ProductionWithoutHubTest extends TestCase
     private static function execute(array $command): array
     {
         $env = self::ENV + getenv();
-        $process = proc_open($command, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, \dirname(__DIR__, 2), $env);
+        $process = proc_open($command, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, \dirname(__DIR__), $env);
         self::assertIsResource($process);
         $stdout = stream_get_contents($pipes[1]);
         $stderr = stream_get_contents($pipes[2]);

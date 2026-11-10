@@ -7,18 +7,6 @@
 :80 {
 	root * /app/public
 
-	# Hub Mercure intégré : les tablettes s'abonnent sur la même adresse que l'application.
-	# Abonnement anonyme : les messages ne contiennent aucune donnée (« quelque chose a changé »).
-	mercure {
-		# Seule l'application publie : jetons signés avec la clé partagée et l'émetteur attendu
-		issuer {$MERCURE_JWT_ISSUER} {
-			publisher {
-				jwt {env.MERCURE_JWT_SECRET} HS256
-			}
-		}
-		anonymous
-	}
-
 	# Toute URL qui ne correspond pas à un fichier est confiée à Symfony (public/index.php).
 	# Contrairement à Apache, l'en-tête Authorization des tablettes est transmis tel quel.
 	php_server
