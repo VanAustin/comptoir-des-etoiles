@@ -13,7 +13,7 @@
 4. **Tablettes**, une fois l'événement du jour activé : créez une fiche par tablette (« Caisse buvette », « Cuisine », « Écran Arrivées »…) avec son rôle. Pour une caisse, cochez les catégories qu'elle vend (« Loto » seul pour la table de l'entrée, tout sauf « Loto » pour la buvette) et « Vente directe » si elle n'a pas de numéro à annoncer (cartons, jetons) ; modifiable ensuite avec « Réglages », même pendant l'événement. Les fiches sont rattachées à l'événement actif : celles de la répétition ne servent plus, il faut les recréer. L'appairage peut se faire la veille ou sur place : le jeton d'une tablette reste valable jusqu'au lendemain de l'événement, 6 h.
 5. Vérifiez que vous pouvez vous connecter à l'administration. Mot de passe oublié : voir [Incidents](incidents.md).
 6. Chargez toutes les tablettes et le ou les téléphones qui partageront la 4G. Prévoyez rallonges et chargeurs.
-7. Imprimez la fiche [Coupure réseau](coupure-reseau.md) pour chaque poste, et prévoyez un carnet et un stylo par caisse.
+7. Imprimez la fiche [Bénévoles](benevoles.md), en y écrivant l'adresse du site et votre nom, et la fiche [Coupure réseau](coupure-reseau.md) pour chaque poste, et prévoyez un carnet et un stylo par caisse.
 
 ## Installation sur place
 

@@ -229,7 +229,7 @@ Après une mise à jour du serveur, un bandeau « Nouvelle version de l'applicat
 
 ## Procédures pour l'événement
 
-Fiches à imprimer pour l'équipe, dans `docs/procedures/` : [jour J](docs/procedures/jour-j.md), [coupure réseau](docs/procedures/coupure-reseau.md), [clôture](docs/procedures/cloture.md) et [incidents](docs/procedures/incidents.md).
+Fiches à imprimer pour l'équipe, dans `docs/procedures/` : [bénévoles](docs/procedures/benevoles.md) (une page, pour tous), [jour J](docs/procedures/jour-j.md), [coupure réseau](docs/procedures/coupure-reseau.md), [clôture](docs/procedures/cloture.md) et [incidents](docs/procedures/incidents.md).
 
 ## Tester sur le terrain
 

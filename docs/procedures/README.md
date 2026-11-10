@@ -4,6 +4,7 @@ Fiches à imprimer pour l'équipe, une par situation. Elles décrivent l'applica
 
 | Fiche | Pour qui | Quand |
 | --- | --- | --- |
+| [Bénévoles](benevoles.md) | Tous les bénévoles, sans connaissance technique | Installation, pendant le service, fin de soirée (une page) |
 | [Jour J](jour-j.md) | Responsable de l'événement | Veille, installation, pendant le service |
 | [Coupure réseau](coupure-reseau.md) | Caisses, cuisine, comptoir | Dès que le réseau tombe |
 | [Clôture](cloture.md) | Responsable de l'événement, trésorier ou trésorière | Fin du service |
