@@ -196,7 +196,7 @@ php bin/console doctrine:migrations:migrate
 php bin/console cache:clear
 ```
 
-Évitez de mettre à jour pendant un événement.
+Évitez de mettre à jour pendant un événement. Procédure détaillée pour notre serveur, avec les vérifications et le retour arrière : [docs/hebergement.md](docs/hebergement.md).
 
 ## Installer l'application sur une tablette
 
