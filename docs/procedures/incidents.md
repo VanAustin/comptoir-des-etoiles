@@ -38,4 +38,4 @@ Ne réencaissez pas par-dessus. **Carnet de bord**, ligne de la commande, **Annu
 
 ## Le site ne répond plus du tout
 
-Si même la page d'accueil ne s'ouvre pas avec un bon réseau (essayez sur un téléphone en 4G), le serveur a un problème. Les caisses continuent d'encaisser hors ligne : appliquez la fiche [Coupure réseau](coupure-reseau.md) pendant que quelqu'un contacte l'hébergeur ou consulte `var/log/prod.log` sur le serveur.
+Si même la page d'accueil ne s'ouvre pas avec un bon réseau (essayez sur un téléphone en 4G), le serveur a un problème. Les caisses continuent d'encaisser hors ligne : appliquez la fiche [Coupure réseau](coupure-reseau.md) pendant que quelqu'un vérifie le serveur : `docs/hebergement.md`, étapes 7.4 (Apache et MySQL), 7.5 (certificat) et 7.8 (pannes dans le journal d'Apache).

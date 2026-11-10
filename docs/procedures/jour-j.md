@@ -2,11 +2,7 @@
 
 ## La veille
 
-1. **Sauvegarde** sur le serveur, puis copie sur votre ordinateur :
-
-   ```
-   php bin/console app:backup
-   ```
+1. **Serveur** : vérifications de la veille et sauvegarde rapatriée sur votre ordinateur (`docs/hebergement.md`, étapes 7.9 et 7.10). Celles d'une semaine avant (7.1 à 7.8) sont déjà faites.
 
 2. Dans l'administration, **Événements** : l'événement du jour existe, avec la bonne date, le montant de la consigne (0 s'il n'y en a pas) et la case **Avec cuisine** (décochée pour un stand sans préparation, comme le stand de Noël : toutes les commandes sont servies au comptoir et seules les tablettes caisse fonctionnent). Cette case ne se modifie plus après la première commande. Activez-le avec **Activer** : un seul événement est actif à la fois, et les tablettes rattachées à un autre événement (la répétition, par exemple) cessent de fonctionner.
 3. **Menu** : prix, stocks de départ (approximatifs, ils ne bloquent jamais une vente), articles qui passent en cuisine (colonne absente pour un événement sans cuisine), articles avec consigne, formules. Décochez « Vendu seul » pour un article vendu seulement dans les formules (saucisse d'un menu) : il disparaît des caisses, son stock reste décompté.
