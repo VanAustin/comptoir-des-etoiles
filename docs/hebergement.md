@@ -291,6 +291,23 @@ ls -l ~/comptoir-*.sql
 
 Résultat attendu : `[OK] Base sauvegardée dans …`, puis le fichier du jour dans la liste, avec une taille supérieure à 0. Sans ce fichier, **ne continuez pas**.
 
+Rapatriez ensuite une copie sur le Mac : si le serveur tombait en panne, la sauvegarde restée sur le serveur serait perdue avec lui. Laissez la connexion au serveur ouverte. Dans Terminal, ouvrez **une nouvelle fenêtre** (menu Shell, Nouvelle fenêtre) : ses commandes s'exécutent sur le Mac. Tapez-y :
+
+```
+mkdir -p ~/Documents/comptoir-sauvegardes
+scp '<utilisateur>@<adresse du serveur>:comptoir-*.sql' ~/Documents/comptoir-sauvegardes/
+ls -l ~/Documents/comptoir-sauvegardes/
+```
+
+- `<utilisateur>@<adresse du serveur>` : les mêmes valeurs que pour `ssh` (section 1). Si un mot de passe est demandé, c'est celui de la connexion `ssh`.
+- Gardez les apostrophes autour de la première partie : elles demandent au serveur de chercher lui-même les fichiers `comptoir-*.sql`, rangés dans votre dossier personnel du serveur.
+
+Résultat attendu : une ligne par fichier copié, avec `100%`, puis la liste du dossier, où apparaît le fichier du jour (par exemple `comptoir-2026-11-20_143005.sql`) avec la même taille que sur le serveur.
+
+Le dossier `Documents/comptoir-sauvegardes` est **hors du dépôt Git** : ne rangez jamais une sauvegarde dans le dossier du projet sur le Mac. Elle contient les données réelles de l'association (commandes, empreintes des mots de passe et des jetons) et ne doit pas finir sur GitHub. Ne la partagez pas.
+
+Revenez ensuite à la fenêtre connectée au serveur pour la suite.
+
 ### 5.4 Récupérer la nouvelle version
 
 ```
