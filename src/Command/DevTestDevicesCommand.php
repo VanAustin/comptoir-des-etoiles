@@ -2,15 +2,16 @@
 
 namespace App\Command;
 
+use App\Entity\AuditLog;
 use App\Entity\Device;
 use App\Enum\DeviceRole;
 use App\Repository\EventRepository;
-use App\Service\AuditLogger;
 use App\Service\DevicePairing;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -29,6 +30,9 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 )]
 final class DevTestDevicesCommand extends Command
 {
+    /** Auteur inscrit dans le journal d'audit (pas d'utilisateur connecté en ligne de commande). */
+    public const AUDIT_ACTOR = 'commande app:dev:test-devices';
+
     private const DEVICES = [
         [DeviceRole::Till, 'Caisse d\'essai'],
         [DeviceRole::Kitchen, 'Cuisine d\'essai'],
@@ -39,12 +43,16 @@ final class DevTestDevicesCommand extends Command
         private readonly EntityManagerInterface $entityManager,
         private readonly EventRepository $events,
         private readonly DevicePairing $pairing,
-        private readonly AuditLogger $auditLogger,
         private readonly UrlGeneratorInterface $urls,
         #[Autowire('%kernel.environment%')]
         private readonly string $environment,
     ) {
         parent::__construct();
+    }
+
+    protected function configure(): void
+    {
+        $this->addOption('yes', 'y', InputOption::VALUE_NONE, 'Crée les tablettes sans demander de confirmation (scripts)');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -69,6 +77,24 @@ final class DevTestDevicesCommand extends Command
             return Command::FAILURE;
         }
 
+        // Les tablettes vont sur l'événement actif : on le montre, et on demande confirmation
+        $io->text(\sprintf('Événement actif : « %s », le %s, %s.', $event->getName(), $event->getDate()->format('d/m/Y'), $event->hasKitchen() ? 'avec cuisine' : 'sans cuisine'));
+        $roles = $event->hasKitchen() ? 'une caisse, une cuisine et un écran Arrivées' : 'une caisse';
+        if (!$input->getOption('yes')) {
+            if (!$input->isInteractive()) {
+                $io->error('Confirmation impossible sans terminal : relancez la commande dans un terminal, ou ajoutez --yes.');
+
+                return Command::FAILURE;
+            }
+            // Question simple plutôt que confirm(), qui n'accepte que « yes » : ici « oui » (ou « o »)
+            $answer = (string) $io->ask(\sprintf('Créer %s pour cet événement ? Tapez « oui » pour confirmer', $roles), 'non');
+            if (!preg_match('/^\s*(oui|o|yes|y)\s*$/i', $answer)) {
+                $io->text('Aucune tablette créée. Pour un autre événement, activez-le d\'abord dans l\'administration, rubrique Événements.');
+
+                return Command::SUCCESS;
+            }
+        }
+
         $created = [];
         foreach (self::DEVICES as [$role, $name]) {
             if ($role->needsKitchen() && !$event->hasKitchen()) {
@@ -81,7 +107,7 @@ final class DevTestDevicesCommand extends Command
         }
         $this->entityManager->flush();
         foreach ($created as [$device]) {
-            $this->auditLogger->log('device.create', 'device:'.$device->getId().' '.$device->getName(), after: ['role' => $device->getRole()->value, 'source' => 'app:dev:test-devices']);
+            $this->entityManager->persist(new AuditLog(self::AUDIT_ACTOR, 'device.create', 'device:'.$device->getId().' '.$device->getName(), after: ['role' => $device->getRole()->value]));
         }
         $this->entityManager->flush();
 

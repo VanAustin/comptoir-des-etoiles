@@ -63,7 +63,7 @@ Pour essayer les écrans avec des tablettes sans passer par l'administration (d�
 docker compose exec php bin/console app:dev:test-devices
 ```
 
-La commande crée pour l'événement actif une caisse, une cuisine et un écran Arrivées (la caisse seule pour un événement sans cuisine) et affiche pour chacune une adresse `http://localhost:8080/appairer#code=…`. Ouvrez-la dans Chrome : la tablette s'appaire toute seule. Chrome ne garde qu'un appairage par adresse de site : pour avoir les trois sur le même ordinateur, utilisez un profil Chrome par tablette, ou une fenêtre normale, une fenêtre de navigation privée, et `127.0.0.1` à la place de `localhost` pour la troisième. Les codes sont valables 10 minutes.
+La commande affiche l'événement actif et demande confirmation (tapez « oui ») ; elle crée alors pour cet événement une caisse, une cuisine et un écran Arrivées (la caisse seule pour un événement sans cuisine) et affiche pour chacune une adresse `http://localhost:8080/appairer#code=…`. Ouvrez-la dans Chrome : la tablette s'appaire toute seule. Chrome ne garde qu'un appairage par adresse de site : pour avoir les trois sur le même ordinateur, utilisez un profil Chrome par tablette, ou une fenêtre normale, une fenêtre de navigation privée, et `127.0.0.1` à la place de `localhost` pour la troisième. Les codes sont valables 10 minutes.
 
 Si vous aviez construit les conteneurs avant le passage à Apache (novembre 2026), reconstruisez-les une fois : `docker compose up -d --build`.
 

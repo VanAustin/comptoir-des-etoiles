@@ -41,7 +41,7 @@ PHP, Composer et Symfony ne sont **pas** installés sur le Mac : tout tourne dan
   - **`database`** : image officielle `mysql` (version fixée), base `comptoir`, utilisateur et mot de passe `comptoir` (développement uniquement). Données dans le volume nommé `database_data` : elles survivent au redémarrage des conteneurs (`docker compose down -v` les efface). `docker/mysql/init.sql` crée la base des tests `comptoir_test`.
   - **phpMyAdmin** (image officielle `phpmyadmin`, version fixée), connexion automatique, sur `http://localhost:8082`. Développement uniquement, lié à `127.0.0.1`. Rien dans l'application n'en dépend.
   - **`jstest`** (image officielle `node`, LTS, version fixée, la même qu'en CI), profil `tests` : ne démarre pas avec `docker compose up`. `docker compose run --rm jstest` lance `node --test` sur `tests/js/`.
-- Tablettes d'essai : `bin/console app:dev:test-devices` (refuse hors `APP_ENV=dev`) crée pour l'événement actif une caisse, une cuisine et un écran Arrivées (la caisse seule sans cuisine), et affiche pour chacune l'adresse `/appairer#code=…` à ouvrir dans Chrome. Aucun jeton créé ni affiché.
+- Tablettes d'essai : `bin/console app:dev:test-devices` (refuse hors `APP_ENV=dev`) affiche l'événement actif, demande confirmation (« oui » ; `--yes` pour un script), crée pour cet événement une caisse, une cuisine et un écran Arrivées (la caisse seule sans cuisine), et affiche pour chacune l'adresse `/appairer#code=…` à ouvrir dans Chrome. Aucun jeton créé ni affiché. Audit au nom de « commande app:dev:test-devices ».
 - Tests : `tests/bootstrap.php` recrée le schéma de `comptoir_test` une fois par lancement ; `ResetDatabaseTrait` vide les tables avant chaque test.
 - **Toutes** les commandes PHP passent par le conteneur, jamais par le PHP du Mac :
   - `docker compose exec php composer …`
@@ -67,7 +67,7 @@ Une seule installation, déjà en ligne. Détail des opérations : `docs/heberge
 - **JavaScript** : fichiers vanilla dans `public/js/`, sans build. Modules ES natifs.
 - **CSS** : fichiers simples dans `public/css/`, avec `tokens.css` chargé en premier (voir Charte).
 - **Polices** : fichiers locaux dans `public/fonts/`, jamais depuis Google Fonts (doit marcher hors ligne).
-- **Administration** (événements, menu, prix, stocks, tablettes) : pages Twig avec formulaires HTML traités dans les contrôleurs. Protégée par Symfony Security (voir Sécurité). Pas de comptes utilisateurs pour les bénévoles.
+- **Administration** (événements, menu, prix, stocks, tablettes) : pages Twig avec formulaires HTML traités dans les contrôleurs. L'en-tête de chaque page affiche l'événement actif (« Aucun événement actif » sinon) : le menu, les tablettes et le carnet de bord dépendent de lui. Protégée par Symfony Security (voir Sécurité). Pas de comptes utilisateurs pour les bénévoles.
 - **API JSON** pour les tablettes, sous `/api`, accessible uniquement aux tablettes appairées (voir Sécurité).
 - **Hors ligne** : service worker qui met en cache l'application ; file d'attente des commandes dans IndexedDB, envoyée au retour du réseau.
   - `/sw.js` est servi par `PwaController` : `App\Pwa\AppShell` y inscrit la liste des fichiers à garder (écrans de service et tout `public/css`, `js`, `fonts`, `img`) et une version calculée sur leur contenu, celui des gabarits et du service worker (`src/Pwa/service-worker.js`). Pas d'outil de build : toute modification change la version, et les tablettes rechargent tout.

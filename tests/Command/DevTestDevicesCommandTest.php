@@ -7,7 +7,6 @@ use App\Entity\AuditLog;
 use App\Entity\Device;
 use App\Enum\DeviceRole;
 use App\Repository\EventRepository;
-use App\Service\AuditLogger;
 use App\Service\DevicePairing;
 use App\Tests\FixturesTrait;
 use App\Tests\ResetDatabaseTrait;
@@ -74,7 +73,42 @@ class DevTestDevicesCommandTest extends WebTestCase
         $this->client->jsonRequest('POST', '/api/pair', ['code' => $links[0][2]]);
         self::assertResponseStatusCodeSame(422);
 
-        self::assertSame(3, self::entityManager()->getRepository(AuditLog::class)->count(['action' => 'device.create']));
+        // Auteur explicite dans le journal d'audit, pas « anonyme »
+        self::assertSame(3, self::entityManager()->getRepository(AuditLog::class)->count(['action' => 'device.create', 'actor' => DevTestDevicesCommand::AUDIT_ACTOR]));
+    }
+
+    public function testShowsTheActiveEventAndCreatesNothingWithoutConfirmation(): void
+    {
+        self::createEvent('Loto de Noël');
+
+        $tester = $this->runCommand(inputs: ['non']);
+
+        self::assertSame(Command::SUCCESS, $tester->getStatusCode(), $tester->getDisplay());
+        self::assertStringContainsString('Événement actif : « Loto de Noël »', $tester->getDisplay());
+        self::assertStringContainsString('Créer une caisse, une cuisine et un écran Arrivées pour cet événement ? Tapez « oui » pour confirmer', $tester->getDisplay());
+        self::assertStringContainsString('Aucune tablette créée', $tester->getDisplay());
+        self::assertSame(0, self::entityManager()->getRepository(Device::class)->count([]));
+    }
+
+    public function testConfirmationCreatesTheDevices(): void
+    {
+        self::createEvent('Loto de Noël');
+
+        $tester = $this->runCommand(inputs: ['oui']);
+
+        self::assertSame(Command::SUCCESS, $tester->getStatusCode(), $tester->getDisplay());
+        self::assertSame(3, self::entityManager()->getRepository(Device::class)->count([]));
+    }
+
+    public function testRefusedWithoutTerminalUnlessYes(): void
+    {
+        self::createEvent('Loto de Noël');
+
+        $tester = $this->runCommand(yes: false, interactive: false);
+
+        self::assertSame(Command::FAILURE, $tester->getStatusCode());
+        self::assertStringContainsString('--yes', $tester->getDisplay());
+        self::assertSame(0, self::entityManager()->getRepository(Device::class)->count([]));
     }
 
     public function testEventWithoutKitchenGetsOnlyATill(): void
@@ -114,19 +148,20 @@ class DevTestDevicesCommandTest extends WebTestCase
         self::assertSame(0, self::entityManager()->getRepository(Device::class)->count([]));
     }
 
-    private function runCommand(): CommandTester
+    /** @param list<string> $inputs réponses tapées ; sans réponse, l'option --yes */
+    private function runCommand(array $inputs = [], ?bool $yes = null, bool $interactive = true): CommandTester
     {
         $container = self::getContainer();
         $command = new DevTestDevicesCommand(
             self::entityManager(),
             $container->get(EventRepository::class),
             $container->get(DevicePairing::class),
-            $container->get(AuditLogger::class),
             $container->get(UrlGeneratorInterface::class),
             'dev',
         );
         $tester = new CommandTester($command);
-        $tester->execute([]);
+        $tester->setInputs($inputs);
+        $tester->execute(($yes ?? [] === $inputs) ? ['--yes' => true] : [], ['interactive' => $interactive]);
 
         return $tester;
     }
