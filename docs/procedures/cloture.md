@@ -22,19 +22,20 @@ Dans **Carnet de bord**, « Exporter pour Excel » : téléchargez les trois fic
 
 ## 4. Sauvegarder
 
-Sur le serveur :
+Sur le serveur, sauvegarde puis copie sur votre ordinateur, comme à l'étape 5.3 de `docs/hebergement.md` :
 
 ```
-php bin/console app:backup
+sudo -u www-data php bin/console app:backup
+cp var/backups/comptoir-*.sql ~/
 ```
 
-Puis copiez le fichier de `var/backups/` sur votre ordinateur, par exemple :
+Puis, sur le Mac, dans une autre fenêtre de Terminal :
 
 ```
-scp utilisateur@serveur:chemin/du/projet/var/backups/comptoir-AAAA-MM-JJ_HHMMSS.sql .
+scp '<utilisateur>@<adresse du serveur>:comptoir-*.sql' ~/Documents/comptoir-sauvegardes/
 ```
 
-Gardez cette copie avec les fichiers Excel.
+Gardez cette copie avec les fichiers Excel, jamais dans le dossier du projet.
 
 ## 5. Tablettes
 

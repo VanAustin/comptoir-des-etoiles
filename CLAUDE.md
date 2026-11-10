@@ -303,8 +303,10 @@ Fait au 3 novembre : Caisse, Menu, Cuisine, Arrivées, hors ligne (service worke
 
 Fait au 10 novembre : réglage « Avec cuisine », en-tête `X-Robots-Tag`, Symfony 7.4.23 (sécurité), Mercure retiré, développement sous Docker identique à la production (Apache, PHP 8.4, MySQL 8.4), interrogations par révisions (304 sans relire les commandes), `docs/hebergement.md` (mise à jour de novembre, réglages d'Apache).
 
+Fait au 10 novembre, documentation : fiche bénévoles (`docs/procedures/benevoles.md`), vérifications avant un événement (`docs/hebergement.md`, section 7).
+
 1. Semaine du 9 novembre : mettre la production à jour (`docs/hebergement.md`, section 5), puis réglages d'Apache (section 6).
-2. D'ici le 20 novembre : vérifier que la production est à jour et fonctionne avec le réglage « Avec cuisine » ; fiche bénévoles (`docs/procedures/benevoles.md`, une page, sans connaissance technique : allumer et appairer les tablettes, régler le téléphone — partage de connexion, branché sur secteur, pas de mise en veille —, passer sur le second téléphone, que faire si le réseau tombe — la caisse continue, la cuisine passe aux tickets papier —, exporter le Carnet de bord en fin de soirée) ; dans `docs/hebergement.md`, les vérifications avant un événement.
+2. D'ici le 20 novembre : vérifier que la production est à jour et fonctionne avec le réglage « Avec cuisine » (`docs/hebergement.md`, section 7).
 3. Début décembre : essai seule à la maison (une tablette en caisse, un appareil en cuisine, partage de connexion du téléphone, coupure du réseau), puis corrections. Pas de répétition avec des bénévoles : le stand de Noël sert de répétition générale.
 4. **Stand de Noël vers le 11 décembre** (sans cuisine).
 5. Semaine du 14 décembre : retours du stand, corrections, marge de sécurité. **Loto le 18 décembre** (avec cuisine).

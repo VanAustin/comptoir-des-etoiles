@@ -523,3 +523,102 @@ sudo systemctl reload apache2
 ```
 
 Résultat attendu : `Conf comptoir disabled.` suivi du même rappel, puis `Syntax OK`. Apache reprend ses réglages d'origine ; le fichier reste dans `conf-available` pour un nouvel essai (`sudo a2enconf comptoir`).
+
+## 7. Vérifications avant un événement
+
+Deux passages : **une semaine avant** (7.1 à 7.8), pour avoir le temps de corriger, et **la veille** (7.9 et 7.10), rapide, sans rien modifier. Les réglages de l'événement dans l'administration (date, menu, tablettes, case « Avec cuisine ») sont dans la fiche [Jour J](procedures/jour-j.md).
+
+**Gel des modifications** : dans les **trois jours** qui précèdent un événement, ne lancez ni mise à jour de l'application (section 3), ni `sudo apt upgrade`, ni changement de réglage d'Apache. Si une vérification échoue pendant ces trois jours, demandez de l'aide avant de toucher à quoi que ce soit.
+
+Connectez-vous au serveur et allez dans le dossier du projet (sections 1 et 2).
+
+### 7.1 Le code est à jour
+
+```
+git status
+git fetch
+git status
+```
+
+Résultat attendu : `nothing to commit, working tree clean` la première fois, puis, après `git fetch`, `Your branch is up to date with 'origin/main'.`
+
+- `Your branch is behind 'origin/main'` : une version plus récente existe sur GitHub. À plus de trois jours de l'événement, et si elle doit servir à l'événement, mettez à jour (section 3). Sinon, gardez la version en place : elle fonctionne.
+- Des fichiers listés la première fois : arrêtez-vous (voir 3.1).
+
+### 7.2 La base est à jour
+
+```
+sudo -u www-data php bin/console doctrine:migrations:up-to-date
+```
+
+Résultat attendu : `[OK] Up-to-date! No migrations to execute.` Sinon, une mise à jour s'est arrêtée en route : demandez de l'aide.
+
+### 7.3 L'application est en mode production
+
+```
+sudo -u www-data php bin/console about | grep -E "Environment|Debug"
+```
+
+Résultat attendu : `Environment   prod`, puis `Debug   false` (les espaces varient). Sinon, le fichier `.env.local` est à revoir : les erreurs afficheraient des détails techniques aux visiteurs. Demandez de l'aide.
+
+### 7.4 Apache et MySQL tournent
+
+```
+systemctl is-active apache2 mysql
+```
+
+Résultat attendu : `active` deux fois.
+
+### 7.5 Le certificat HTTPS est valable
+
+Remplacez `<adresse du site>` (sans `https://`) aux deux endroits :
+
+```
+echo | openssl s_client -connect <adresse du site>:443 -servername <adresse du site> 2>/dev/null | openssl x509 -noout -enddate
+```
+
+Résultat attendu : une ligne `notAfter=…` avec une date **au moins deux semaines après l'événement**. Let's Encrypt renouvelle le certificat tout seul un mois avant son expiration : une date plus proche signale un renouvellement qui échoue. Sans certificat valable, les tablettes ne peuvent plus joindre le site : demandez de l'aide sans attendre.
+
+### 7.6 L'heure du serveur est juste
+
+Les temps d'attente de la cuisine et la fin de validité des tablettes se calculent sur l'heure du serveur.
+
+```
+timedatectl
+```
+
+Résultat attendu : une ligne `System clock synchronized: yes`, et une heure (`Universal time`) qui correspond à l'heure actuelle en temps universel (une heure de moins que l'heure de Paris en hiver).
+
+### 7.7 Il reste de la place sur le disque
+
+```
+df -h /
+```
+
+Résultat attendu : dans la colonne `Use%`, une valeur **inférieure à 80 %**. Au-delà, les sauvegardes et les commandes pourraient ne plus s'enregistrer : demandez de l'aide.
+
+### 7.8 Pas de panne récente
+
+L'application écrit ses erreurs dans le journal d'Apache. Les pannes y sont marquées `[critical]` :
+
+```
+sudo grep -E "\[critical\]|PHP Fatal" /var/log/apache2/error.log | tail -n 5
+```
+
+Résultat attendu : **rien ne s'affiche**. Des lignes `[error]` « No route found » existent sans doute dans le journal : ce sont des robots qui cherchent des pages inexistantes, c'est sans conséquence. Si des lignes `[critical]` s'affichent, notez-les (date et message) et demandez de l'aide.
+
+### 7.9 La veille : le site répond
+
+```
+curl -sI https://<adresse du site>/login | head -n 1
+curl -s https://<adresse du site>/api/menu
+systemctl is-active apache2 mysql
+```
+
+Résultat attendu : comme à l'étape 3.8 (`HTTP/1.1 200 OK` ou `HTTP/2 200`, puis le message « Cette tablette n'est pas appairée… »), puis `active` deux fois.
+
+Dans Chrome, connectez-vous à l'administration : en haut de la page, l'événement du jour est indiqué comme actif.
+
+### 7.10 La veille : sauvegarde rapatriée sur le Mac
+
+Suivez l'étape 5.3 : `app:backup` sur le serveur, copie dans votre dossier personnel du serveur, puis `scp` vers `~/Documents/comptoir-sauvegardes` sur le Mac. Refaites-le le lendemain de l'événement, après l'export du Carnet de bord (fiche [Clôture](procedures/cloture.md)).
