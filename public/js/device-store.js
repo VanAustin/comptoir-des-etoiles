@@ -61,6 +61,19 @@ export function clearPairing() {
 }
 
 /**
+ * Remplace l'appairage par un autre, en une seule transaction : numérotation et menu de
+ * l'ancien poste sont oubliés, sans moment où la tablette ne serait plus appairée.
+ * Les commandes en attente d'envoi ne sont jamais effacées ici.
+ */
+export function replacePairing(pairing) {
+  return withStore("readwrite", (store) => {
+    store.delete(NUMBERING_KEY);
+    store.delete(MENU_KEY);
+    return store.put(pairing, KEY);
+  });
+}
+
+/**
  * Prochain numéro de commande de la caisse. Il n'est valable que pour la même
  * lettre et le même événement : la numérotation repart à 1 à chaque événement.
  *

@@ -5,6 +5,15 @@
 {% block brand_logo %}<img src="{{ path('app_logo') }}" alt="">{% endblock %}
 
 {% block nav %}
+    {# Toujours visible : le menu, les tablettes et le carnet de bord dépendent de l'événement actif #}
+    {% set current_event = active_event() %}
+    <a class="active-event{{ current_event ? '' : ' active-event-none' }}" href="{{ path('admin_event_index') }}">
+        {%- if current_event -%}
+            Événement actif : <strong>{{ current_event.name }}</strong> ({{ current_event.date|date('d/m/Y') }})
+        {%- else -%}
+            Aucun événement actif
+        {%- endif -%}
+    </a>
     <a href="{{ path('app_admin') }}">Administration</a>
     <span class="who">Connecté : {{ app.user.userIdentifier }}</span>
     <form class="inline-form" method="post" action="{{ path('app_logout') }}">

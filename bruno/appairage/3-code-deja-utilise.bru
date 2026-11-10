@@ -1,0 +1,37 @@
+meta {
+  name: 3. Code déjà utilisé
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/pair
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "code": "{{pairingCode}}"
+  }
+}
+
+tests {
+  test("refusé (422)", function () {
+    expect(res.status).to.equal(422);
+  });
+
+  test("le message dit que le code a déjà servi", function () {
+    expect(res.body.error).to.contain("déjà servi");
+  });
+
+  test("aucun jeton n'est renvoyé", function () {
+    expect(res.body).to.not.have.property("token");
+  });
+}
+
+docs {
+  Renvoie le code de « 1. Échanger le code », déjà utilisé : il ne sert qu'une fois. C'est ce que voit une tablette qui rouvre un lien d'appairage (/appairer#code=…) déjà utilisé.
+
+  À lancer juste après « 1. Échanger le code ».
+}

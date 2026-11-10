@@ -5,10 +5,10 @@ docs {
 
   ## Déroulé
 
-  1. Dans l'administration, activez un événement daté d'aujourd'hui ou plus tard, puis ajoutez une tablette dans « Tablettes ».
+  1. Dans l'administration, activez un événement daté d'aujourd'hui ou plus tard, puis ajoutez une tablette dans « Tablettes ». Ou, en développement : `docker compose exec php bin/console app:dev:test-devices`, qui crée une caisse, une cuisine et un écran Arrivées et affiche leurs codes.
   2. Recopiez le code affiché dans la variable `pairingCode` de l'environnement « Local » (variable secrète : sa valeur reste sur votre ordinateur, hors des fichiers commités).
   3. Lancez « Appairage / 1. Échanger le code » : le jeton reçu est gardé en mémoire (variable `deviceToken`) pour les requêtes suivantes, jusqu'à la fermeture de Bruno.
-  4. Lancez « Appairage / 2. Qui suis-je ».
+  4. Lancez « Appairage / 2. Qui suis-je », puis « 3. Code déjà utilisé ».
   5. Pour une tablette **caisse**, avec un menu non vide : lancez dans l'ordre « Caisse / 1. Menu », « 2. Créer une commande » et « 3. Rejouer la même commande ».
   6. Ajoutez puis appairez une tablette **cuisine** (nouveau code dans `pairingCode`, puis « Appairage / 1. Échanger le code ») : lancez « Cuisine / 1. Commandes en cours », puis « 2. Faire avancer la commande » autant de fois que voulu.
   7. Même chose avec une tablette **affichage** pour « Arrivées / 1. Numéros ».

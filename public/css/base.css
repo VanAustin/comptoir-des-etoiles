@@ -49,6 +49,14 @@ h2 { font-size: 22px; }
 .brand img { width: 40px; height: 40px; object-fit: contain; }
 .site-header nav { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: auto; }
 .who { color: var(--encre-douce); font-size: 14px; }
+/* Administration : événement actif, toujours visible (le menu affiché dépend de lui) */
+.active-event {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 48px; padding: 0 12px;
+  border-radius: var(--rayon-bouton); background: var(--or-fond); color: var(--or-texte);
+  font-size: 14px; text-decoration: none;
+}
+.active-event strong { font-weight: 800; }
+.active-event-none { background: var(--erreur-fond); color: var(--erreur); font-weight: 700; }
 
 main { padding-block: var(--espace) calc(var(--espace) * 1.5); }
 
@@ -224,7 +232,7 @@ fieldset.field legend { font-size: 14px; font-weight: 700; color: var(--encre-do
   .brand { font-size: 19px; }
   .brand img { width: 32px; height: 32px; }
   .site-header nav { margin-left: 0; width: 100%; }
-  .site-header nav .who { flex-basis: 100%; }
+  .site-header nav .who, .site-header nav .active-event { flex-basis: 100%; }
 
   .stack-table thead { display: none; }
   .stack-table, .stack-table tbody, .stack-table td { display: block; width: 100%; }

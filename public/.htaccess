@@ -1,5 +1,4 @@
-# Configuration pour un serveur Apache sans Docker (préproduction, hébergement).
-# En développement, docker/apache.conf fait le même travail et ce fichier est ignoré.
+# Configuration Apache, la même en production et en développement (Docker, docker/apache.conf).
 # Le site doit être servi depuis ce dossier public/, jamais depuis la racine du projet.
 
 DirectoryIndex index.php
@@ -10,9 +9,12 @@ Options -Indexes
 
     # HTTPS obligatoire : sans lui, pas de mode hors ligne sur les tablettes.
     # X-Forwarded-Proto : le HTTPS est parfois assuré par un proxy placé devant Apache.
-    RewriteCond %{HTTPS} !=on
-    RewriteCond %{HTTP:X-Forwarded-Proto} !=https
-    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+    # Sauf en développement (http://localhost:8080) : docker/apache.conf définit COMPTOIR_DEV.
+    <IfDefine !COMPTOIR_DEV>
+        RewriteCond %{HTTPS} !=on
+        RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+        RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+    </IfDefine>
 
     # Apache ne transmet pas l'en-tête Authorization à PHP par défaut :
     # sans cette règle, le jeton des tablettes (Authorization: Bearer) n'arrive jamais.
