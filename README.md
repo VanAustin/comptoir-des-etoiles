@@ -114,6 +114,8 @@ Si le port 8080 ou 8082 est déjà utilisé par un autre programme, arrêtez ce 
 
 Le jour de l'événement, les tablettes se connectent à un serveur en ligne, en HTTPS, par le partage 4G d'un téléphone ou par le Wi-Fi de la salle. Le HTTPS est indispensable : sans lui, Chrome refuse le mode hors ligne et l'installation de l'application sur les tablettes. Rien n'est à installer sur les tablettes elles-mêmes.
 
+Notre installation : un serveur privé virtuel (VPS) avec Apache, PHP 8.4 et MySQL 8.4, sans Docker. L'environnement de développement (Docker, voir plus haut) reproduit la même pile. Les opérations sur ce serveur (mise à jour, sauvegarde, retour arrière, réglages d'Apache) sont décrites commande par commande dans [docs/hebergement.md](docs/hebergement.md).
+
 ### Ce qu'il faut
 
 - Un serveur web **Apache** ou **Nginx**, joignable depuis internet avec un nom de domaine et un certificat HTTPS (Let's Encrypt, gratuit).
@@ -167,7 +169,7 @@ Le jour de l'événement, les tablettes se connectent à un serveur en ligne, en
    ```
 
 6. Faites pointer le site sur le dossier **`public/`**, jamais sur la racine du projet : `.env.local` (qui contient le mot de passe de la base) et `var/` ne doivent pas être accessibles par une adresse web.
-   - **Apache** : le fichier `public/.htaccess` est fourni. Il redirige le HTTP vers le HTTPS et transmet le jeton des tablettes à l'application. Le site doit autoriser ce fichier (`AllowOverride All`) et le module `rewrite` doit être actif (`sudo a2enmod rewrite`).
+   - **Apache** : le fichier `public/.htaccess` est fourni. Il redirige le HTTP vers le HTTPS et transmet le jeton des tablettes à l'application. Le site doit autoriser ce fichier (`AllowOverride All`) et le module `rewrite` doit être actif (`sudo a2enmod rewrite`). Réglages recommandés pour les tablettes (connexions gardées ouvertes, compression du JSON) : [docs/hebergement.md](docs/hebergement.md), section 6.
    - **Nginx** : partez de l'exemple `docs/deploiement/nginx.conf`.
 
 7. Ouvrez l'adresse du site : l'accueil s'affiche. Connectez-vous à l'administration, créez l'événement, le menu et les tablettes.
@@ -200,19 +202,22 @@ php bin/console app:backup
 
 La commande écrit un fichier SQL horodaté (structure et données) dans `var/backups/`, lisible par le seul propriétaire du fichier. Lancez-la avant et après chaque événement, et récupérez la copie sur votre ordinateur, par exemple avec `scp`. Elle peut tourner pendant que les tablettes enregistrent des commandes : elle lit un instantané cohérent de la base.
 
-Pour restaurer : dans phpMyAdmin, sélectionnez la base, onglet « Importer », choisissez le fichier `.sql`. Les tables sont remplacées par leur contenu au moment de la sauvegarde. La sauvegarde de votre hébergeur, si elle existe, est un filet de plus.
+Pour restaurer : dans phpMyAdmin, sélectionnez la base, onglet « Importer », choisissez le fichier `.sql`. Sans phpMyAdmin, en SSH : `mysql --default-character-set=utf8mb4 -u <utilisateur> -p <base> < comptoir-<date>.sql`. Les tables sont remplacées par leur contenu au moment de la sauvegarde : les commandes enregistrées depuis sont perdues. La sauvegarde de votre hébergeur, si elle existe, est un filet de plus.
 
 ### Mettre à jour
 
+Notez d'abord la version du code (`git rev-parse --short HEAD`) et celle de la base (`php bin/console doctrine:migrations:current`), pour pouvoir revenir en arrière. Puis, si le serveur web tourne sous l'utilisateur `www-data` :
+
 ```
-php bin/console app:backup
+sudo -u www-data php bin/console app:backup
 git pull
-composer install --no-dev --optimize-autoloader --classmap-authoritative
-php bin/console doctrine:migrations:migrate
-php bin/console cache:clear
+composer install --no-dev --optimize-autoloader --classmap-authoritative --no-scripts
+sudo rm -rf var/cache/prod
+sudo -u www-data php bin/console cache:warmup
+sudo -u www-data php bin/console doctrine:migrations:migrate --no-interaction
 ```
 
-Évitez de mettre à jour pendant un événement. Procédure détaillée pour notre serveur, avec les vérifications et le retour arrière : [docs/hebergement.md](docs/hebergement.md).
+Le cache est effacé puis reconstruit : en production, Symfony réutilise l'ancien sans vérifier qu'il correspond encore au code. Ne mettez jamais à jour pendant un événement. Procédure détaillée, avec les vérifications et le retour arrière (migration défaite **avant** de remettre l'ancien code) : [docs/hebergement.md](docs/hebergement.md), section 3.
 
 ## Installer l'application sur une tablette
 
@@ -233,7 +238,7 @@ Fiches à imprimer pour l'équipe, dans `docs/procedures/` : [jour J](docs/proce
 1. Sur un téléphone, activez le partage de connexion 4G (ou connectez-vous au Wi-Fi de la salle s'il existe).
 2. Connectez une tablette à ce partage et ouvrez l'adresse du site dans Chrome : la page d'accueil doit s'afficher en quelques secondes, avec le cadenas du HTTPS.
 3. Appairez la tablette en caisse (code créé dans l'administration), puis encaissez une commande d'essai.
-4. Si possible, une deuxième tablette en cuisine : la commande doit y apparaître en quelques secondes (moins de 10).
+4. Si possible, une deuxième tablette en cuisine : la commande doit y apparaître en 3 secondes environ. Au-delà de 10 secondes, le réseau est trop faible à cet emplacement.
 5. Notez la qualité du réseau à chaque emplacement (nombre de barres 4G, temps d'affichage), et essayez un autre opérateur si le premier est faible.
 6. Faites ce test avec un événement « Essai » : activez ensuite le vrai événement, ses ventes partent de zéro.
 

@@ -1,25 +1,21 @@
-# see https://symfony.com/doc/current/reference/configuration/framework.html
 framework:
     secret: '%env(APP_SECRET)%'
 
     # Jetons CSRF liés à la session, sans JavaScript
     csrf_protection: true
 
-    # Note that the session will be started ONLY if you read or write from it.
+    # Session ouverte seulement quand elle sert (administration).
     # L'expiration après 2 heures d'inactivité est gérée par App\EventListener\SessionIdleListener.
     session:
-        # Sessions rangées dans le projet, pas dans le dossier partagé de l'hébergeur :
-        # sur un mutualisé, celui-ci est vidé selon ses propres règles (souvent 24 min)
-        # ou diffère d'un serveur à l'autre, et l'administrateur se retrouve déconnecté.
+        # Sessions rangées dans le projet, pas dans le dossier commun de PHP : celui-ci est vidé
+        # selon ses propres règles (sous Debian, une tâche planifiée efface les sessions de plus
+        # de 24 min ; sur un mutualisé, celles de l'hébergeur), et l'administrateur serait déconnecté.
         handler_id: session.handler.native_file
         save_path: '%kernel.project_dir%/var/sessions/%kernel.environment%'
         cookie_secure: auto
         cookie_httponly: true
         cookie_samesite: lax
         gc_maxlifetime: 7200
-
-    #esi: true
-    #fragments: true
 
 when@test:
     framework:

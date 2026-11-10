@@ -423,3 +423,103 @@ Seulement si la vérification échoue. Dans l'ordre, sans en sauter :
 3. **Vérifiez** comme à l'étape 5.8, points 3 et 4 (sans la mention de l'événement actif en haut des pages, qui n'existait pas encore). Sur les tablettes, touchez « Recharger » si le bandeau apparaît.
 
 Revenir en arrière remet aussi les failles corrigées par Symfony 7.4.23 : ne le faites que si l'application ne fonctionne plus, et demandez de l'aide pour retenter la mise à jour.
+
+## 6. Réglages d'Apache pour les tablettes
+
+À faire **une seule fois**, après la mise à jour de la section 5, un jour sans événement et au moins une semaine avant le suivant, pour avoir le temps de revenir en arrière. Comptez dix minutes. Ces réglages ne touchent ni au code ni à la base : ils allègent les échanges avec les tablettes sur le réseau 4G. L'application fonctionne aussi sans eux.
+
+- **Connexions gardées ouvertes 15 secondes** (`KeepAliveTimeout 15`, au lieu de 5 par défaut). Une tablette interroge le serveur toutes les 3 secondes (suivi de la caisse : 10 s) : elle garde la même connexion, sans refaire la négociation HTTPS, lente en 4G.
+- **Jusqu'à 1000 requêtes par connexion** (`MaxKeepAliveRequests 1000`, au lieu de 100) : sinon, la connexion d'une tablette cuisine serait coupée toutes les 5 minutes.
+- **Compression des réponses JSON** de l'API (`application/json`) et du manifeste de l'application. Les pages, feuilles de style et scripts sont déjà compressés par la configuration d'Apache.
+
+Ce sont les réglages du fichier `docker/apache.conf` utilisé en développement.
+
+### 6.1 Vérifier les modules
+
+```
+apache2ctl -M 2>/dev/null | grep -E "deflate|filter"
+```
+
+Résultat attendu : deux lignes, `deflate_module (shared)` et `filter_module (shared)`. Si l'une manque :
+
+```
+sudo a2enmod deflate
+```
+
+Résultat attendu : `Enabling module deflate.` (et `filter` s'il le faut), ou `Module deflate already enabled`.
+
+### 6.2 Écrire le fichier de réglages
+
+La commande suivante crée le fichier `/etc/apache2/conf-available/comptoir.conf`. Copiez-la **en entier**, de `sudo tee` jusqu'à la ligne `FIN` comprise :
+
+```
+sudo tee /etc/apache2/conf-available/comptoir.conf > /dev/null <<'FIN'
+# Le Comptoir des étoiles : connexions des tablettes (voir docs/hebergement.md, section 6)
+KeepAlive On
+MaxKeepAliveRequests 1000
+KeepAliveTimeout 15
+
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE application/json application/manifest+json image/svg+xml
+</IfModule>
+FIN
+```
+
+Résultat attendu : rien ne s'affiche. Vérifiez le contenu :
+
+```
+cat /etc/apache2/conf-available/comptoir.conf
+```
+
+Résultat attendu : les lignes ci-dessus, de `# Le Comptoir des étoiles` à `</IfModule>`.
+
+### 6.3 Activer et contrôler avant de recharger
+
+```
+sudo a2enconf comptoir
+sudo apache2ctl configtest
+```
+
+Résultat attendu : `Enabling conf comptoir.` suivi d'un rappel de recharger Apache (c'est l'étape suivante), puis `Syntax OK`. Un avertissement `AH00558: Could not reliably determine the server's fully qualified domain name` peut s'afficher avant : il est sans conséquence.
+
+Si `Syntax OK` n'apparaît pas, **ne rechargez pas Apache** : désactivez le fichier (`sudo a2disconf comptoir`), puis relancez `sudo apache2ctl configtest` pour retrouver `Syntax OK`. Le site n'a pas été touché.
+
+```
+sudo systemctl reload apache2
+```
+
+Résultat attendu : rien ne s'affiche. `reload` applique les réglages sans couper les connexions en cours.
+
+### 6.4 Vérifier
+
+Remplacez `<adresse du site>` comme à l'étape 3.8.
+
+1. La compression :
+
+   ```
+   curl -s -D - -o /dev/null -H 'Accept-Encoding: gzip' https://<adresse du site>/manifest.webmanifest | grep -i '^content-encoding'
+   ```
+
+   Résultat attendu : `Content-Encoding: gzip` (ou `content-encoding: gzip`). Les réponses JSON de l'API sont compressées par la même ligne de réglage.
+
+2. Les connexions gardées ouvertes :
+
+   ```
+   curl -sv https://<adresse du site>/login https://<adresse du site>/login -o /dev/null -o /dev/null 2>&1 | grep -i 're-us'
+   ```
+
+   Résultat attendu : une ligne `Re-using existing connection…` : la seconde requête a réutilisé la connexion de la première.
+
+3. Le site : ouvrez-le dans Chrome, connectez-vous à l'administration, puis ouvrez l'écran d'une tablette appairée. Tout s'affiche normalement.
+
+### 6.5 Revenir en arrière
+
+Si quelque chose ne va pas après le rechargement :
+
+```
+sudo a2disconf comptoir
+sudo apache2ctl configtest
+sudo systemctl reload apache2
+```
+
+Résultat attendu : `Conf comptoir disabled.` suivi du même rappel, puis `Syntax OK`. Apache reprend ses réglages d'origine ; le fichier reste dans `conf-available` pour un nouvel essai (`sudo a2enconf comptoir`).

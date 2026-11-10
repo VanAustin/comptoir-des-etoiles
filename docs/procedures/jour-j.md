@@ -22,7 +22,7 @@
 3. Installez l'application sur chaque tablette : menu ⋮ de Chrome, **« Ajouter au bureau »**. Ouvrez ensuite l'icône « Comptoir », jamais l'onglet Chrome.
 4. Chaque caisse reçoit une lettre (A, B, C…) : les numéros de commande commencent par cette lettre. Notez quelle tablette porte quelle lettre.
 5. **Cuisine** et **Arrivées** : touchez le bouton du son pour qu'il affiche « Son activé ». Branchez ces tablettes sur secteur ; l'écran reste allumé tant que l'application est ouverte.
-6. **Commande d'essai** : sur une caisse, encaissez un article qui passe en cuisine. Il doit apparaître en cuisine en quelques secondes (moins de 10). Faites-le avancer jusqu'à « Remise au client », puis annulez cette commande depuis l'administration, **Carnet de bord** (elle ne comptera pas dans les chiffres).
+6. **Commande d'essai** : sur une caisse, encaissez un article qui passe en cuisine. Il doit apparaître en cuisine en 3 secondes environ (10 au plus si le réseau est faible). Faites-le avancer jusqu'à « Remise au client », puis annulez cette commande depuis l'administration, **Carnet de bord** (elle ne comptera pas dans les chiffres).
 7. Comptez le **fond de caisse** de chaque caisse et notez-le : le Carnet de bord affiche les espèces attendues *hors* fond de caisse.
 
 ## Pendant le service
