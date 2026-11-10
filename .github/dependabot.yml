@@ -6,6 +6,11 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    # On reste sur Symfony 7.4 LTS : pas de passage en 8.x proposé (décision à part, après la saison).
+    # Les mises à jour mineures, les correctifs et les alertes de sécurité continuent d'arriver.
+    ignore:
+      - dependency-name: "symfony/*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: "/"

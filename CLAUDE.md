@@ -16,7 +16,7 @@ Premiers événements réels : **stand de Noël vers le 11 décembre 2026** (san
 
 Dépendances de production autorisées, et rien d'autre :
 
-- `symfony/skeleton` (Symfony 7.4 LTS, PHP 8.3+)
+- `symfony/skeleton` (Symfony 7.4 LTS, PHP 8.4+). On reste sur Symfony 7.4 LTS ; le passage en 8.x sera une décision à part, après la saison (Dependabot ignore les versions majeures de `symfony/*`).
 - `symfony/twig-bundle`
 - `doctrine/doctrine-bundle`, `doctrine/orm`, `doctrine/doctrine-migrations-bundle`
 - `symfony/security-bundle` et `symfony/rate-limiter` : seule exception à la règle du minimum, réservée à l'authentification de l'administration (hachage du mot de passe, protection CSRF, limitation des tentatives, protection de session). Pour un projet qui pourrait devenir public, un composant audité vaut mieux qu'une authentification écrite à la main.
@@ -24,19 +24,24 @@ Dépendances de production autorisées, et rien d'autre :
 
 Développement uniquement : `symfony/maker-bundle`, PHPUnit.
 
-Explicitement exclus : EasyAdmin, Symfony Form, Stimulus, AssetMapper, Webpack Encore, Node, tout framework CSS ou JS.
+Explicitement exclus : EasyAdmin, Symfony Form, Stimulus, AssetMapper, Webpack Encore, tout framework CSS ou JS.
+
+Node est exclu de l'application et de toute construction. Seule exception : le lanceur de tests intégré (node --test), sans dépendance, dans Docker et en CI, pour tester la logique JavaScript critique.
 
 ## Environnement de développement : Docker
 
 PHP, Composer et Symfony ne sont **pas** installés sur le Mac : tout tourne dans Docker.
 
-- Une seule image, basée sur l'image officielle **`dunglas/frankenphp`** (version fixée, PHP 8.3), avec les extensions `pdo_mysql` et `intl` (`opcache` incluse), et Composer copié depuis l'image officielle `composer:2`. FrankenPHP (adopté le 26 octobre 2026, après un premier essai écarté) sert l'application. Développement uniquement : la production n'utilise pas Docker (voir Production).
-- `docker/Caddyfile` : racine `public/`, `php_server`, pas de HTTPS. Le projet est monté dans `/app`. **Pas** de `symfony/apache-pack`.
+- Une seule image, basée sur l'image officielle **`php:8.4.x-apache`** (version fixée), avec les extensions `pdo_mysql`, `intl` et `opcache`, `php.ini-production`, et Composer copié depuis l'image officielle `composer:2`. Même pile que la production (Apache, PHP 8.4), sans HTTPS. Développement uniquement : la production n'utilise pas Docker (voir Production).
+- `docker/apache.conf` : racine `/app/public` (le projet est monté dans `/app`), `AllowOverride All` pour le même `public/.htaccess` qu'en production, modules `rewrite`, `headers` et `deflate` (compression du JSON), `KeepAlive` (15 s). `Define COMPTOIR_DEV` désactive la redirection vers le HTTPS de `.htaccess`. **Pas** de `symfony/apache-pack`.
+- Apache ne transmet pas les variables d'environnement du conteneur à PHP : la configuration passe par les fichiers `.env`, comme en production.
 - Le site est servi sur **`http://localhost:8080`**. Pas de HTTPS en développement : Chrome autorise le service worker sur `localhost`, ce qui suffit pour développer et tester le mode hors ligne sur le Mac.
-- Fichiers attendus, et rien de plus : `Dockerfile`, `compose.yaml`, `docker/Caddyfile` et `docker/mysql/init.sql`. Pas de Redis, pas de Node.
+- Fichiers attendus, et rien de plus : `Dockerfile`, `compose.yaml`, `docker/apache.conf` et `docker/mysql/init.sql`. Pas de Redis.
 - Services en plus de `php` :
   - **`database`** : image officielle `mysql` (version fixée), base `comptoir`, utilisateur et mot de passe `comptoir` (développement uniquement). Données dans le volume nommé `database_data` : elles survivent au redémarrage des conteneurs (`docker compose down -v` les efface). `docker/mysql/init.sql` crée la base des tests `comptoir_test`.
   - **phpMyAdmin** (image officielle `phpmyadmin`, version fixée), connexion automatique, sur `http://localhost:8082`. Développement uniquement, lié à `127.0.0.1`. Rien dans l'application n'en dépend.
+  - **`jstest`** (image officielle `node`, LTS, version fixée, la même qu'en CI), profil `tests` : ne démarre pas avec `docker compose up`. `docker compose run --rm jstest` lance `node --test` sur `tests/js/`.
+- Tablettes d'essai : `bin/console app:dev:test-devices` (refuse hors `APP_ENV=dev`) crée pour l'événement actif une caisse, une cuisine et un écran Arrivées (la caisse seule sans cuisine), et affiche pour chacune l'adresse `/appairer#code=…` à ouvrir dans Chrome. Aucun jeton créé ni affiché.
 - Tests : `tests/bootstrap.php` recrée le schéma de `comptoir_test` une fois par lancement ; `ResetDatabaseTrait` vide les tables avant chaque test.
 - **Toutes** les commandes PHP passent par le conteneur, jamais par le PHP du Mac :
   - `docker compose exec php composer …`
@@ -44,7 +49,7 @@ PHP, Composer et Symfony ne sont **pas** installés sur le Mac : tout tourne dan
   - `docker compose exec php bin/phpunit`
 - Le nom du service dans `compose.yaml` est `php`.
 - En production (sans Docker), le même code tourne avec le PHP du serveur : ne rien faire qui dépende de Docker dans le code de l'application.
-- Apache ne transmet pas l'en-tête `Authorization` à PHP par défaut (FrankenPHP, si). Sur un serveur Apache, `public/.htaccess` le fait avec `SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1` (avec la redirection vers le HTTPS), sinon aucune tablette ne peut s'authentifier. Exemple Nginx : `docs/deploiement/nginx.conf`. Installation décrite dans `README.md`.
+- Apache ne transmet pas l'en-tête `Authorization` à PHP par défaut. Sur un serveur Apache (production et Docker), `public/.htaccess` le fait avec `SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1` (avec la redirection vers le HTTPS), sinon aucune tablette ne peut s'authentifier. Exemple Nginx : `docs/deploiement/nginx.conf`. Installation décrite dans `README.md`.
 
 ## Production
 
@@ -147,6 +152,7 @@ Usage prévu : une APE, petite échelle. Mais le code est écrit **comme s'il é
 ### Tablettes : appairage, sans comptes
 
 - L'administration crée une tablette (nom + rôle) et affiche un **code d'appairage** à usage unique (8 caractères, valable 10 minutes). QR code : plus tard.
+- Appairage par lien : `/appairer#code=K7QM-3XRP`. Le code est après le `#`, jamais envoyé au serveur par le navigateur ; `pair.js` le retire de l'adresse dès qu'il l'a lu (`history.replaceState`). Tablette déjà appairée : « Cette tablette est déjà appairée comme <nom>. La remplacer ? », confirmé en deux appuis ; refusé tant que des commandes attendent d'être envoyées (comme le désappairage). Code expiré ou déjà utilisé : message clair, champ vide. Décisions dans `public/js/pair-link.js` (fonctions pures, `tests/js/pair-link.test.js`). Seul le code passe par une adresse, jamais le jeton.
 - La tablette échange ce code contre un **jeton** aléatoire (32 octets, `random_bytes`). Le serveur n'en garde que l'empreinte SHA-256. La tablette le conserve et l'envoie dans l'en-tête `Authorization: Bearer`.
 - Le jeton expire à la fin de l'événement (par défaut le lendemain à 6 h) et peut être révoqué à tout moment depuis l'administration.
 - Chaque rôle n'accède qu'à ce dont il a besoin :
@@ -193,7 +199,7 @@ Le service worker, donc le mode hors ligne, **ne fonctionne qu'en HTTPS** (ou su
 
 - `composer.lock` commité. `composer audit` lancé par une GitHub Action à chaque pull request et chaque semaine (gratuit pour un dépôt public).
 - Dependabot activé pour Composer et GitHub Actions.
-- `.github/workflows/tests.yml` à chaque pull request et fusion sur `main` : PHP 8.3 (développement) et PHP 8.4 (production), en parallèle (`shivammathur/setup-php`), MySQL 8.4 en service, `composer validate`, `lint:yaml`, `lint:twig`, `lint:container`, migrations sur une base neuve (aller, `schema:validate`, retour, aller), puis PHPUnit. Ne jamais fusionner une PR sans la coche verte. PHPUnit 12 exige PHP 8.3 : PHP 8.2 n'est plus testé.
+- `.github/workflows/tests.yml` à chaque pull request et fusion sur `main` : PHP 8.4 comme la production (`shivammathur/setup-php`), MySQL 8.4 en service, `composer validate`, `lint:yaml`, `lint:twig`, `lint:container`, migrations sur une base neuve (aller, `schema:validate`, retour, aller), puis PHPUnit ; en parallèle, `node --test` sur `tests/js/` dans la même image `node` que `compose.yaml`. Ne jamais fusionner une PR sans la coche verte. `composer.json` exige PHP 8.4 (`config.platform.php` à 8.4).
 - Tests obligatoires pour : authentification et CSRF de l'administration, appairage et expiration des jetons, droits de chaque rôle sur l'API (une tablette `affichage` ne peut pas créer de commande, etc.), recalcul des totaux par le serveur, idempotence, événement sans cuisine (état `served`, rôles refusés).
 
 ## Si le projet devient public

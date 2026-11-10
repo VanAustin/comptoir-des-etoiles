@@ -1,5 +1,5 @@
 services:
-  # Application (FrankenPHP) : http://localhost:8080
+  # Application (Apache et PHP 8.4, comme en production) : http://localhost:8080
   php:
     build: .
     ports:
@@ -42,6 +42,16 @@ services:
     depends_on:
       database:
         condition: service_healthy
+
+  # Tests de la logique JavaScript (node --test, sans dépendance) : docker compose run --rm jstest
+  # Ne démarre pas avec « docker compose up » (profil tests). Même version que la CI.
+  jstest:
+    image: node:24.22.1-alpine
+    profiles: [tests]
+    working_dir: /app
+    volumes:
+      - .:/app:ro
+    command: ["node", "--test", "tests/js/**/*.test.js"]
 
 volumes:
   database_data:

@@ -57,9 +57,11 @@ class PairingControllerTest extends WebTestCase
         $this->pair($code);
         self::assertResponseStatusCodeSame(201);
 
+        // Message clair pour la tablette qui rouvre un lien d'appairage déjà utilisé
         $response = $this->pair($code);
         self::assertResponseStatusCodeSame(422);
-        self::assertStringContainsString('pas valide', $response['error']);
+        self::assertStringContainsString('déjà servi', $response['error']);
+        self::assertArrayNotHasKey('token', $response);
     }
 
     public function testWrongOrMalformedCodeIsRefused(): void
@@ -86,6 +88,17 @@ class PairingControllerTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(422);
         self::assertStringContainsString('expiré', $response['error']);
+        self::assertArrayNotHasKey('token', $response);
+    }
+
+    public function testCodeIsAcceptedWithoutDashAndInLowerCase(): void
+    {
+        // Le lien /appairer#code=… peut porter le code sans tiret ; la tablette l'envoie avec
+        [, $code] = self::createDeviceWithCode(self::createEvent());
+
+        $this->pair(strtolower(str_replace('-', '', $code)));
+
+        self::assertResponseStatusCodeSame(201);
     }
 
     public function testRevokedDeviceCannotPair(): void

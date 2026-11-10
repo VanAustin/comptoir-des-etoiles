@@ -10,7 +10,7 @@ PHP et Composer n'ont pas besoin d'être installés sur votre ordinateur : tout 
 
 Prérequis : [Docker Desktop](https://www.docker.com/products/docker-desktop/).
 
-1. Construisez et démarrez les conteneurs (application avec FrankenPHP, base MySQL, phpMyAdmin) :
+1. Construisez et démarrez les conteneurs (application avec Apache et PHP 8.4, comme le serveur de production ; base MySQL ; phpMyAdmin) :
 
    ```
    docker compose up -d --build
@@ -51,6 +51,22 @@ Pour lancer les tests (ils utilisent une base à part, `comptoir_test`, vidée �
 docker compose exec php bin/phpunit
 ```
 
+Pour lancer les tests de la logique JavaScript (appairage par lien…), sans rien installer sur l'ordinateur : ils tournent dans un conteneur Node, avec le lanceur de tests intégré, sans aucune dépendance.
+
+```
+docker compose run --rm jstest
+```
+
+Pour essayer les écrans avec des tablettes sans passer par l'administration (développement uniquement) :
+
+```
+docker compose exec php bin/console app:dev:test-devices
+```
+
+La commande crée pour l'événement actif une caisse, une cuisine et un écran Arrivées (la caisse seule pour un événement sans cuisine) et affiche pour chacune une adresse `http://localhost:8080/appairer#code=…`. Ouvrez-la dans Chrome : la tablette s'appaire toute seule. Chrome ne garde qu'un appairage par adresse de site : pour avoir les trois sur le même ordinateur, utilisez un profil Chrome par tablette, ou une fenêtre normale, une fenêtre de navigation privée, et `127.0.0.1` à la place de `localhost` pour la troisième. Les codes sont valables 10 minutes.
+
+Si vous aviez construit les conteneurs avant le passage à Apache (novembre 2026), reconstruisez-les une fois : `docker compose up -d --build`.
+
 Pour arrêter les conteneurs : `docker compose down`. Les données restent dans le volume Docker `database_data` ; `docker compose down -v` efface ce volume, donc toute la base.
 
 Pour faire évoluer la base, après avoir modifié une entité :
@@ -88,7 +104,7 @@ Le dossier `bruno/` contient une collection pour [Bruno](https://www.usebruno.co
 1. Installez Bruno (`brew install --cask bruno`, ou depuis le site).
 2. Dans Bruno : « Open Collection », puis choisissez le dossier `bruno/` du projet.
 3. En haut à droite, sélectionnez l'environnement « Local ».
-4. Suivez le déroulé décrit dans la collection (onglet « Docs ») : créez une tablette dans l'administration, recopiez son code dans la variable `pairingCode`, puis lancez les requêtes du dossier « Appairage ».
+4. Suivez le déroulé décrit dans la collection (onglet « Docs ») : créez une tablette dans l'administration (ou avec `app:dev:test-devices`), recopiez son code dans la variable `pairingCode`, puis lancez les requêtes du dossier « Appairage ».
 
 Chaque requête contient ses tests ; « Run » sur un dossier les lance tous. Le jeton reçu reste en mémoire dans Bruno et n'est jamais écrit dans les fichiers.
 
@@ -101,8 +117,8 @@ Le jour de l'événement, les tablettes se connectent à un serveur en ligne, en
 ### Ce qu'il faut
 
 - Un serveur web **Apache** ou **Nginx**, joignable depuis internet avec un nom de domaine et un certificat HTTPS (Let's Encrypt, gratuit).
-- **PHP 8.3 ou plus récent**, avec les extensions `pdo_mysql`, `intl`, `ctype` et `iconv` (`php -m` les liste).
-- Une base **MySQL 8** vide, créée chez votre hébergeur (souvent depuis son panneau, avec phpMyAdmin), en `utf8mb4`. Notez son nom, son utilisateur, son mot de passe et l'adresse du serveur MySQL.
+- **PHP 8.4 ou plus récent**, avec les extensions `pdo_mysql`, `intl`, `ctype` et `iconv` (`php -m` les liste).
+- Une base **MySQL 8.4** vide, créée chez votre hébergeur (souvent depuis son panneau, avec phpMyAdmin), en `utf8mb4`. Notez son nom, son utilisateur, son mot de passe et l'adresse du serveur MySQL.
 - Un accès **SSH** au serveur.
 - **Composer**. S'il n'est pas installé sur le serveur : `curl -sS https://getcomposer.org/installer | php`, puis remplacez `composer` par `php composer.phar` dans les commandes ci-dessous.
 
@@ -126,7 +142,7 @@ Le jour de l'événement, les tablettes se connectent à un serveur en ligne, en
    Ajoutez-y l'adresse de la base MySQL (remplacez utilisateur, mot de passe, serveur et nom de la base) :
 
    ```
-   DATABASE_URL="mysql://utilisateur:mot-de-passe@serveur-mysql:3306/nom-de-la-base?serverVersion=8.0.32&charset=utf8mb4"
+   DATABASE_URL="mysql://utilisateur:mot-de-passe@serveur-mysql:3306/nom-de-la-base?serverVersion=8.4&charset=utf8mb4"
    ```
 
    Si le mot de passe contient des caractères spéciaux (`@`, `:`, `/`, `#`…), encodez-les (`@` devient `%40`, par exemple). Pour `serverVersion`, indiquez la version donnée par votre hébergeur (phpMyAdmin l'affiche : « Version du serveur »).

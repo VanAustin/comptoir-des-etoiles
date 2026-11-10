@@ -12,6 +12,16 @@
 
         <p id="pair-loading" class="lede" role="status">Vérification de la tablette…</p>
 
+        {# Résultat d'un appairage par lien (adresse /appairer#code=…), affiché au-dessus de chaque partie #}
+        <p id="pair-notice" class="alert" role="status" hidden></p>
+
+        <div id="replace-section" hidden>
+            <p id="replace-question" class="lede"></p>
+            <p class="lede">L'ancien appairage sera oublié par cette tablette. Révoquez ensuite l'ancienne tablette dans l'administration.</p>
+            <button type="button" id="replace-confirm" class="btn btn-primary">Remplacer l'appairage</button>
+            <button type="button" id="replace-cancel" class="btn">Garder l'appairage actuel</button>
+        </div>
+
         <div id="pair-form-section" hidden>
             <p class="lede">Saisissez le code affiché dans l'administration, rubrique Tablettes. Il est valable 10 minutes.</p>
             <form id="pair-form" novalidate>

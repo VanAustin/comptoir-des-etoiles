@@ -79,7 +79,7 @@ class DevicePairing
         $device = null === $code ? null : $this->devices->findOneByPairingCodeHash(self::hash($code));
 
         if (null === $device || !hash_equals((string) $device->getPairingCodeHash(), self::hash($code)) || $device->isRevoked()) {
-            throw new PairingException('Ce code n\'est pas valide. Vérifiez-le, ou demandez un nouveau code dans l\'administration.');
+            throw new PairingException('Ce code n\'est pas valide, ou il a déjà servi. Vérifiez-le, ou demandez un nouveau code dans l\'administration.');
         }
         if (!$device->hasValidPairingCode($now)) {
             throw new PairingException('Ce code a expiré. Demandez un nouveau code dans l\'administration.');
