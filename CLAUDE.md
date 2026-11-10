@@ -20,7 +20,6 @@ Dépendances de production autorisées, et rien d'autre :
 - `symfony/twig-bundle`
 - `doctrine/doctrine-bundle`, `doctrine/orm`, `doctrine/doctrine-migrations-bundle`
 - `symfony/security-bundle` et `symfony/rate-limiter` : seule exception à la règle du minimum, réservée à l'authentification de l'administration (hachage du mot de passe, protection CSRF, limitation des tentatives, protection de session). Pour un projet qui pourrait devenir public, un composant audité vaut mieux qu'une authentification écrite à la main.
-- `symfony/mercure-bundle` (avec `symfony/mercure`, `symfony/http-client`, `lcobucci/jwt`) : temps réel facultatif, désactivé en production (on n'y touche pas), voir Architecture. Extensions PHP `sodium` et `openssl` requises.
 - Base de données : **MySQL 8.4** en développement, en CI et en production (`utf8mb4`, interclassement `utf8mb4_unicode_ci` fixé dans `config/packages/doctrine.yaml`). SQLite a été abandonné le 26 octobre 2026.
 
 Développement uniquement : `symfony/maker-bundle`, PHPUnit.
@@ -31,8 +30,8 @@ Explicitement exclus : EasyAdmin, Symfony Form, Stimulus, AssetMapper, Webpack E
 
 PHP, Composer et Symfony ne sont **pas** installés sur le Mac : tout tourne dans Docker.
 
-- Une seule image, basée sur l'image officielle **`dunglas/frankenphp`** (version fixée, PHP 8.3), avec les extensions `pdo_mysql` et `intl` (`opcache`, `sodium`, `openssl` incluses), et Composer copié depuis l'image officielle `composer:2`. FrankenPHP (adopté le 26 octobre 2026, après un premier essai écarté) sert l'application **et** le hub Mercure intégré. Développement uniquement : la production n'utilise pas Docker (voir Production).
-- `docker/Caddyfile` : racine `public/`, `php_server`, hub Mercure sur `/.well-known/mercure` (émetteur `{$MERCURE_JWT_ISSUER}`, clé `MERCURE_JWT_SECRET`, abonnés anonymes), pas de HTTPS. Le projet est monté dans `/app`. **Pas** de `symfony/apache-pack`.
+- Une seule image, basée sur l'image officielle **`dunglas/frankenphp`** (version fixée, PHP 8.3), avec les extensions `pdo_mysql` et `intl` (`opcache` incluse), et Composer copié depuis l'image officielle `composer:2`. FrankenPHP (adopté le 26 octobre 2026, après un premier essai écarté) sert l'application. Développement uniquement : la production n'utilise pas Docker (voir Production).
+- `docker/Caddyfile` : racine `public/`, `php_server`, pas de HTTPS. Le projet est monté dans `/app`. **Pas** de `symfony/apache-pack`.
 - Le site est servi sur **`http://localhost:8080`**. Pas de HTTPS en développement : Chrome autorise le service worker sur `localhost`, ce qui suffit pour développer et tester le mode hors ligne sur le Mac.
 - Fichiers attendus, et rien de plus : `Dockerfile`, `compose.yaml`, `docker/Caddyfile` et `docker/mysql/init.sql`. Pas de Redis, pas de Node.
 - Services en plus de `php` :
@@ -55,7 +54,6 @@ Une seule installation, déjà en ligne. Détail des opérations : `docs/heberge
 - Le site pointe sur `public/` ; `public/.htaccess` redirige vers le HTTPS et transmet l'en-tête `Authorization`.
 - L'adresse du site n'est écrite ni dans le dépôt ni dans le code : elle est dans `DEFAULT_URI`, dans le `.env.local` du serveur.
 - Mise à jour en SSH, dans le dossier du projet : `app:backup`, `git pull`, `composer install --no-dev --optimize-autoloader --classmap-authoritative`, `doctrine:migrations:migrate`, `cache:clear`. Jamais pendant un événement.
-- Pas de hub Mercure : interrogation seule.
 - Avant d'exiger une version plus récente de PHP ou de MySQL (`composer.json`, CI, Docker), vérifier celle du serveur.
 
 ## Architecture
@@ -75,17 +73,13 @@ Une seule installation, déjà en ligne. Détail des opérations : `docs/heberge
   - Application installable : `/manifest.webmanifest`, icônes dans `public/img/app/` (générées depuis le logo générique), démarrage sur `/demarrer`, qui ouvre l'écran du rôle de la tablette.
 - **Idempotence** : chaque commande reçoit un UUID créé sur la tablette. `POST /api/orders` avec un UUID déjà connu ne crée pas de doublon et renvoie la commande existante.
 - **Événement sans cuisine** (`Event.withKitchen` décoché) : toute commande passe directement à `served`, quel que soit le réglage cuisine de ses articles, et la remarque pour la cuisine n'est ni proposée ni gardée. Les écrans Cuisine et Arrivées ne sont pas proposés, ni le suivi des commandes de la caisse ; seul le rôle `caisse` est proposé à l'appairage, et l'API refuse les rôles `cuisine` et `affichage` (403). Le Carnet de bord fonctionne normalement.
-- **Temps réel** : l'écran cuisine (`GET /api/orders`) et l'écran Arrivées (`GET /api/board`) interrogent le serveur toutes les 5 secondes, sauf si un hub Mercure est configuré (`App\Realtime`, désactivé en production) :
-  - `OrderChangePublisher` (Doctrine, après chaque enregistrement qui crée ou modifie une `Order`) publie `{}` sur le sujet `urn:comptoir:evenement:{id}:commandes`. **Aucune donnée dans les messages** : `EventSource` ne peut pas envoyer `Authorization`, et le jeton ne va jamais dans une URL ; la tablette relit l'API. Un hub injoignable ne fait jamais échouer un enregistrement (journal, délai de 2 s).
-  - `RealtimeLinkListener` : sur les `GET /api/…` d'une tablette, en-têtes `Link: <hub>; rel="mercure"` et `<sujet>; rel="self"`. Absents sans hub (`MERCURE_URL` ou `MERCURE_PUBLIC_URL` vide).
-  - `public/js/poller.js` : abonnement avec `match=<sujet>` (protocole Mercure récent) ; chaque message et chaque (re)connexion déclenchent une relecture complète ; interrogation de contrôle toutes les 30 s au plus, même hub injoignable. Sans hub, interrogation comme avant.
-  - Tests : `App\Tests\Realtime\RecordingHub` remplace le hub (publications gardées en mémoire, panne simulable).
+- **Temps réel** : par interrogation seule (`public/js/poller.js`). L'écran cuisine (`GET /api/orders`) et l'écran Arrivées (`GET /api/board`) interrogent le serveur toutes les 5 secondes. Mercure retiré le 10 novembre 2026, disponible dans l'historique Git au commit `0c34dd7`.
   - Le serveur renvoie à chaque fois la **liste complète** des commandes en cours (pas de `since`) : une tablette qui a manqué une réponse se recale à la suivante.
   - Réponse avec empreinte (`ETag`) : la tablette la renvoie dans `If-None-Match`, et le serveur répond 304 sans contenu tant que rien n'a changé (forfait 4G).
   - Les temps d'attente se calculent sur l'heure du serveur (`serverTime`), jamais sur l'horloge de la tablette.
   - La cuisine fait avancer une commande avec `POST /api/orders/{uuid}/status` ; redemander l'état actuel ne change rien (deux tablettes cuisine), un autre état non autorisé répond 409 avec l'état actuel.
   - L'écran Arrivées montre les 12 dernières commandes prêtes et toutes celles en préparation.
-  - La caisse suit les commandes en cours (`GET /api/till/orders`, toutes les 10 secondes sans hub) : résumé dans l'en-tête, panneau « Suivi » avec recherche par numéro, et nombre de commandes avant la nouvelle en cuisine.
+  - La caisse suit les commandes en cours (`GET /api/till/orders`, toutes les 10 secondes) : résumé dans l'en-tête, panneau « Suivi » avec recherche par numéro, et nombre de commandes avant la nouvelle en cuisine.
   - Chaque caisse relit le menu toutes les 30 secondes, seulement sur la grille (jamais pendant un paiement) : stocks des autres caisses, prix modifiés, articles retirés.
 - **Stocks** : le stock restant est calculé à partir des ventes (stock de départ moins quantités vendues des commandes non annulées), jamais stocké comme un compteur décrémenté. Le stock est une **information, jamais une limite** : ni le serveur ni la caisse ne bloquent une vente (stocks de départ approximatifs, ventes hors ligne), et il peut devenir négatif. Une formule décompte les composants figés sur la ligne au moment de la vente ; son stock restant est le nombre de formules encore possibles avec ses composants comptés (stock de chaque composant divisé par sa quantité, le plus petit l'emporte).
 
@@ -159,7 +153,7 @@ Usage prévu : une APE, petite échelle. Mais le code est écrit **comme s'il é
   - `caisse` : lire le menu et les stocks, créer des commandes, suivre les commandes en cours (numéros et états seulement) et remettre au client une commande prête (`POST /api/till/orders/{uuid}/served`, au comptoir de la buvette).
   - `cuisine` : lire les commandes en cours, faire avancer leur état.
   - `affichage` : lire uniquement les numéros et leur état, rien d'autre (pas de montants, pas d'articles).
-- Limitation de débit par tablette sur l'API (par exemple 120 requêtes par minute), pour encaisser l'interrogation toutes les 5 secondes (sans hub Mercure) sans permettre d'abus.
+- Limitation de débit par tablette sur l'API (par exemple 120 requêtes par minute), pour encaisser l'interrogation toutes les 5 secondes sans permettre d'abus.
 - Comparaisons de jetons et de codes avec `hash_equals`.
 
 ### Navigateur
@@ -311,4 +305,3 @@ Pistes, rien à faire avant le 18 décembre :
 - Export et import du menu d'un événement en JSON.
 - Heure du serveur : `serverTime` dans toutes les réponses de l'API, avertissement dans l'administration si l'heure du serveur s'écarte de celle de l'appareil.
 - QR code d'appairage.
-- Mercure : on n'y touche pas, il reste désactivé.

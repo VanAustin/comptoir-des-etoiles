@@ -1,4 +1,4 @@
-// Écran Arrivées : numéros prêts et en préparation, lus de loin, mis à jour en direct (hub Mercure) ou toutes les 5 secondes.
+// Écran Arrivées : numéros prêts et en préparation, lus de loin, mis à jour toutes les 5 secondes.
 // Un numéro qui vient d'être prêt est mis en évidence quelques secondes, avec un carillon.
 
 import { getPairing } from "./device-store.js";

@@ -10,7 +10,7 @@ PHP et Composer n'ont pas besoin d'être installés sur votre ordinateur : tout 
 
 Prérequis : [Docker Desktop](https://www.docker.com/products/docker-desktop/).
 
-1. Construisez et démarrez les conteneurs (application et hub Mercure avec FrankenPHP, base MySQL, phpMyAdmin) :
+1. Construisez et démarrez les conteneurs (application avec FrankenPHP, base MySQL, phpMyAdmin) :
 
    ```
    docker compose up -d --build
@@ -101,7 +101,7 @@ Le jour de l'événement, les tablettes se connectent à un serveur en ligne, en
 ### Ce qu'il faut
 
 - Un serveur web **Apache** ou **Nginx**, joignable depuis internet avec un nom de domaine et un certificat HTTPS (Let's Encrypt, gratuit).
-- **PHP 8.3 ou plus récent**, avec les extensions `pdo_mysql`, `intl`, `ctype`, `iconv`, `sodium` et `openssl` (`php -m` les liste).
+- **PHP 8.3 ou plus récent**, avec les extensions `pdo_mysql`, `intl`, `ctype` et `iconv` (`php -m` les liste).
 - Une base **MySQL 8** vide, créée chez votre hébergeur (souvent depuis son panneau, avec phpMyAdmin), en `utf8mb4`. Notez son nom, son utilisateur, son mot de passe et l'adresse du serveur MySQL.
 - Un accès **SSH** au serveur.
 - **Composer**. S'il n'est pas installé sur le serveur : `curl -sS https://getcomposer.org/installer | php`, puis remplacez `composer` par `php composer.phar` dans les commandes ci-dessous.
@@ -155,21 +155,6 @@ Le jour de l'événement, les tablettes se connectent à un serveur en ligne, en
    - **Nginx** : partez de l'exemple `docs/deploiement/nginx.conf`.
 
 7. Ouvrez l'adresse du site : l'accueil s'affiche. Connectez-vous à l'administration, créez l'événement, le menu et les tablettes.
-
-### Temps réel (facultatif)
-
-Sans réglage particulier, la cuisine et l'écran Arrivées interrogent le serveur toutes les 5 secondes, et les caisses toutes les 10 secondes : tout fonctionne ainsi.
-
-Avec un hub [Mercure](https://mercure.rocks) installé sur le serveur, les écrans sont prévenus en moins d'une seconde et n'interrogent plus le serveur que toutes les 30 secondes. Le hub doit répondre sur le même domaine, à l'adresse `/.well-known/mercure` (par exemple derrière Apache avec `ProxyPass`), et accepter les abonnés anonymes : ses messages ne contiennent aucune donnée. Dans `.env.local` :
-
-```
-MERCURE_URL=http://127.0.0.1:3000/.well-known/mercure
-MERCURE_PUBLIC_URL=https://comptoir.example.org/.well-known/mercure
-MERCURE_JWT_SECRET=une-longue-cle-secrete-partagee-avec-le-hub
-MERCURE_JWT_ISSUER=comptoir-des-etoiles
-```
-
-`MERCURE_URL` est l'adresse où l'application publie (souvent interne au serveur), `MERCURE_PUBLIC_URL` celle où les tablettes s'abonnent. La clé (32 caractères au moins) et l'émetteur doivent être les mêmes que dans la configuration du hub. Si le hub s'arrête, les commandes sont toujours enregistrées et les écrans se recalent toutes les 30 secondes. Laissez `MERCURE_URL` vide pour revenir à l'interrogation seule. La configuration de développement (`docker/Caddyfile`) sert d'exemple.
 
 ### Serveur derrière un proxy
 

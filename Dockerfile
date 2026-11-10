@@ -1,8 +1,8 @@
-# Développement uniquement : FrankenPHP (PHP + serveur web Caddy + hub Mercure).
+# Développement uniquement : FrankenPHP (PHP + serveur web Caddy).
 # La production n'en dépend pas (Apache ou Nginx, voir README.md).
 FROM dunglas/frankenphp:1.13.0-php8.3
 
-# Outils nécessaires à Composer (git, unzip) ; opcache, sodium et openssl sont déjà inclus
+# Outils nécessaires à Composer (git, unzip) ; opcache est déjà incluse
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git unzip \
     && install-php-extensions intl pdo_mysql \
