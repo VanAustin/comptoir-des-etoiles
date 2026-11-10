@@ -58,7 +58,7 @@ Une seule installation, déjà en ligne. Détail des opérations : `docs/heberge
 - Serveur privé virtuel (VPS) chez OVHcloud : Apache, HTTPS (Let's Encrypt), PHP 8.4, MySQL 8.4. Pas de Docker.
 - Le site pointe sur `public/` ; `public/.htaccess` redirige vers le HTTPS et transmet l'en-tête `Authorization`.
 - L'adresse du site n'est écrite ni dans le dépôt ni dans le code : elle est dans `DEFAULT_URI`, dans le `.env.local` du serveur.
-- Mise à jour en SSH, dans le dossier du projet : `app:backup`, `git pull`, `composer install --no-dev --optimize-autoloader --classmap-authoritative`, `doctrine:migrations:migrate`, `cache:clear`. Jamais pendant un événement.
+- Mise à jour en SSH, dans le dossier du projet (`docs/hebergement.md`, section 3) : noter le commit et la version de migration, `app:backup`, `git pull`, `composer install --no-dev --optimize-autoloader --classmap-authoritative --no-scripts`, cache effacé puis reconstruit (`rm -rf var/cache/prod`, `cache:warmup` : en production, Symfony réutilise l'ancien cache sans vérifier), `doctrine:migrations:migrate`, `systemctl reload apache2`. Commandes qui écrivent dans `var/` lancées en `sudo -u www-data`. Retour arrière : migration défaite avec le nouveau code, **puis** `git reset --hard`. Jamais pendant un événement.
 - Avant d'exiger une version plus récente de PHP ou de MySQL (`composer.json`, CI, Docker), vérifier celle du serveur.
 
 ## Architecture
