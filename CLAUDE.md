@@ -58,6 +58,7 @@ Une seule installation, déjà en ligne. Détail des opérations : `docs/heberge
 - Serveur privé virtuel (VPS) chez OVHcloud : Apache, HTTPS (Let's Encrypt), PHP 8.4, MySQL 8.4. Pas de Docker.
 - Le site pointe sur `public/` ; `public/.htaccess` redirige vers le HTTPS et transmet l'en-tête `Authorization`.
 - L'adresse du site n'est écrite ni dans le dépôt ni dans le code : elle est dans `DEFAULT_URI`, dans le `.env.local` du serveur.
+- Réglages d'Apache pour les tablettes (`docs/hebergement.md`, section 6, comme `docker/apache.conf`) : `KeepAliveTimeout 15`, `MaxKeepAliveRequests 1000`, compression `DEFLATE` de `application/json`, dans `/etc/apache2/conf-available/comptoir.conf`.
 - Mise à jour en SSH, dans le dossier du projet (`docs/hebergement.md`, section 3) : noter le commit et la version de migration, `app:backup`, `git pull`, `composer install --no-dev --optimize-autoloader --classmap-authoritative --no-scripts`, cache effacé puis reconstruit (`rm -rf var/cache/prod`, `cache:warmup` : en production, Symfony réutilise l'ancien cache sans vérifier), `doctrine:migrations:migrate`, `systemctl reload apache2`. Commandes qui écrivent dans `var/` lancées en `sudo -u www-data`. Retour arrière : migration défaite avec le nouveau code, **puis** `git reset --hard`. Jamais pendant un événement.
 - Avant d'exiger une version plus récente de PHP ou de MySQL (`composer.json`, CI, Docker), vérifier celle du serveur.
 
@@ -300,8 +301,10 @@ Règles :
 
 Fait au 3 novembre : Caisse, Menu, Cuisine, Arrivées, hors ligne (service worker, file IndexedDB), Carnet de bord et export CSV, CI, production en ligne.
 
-1. Semaine du 2 novembre : réglage « Avec cuisine » sur l'événement, en-tête `X-Robots-Tag`, `composer.json` en PHP 8.3.
-2. D'ici le 20 novembre : vérifier que la production est à jour et fonctionne avec le réglage « Avec cuisine » ; fiche bénévoles (`docs/procedures/benevoles.md`, une page, sans connaissance technique : allumer et appairer les tablettes, régler le téléphone — partage de connexion, branché sur secteur, pas de mise en veille —, passer sur le second téléphone, que faire si le réseau tombe — la caisse continue, la cuisine passe aux tickets papier —, exporter le Carnet de bord en fin de soirée) ; `docs/hebergement.md` pour notre serveur (mise à jour, sauvegarde, vérifications avant un événement).
+Fait au 10 novembre : réglage « Avec cuisine », en-tête `X-Robots-Tag`, Symfony 7.4.23 (sécurité), Mercure retiré, développement sous Docker identique à la production (Apache, PHP 8.4, MySQL 8.4), interrogations par révisions (304 sans relire les commandes), `docs/hebergement.md` (mise à jour de novembre, réglages d'Apache).
+
+1. Semaine du 9 novembre : mettre la production à jour (`docs/hebergement.md`, section 5), puis réglages d'Apache (section 6).
+2. D'ici le 20 novembre : vérifier que la production est à jour et fonctionne avec le réglage « Avec cuisine » ; fiche bénévoles (`docs/procedures/benevoles.md`, une page, sans connaissance technique : allumer et appairer les tablettes, régler le téléphone — partage de connexion, branché sur secteur, pas de mise en veille —, passer sur le second téléphone, que faire si le réseau tombe — la caisse continue, la cuisine passe aux tickets papier —, exporter le Carnet de bord en fin de soirée) ; dans `docs/hebergement.md`, les vérifications avant un événement.
 3. Début décembre : essai seule à la maison (une tablette en caisse, un appareil en cuisine, partage de connexion du téléphone, coupure du réseau), puis corrections. Pas de répétition avec des bénévoles : le stand de Noël sert de répétition générale.
 4. **Stand de Noël vers le 11 décembre** (sans cuisine).
 5. Semaine du 14 décembre : retours du stand, corrections, marge de sécurité. **Loto le 18 décembre** (avec cuisine).
