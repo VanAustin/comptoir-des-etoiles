@@ -1,4 +1,5 @@
-// Écran Cuisine : tickets des commandes en cours, mis à jour toutes les 5 secondes.
+// Écran Cuisine : tickets des commandes en cours, mis à jour toutes les 3 secondes
+// (2 secondes pendant les 30 secondes qui suivent un changement).
 // Chaque appui (« Je prépare », « Prête », « Remise au client ») part après 5 secondes,
 // le temps de l'annuler en cas d'erreur.
 
@@ -35,8 +36,15 @@ const notices = new Map();
 
 const sound = new Sound("son-cuisine");
 const poller = new Poller("/api/orders", {
+  kind: "kitchen",
   onData: receive,
-  onSuccess: () => setOffline(null),
+  onSuccess: ({ clockOffset: offset }) => {
+    // Les temps d'attente se calculent sur l'heure du serveur (en-tête Date), pas sur celle de la tablette
+    if (offset !== null) {
+      clockOffset = offset;
+    }
+    setOffline(null);
+  },
   onError: (error) => setOffline(error),
   onFatal: (error) => showStatus(error.message, { pairLink: true }),
 });
@@ -105,8 +113,6 @@ function renderSoundHint() {
 // --- Données du serveur ---
 
 function receive(data) {
-  clockOffset = new Date(data.serverTime).getTime() - Date.now();
-
   const known = new Set(orders.map((order) => order.uuid));
   const arrived = data.orders.some((order) => order.status === "new" && !known.has(order.uuid));
   if (arrived && !firstLoad) {
@@ -196,6 +202,7 @@ async function send(uuid) {
     }
   }
   render();
+  poller.noteChange();
   poller.poll();
 }
 

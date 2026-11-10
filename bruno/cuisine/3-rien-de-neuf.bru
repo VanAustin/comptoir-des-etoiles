@@ -1,0 +1,39 @@
+meta {
+  name: 3. Rien de neuf (304)
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/orders
+  body: none
+  auth: bearer
+}
+
+headers {
+  If-None-Match: {{kitchenEtag}}
+}
+
+auth:bearer {
+  token: {{token_cuisine}}
+}
+
+tests {
+  test("rien n'a changé depuis « 1. Commandes en cours » : 304 sans contenu", function () {
+    expect(res.status).to.equal(304);
+    expect(res.body || "").to.equal("");
+  });
+
+  test("même empreinte, heure du serveur jointe", function () {
+    // Apache suffixe « -gzip » l'empreinte d'une réponse compressée (pas celle d'une 304)
+    const plain = function (etag) { return String(etag).replace(/-gzip"$/, '"'); };
+    expect(plain(res.headers.etag)).to.equal(plain(bru.getVar("kitchenEtag")));
+    expect(Date.parse(res.headers.date)).to.be.a("number").and.not.NaN;
+  });
+}
+
+docs {
+  Ce que reçoit presque toujours la tablette cuisine : rien de neuf depuis sa dernière lecture. Le serveur ne relit pas les commandes, seulement la tablette et son événement.
+
+  À lancer juste après « 1. Commandes en cours », sans commande créée ni avancée entre les deux.
+}

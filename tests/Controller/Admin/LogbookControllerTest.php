@@ -11,6 +11,7 @@ use App\Enum\OrderStatus;
 use App\Tests\FixturesTrait;
 use App\Tests\OrderFixturesTrait;
 use App\Tests\ResetDatabaseTrait;
+use App\Tests\RevisionsTrait;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
@@ -19,6 +20,7 @@ class LogbookControllerTest extends WebTestCase
     use FixturesTrait;
     use OrderFixturesTrait;
     use ResetDatabaseTrait;
+    use RevisionsTrait;
 
     private KernelBrowser $client;
     private Event $event;
@@ -97,10 +99,12 @@ class LogbookControllerTest extends WebTestCase
         self::assertStringContainsString('Annuler la commande '.$order->getDisplayNumber().' ?', (string) $this->client->getResponse()->getContent());
         self::assertSame(OrderStatus::Prep, $this->reload($order)->getStatus(), 'rien avant confirmation');
 
+        $before = self::revisionsOf($this->event->getId());
         $this->client->submit($crawler->selectButton('Annuler la commande')->form());
 
         self::assertResponseRedirects('/admin/carnet?evenement='.$this->event->getId());
         self::assertSame(OrderStatus::Cancelled, $this->reload($order)->getStatus());
+        self::assertRevisionsMoved($before, 1, 0, $this->event->getId(), 'la cuisine et les Arrivées voient l\'annulation');
         self::assertSame(1, self::entityManager()->getRepository(AuditLog::class)->count(['action' => 'order.cancel']));
         self::assertSame([], self::entityManager()->getRepository(Order::class)->findOpen($this->reload($order)->getEvent()));
     }

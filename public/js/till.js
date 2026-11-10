@@ -2,18 +2,18 @@
 // Le serveur recalcule prix, consigne, total et monnaie : les montants affichés
 // après validation sont ceux de sa réponse.
 
-import { apiFetch, ApiError } from "./api.js";
+import { apiFetch, apiPoll, ApiError } from "./api.js";
 import { getMenuCache, getNumbering, getPairing, saveMenuCache, saveNumbering } from "./device-store.js";
 import { el } from "./dom.js";
 import { CashReceived, changeBreakdown, describeBreakdown } from "./cash.js";
 import { formatEuros } from "./money.js";
+import { Lane, Poller } from "./poller.js";
 import { Cart, MAX_QUANTITY, indexMenu, newUuid } from "./till-cart.js";
 import { TillOutbox } from "./till-outbox.js";
 import { TillTracking } from "./till-tracking.js";
 
 const ALL = "Tout";
 /** Relecture du menu : stocks des autres caisses, prix modifiés, articles retirés. */
-const MENU_REFRESH_MS = 30000;
 /** Au-delà, une commande sans réponse part dans la file d'attente de la tablette. */
 const SEND_TIMEOUT_MS = 6000;
 
@@ -56,7 +56,11 @@ function closePanel() {
   }
 }
 
+/** Suivi et menu passent par la même file : jamais deux requêtes à la fois. */
+const lane = new Lane();
+
 const tracking = new TillTracking({
+  lane,
   onOpen: () => {
     if (openPanel("track")) {
       $("track-search").focus();
@@ -68,12 +72,34 @@ const tracking = new TillTracking({
 
 const outbox = new TillOutbox({ onChange: () => renderOutbox() });
 
+/**
+ * Menu relu toutes les 30 secondes (stocks des autres caisses, prix modifiés, articles retirés),
+ * seulement sur la grille : pendant le paiement, la commande ne doit pas changer sous les yeux
+ * du caissier. Relu dès le retour sur la grille si l'heure est passée.
+ */
+const menuPoller = new Poller("/api/menu", {
+  kind: "menu",
+  lane,
+  blocked: () => !menu || views.main.hidden || sending,
+  onData: (data, { forced }) => {
+    if (!forced && (views.main.hidden || sending)) {
+      return false; // Paiement commencé entre-temps : la commande ne change pas
+    }
+    applyMenu(data, { fromCache: false }).catch(() => {});
+    return true;
+  },
+  onFatal: (error) => showStatus(error.message, { pairLink: true }),
+});
+
 function show(name) {
   for (const [key, view] of Object.entries(views)) {
     view.hidden = key !== name;
   }
   window.scrollTo(0, 0);
   renderOutbox();
+  if (name === "main") {
+    menuPoller.pollIfDue();
+  }
 }
 
 /** Message bloquant : tablette non appairée, serveur injoignable… */
@@ -109,30 +135,17 @@ async function start() {
   }
   owner = { tillLetter: pairing.device.tillLetter, event: pairing.device.event?.name ?? "" };
   await outbox.start(owner);
-  await loadMenu({ initial: true });
-  setInterval(refreshMenu, MENU_REFRESH_MS);
-  document.addEventListener("visibilitychange", refreshMenu);
+  await loadMenu();
 }
 
-/** Seulement sur la grille : pendant le paiement, la commande ne doit pas changer sous les yeux du caissier. */
-function refreshMenu() {
-  if (menu && !document.hidden && !views.main.hidden && !sending) {
-    loadMenu({ background: true });
-  }
-}
-
-async function loadMenu({ initial = false, background = false } = {}) {
+/** Premier chargement du menu (ou bouton « Réessayer ») ; ensuite, menuPoller le tient à jour. */
+async function loadMenu() {
   let data;
+  let etag = null;
   let fromCache = false;
   try {
-    data = await apiFetch("/api/menu");
-    if (background && (views.main.hidden || sending)) {
-      return; // Paiement commencé entre-temps : la commande ne change pas
-    }
+    ({ data, etag } = await lane.run(() => apiPoll("/api/menu", null)));
   } catch (error) {
-    if (!initial) {
-      return; // Le menu déjà affiché reste utilisable
-    }
     if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
       showStatus(error.message, { pairLink: true });
       return;
@@ -146,6 +159,16 @@ async function loadMenu({ initial = false, background = false } = {}) {
     data = cached.data;
     fromCache = true;
   }
+  const initial = !menu;
+  await applyMenu(data, { fromCache });
+  if (initial) {
+    show("main");
+  }
+  // Sans réseau au démarrage : le poller réessaie (3 s, 6 s…) et remplace le menu gardé
+  menuPoller.start({ immediate: fromCache, etag });
+}
+
+async function applyMenu(data, { fromCache }) {
   menuFromCache = fromCache;
   if (!fromCache) {
     saveMenuCache({ owner, data }).catch(() => {});
@@ -163,9 +186,6 @@ async function loadMenu({ initial = false, background = false } = {}) {
   const local = stored?.scope === numberingScope ? stored.next : 1;
   nextNumber = Math.max(local, menu.lastNumber + 1);
 
-  if (initial) {
-    show("main");
-  }
   render();
   renderOutbox();
 }
@@ -315,7 +335,7 @@ function renderNoteCount() {
 $("till-note").addEventListener("input", renderNoteCount);
 $("till-status-retry").addEventListener("click", () => {
   showStatus("Chargement du menu…");
-  loadMenu({ initial: true });
+  loadMenu();
 });
 
 // --- Paiement ---
@@ -473,7 +493,7 @@ async function submitOrder() {
     showDone(order);
     tracking.refresh();
     clearCart();
-    loadMenu(); // Stocks à jour pour la commande suivante
+    menuPoller.poll({ forced: true }); // Stocks à jour pour la commande suivante
     outbox.noteSuccess(); // Le réseau est là : les commandes en attente partent aussi
   } catch (error) {
     if (isNetworkFailure(error)) {
@@ -549,7 +569,7 @@ async function handleSendError(error) {
   }
   if (error.status === 422) {
     // Menu modifié entre-temps (article retiré…) : on le recharge
-    await loadMenu();
+    await menuPoller.poll({ forced: true });
   }
   showMessage($("pay-error"), error.message);
 }

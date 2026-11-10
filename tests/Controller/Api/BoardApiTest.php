@@ -109,16 +109,12 @@ class BoardApiTest extends WebTestCase
         $this->client->request('GET', '/api/board', server: $this->auth() + ['HTTP_IF_NONE_MATCH' => $etag]);
         self::assertResponseStatusCodeSame(304);
 
-        $em = self::entityManager();
-        $em->find($order::class, $order->getId())->setStatus(OrderStatus::Prep);
-        $em->flush();
-        $this->client->request('GET', '/api/board', server: $this->auth() + ['HTTP_IF_NONE_MATCH' => $etag]);
-        self::assertResponseStatusCodeSame(304, 'nouvelle → en préparation ne change rien à l\'écran');
-
-        $em->find($order::class, $order->getId())->setStatus(OrderStatus::Ready);
-        $em->flush();
+        // Tout changement des commandes renvoie l'écran complet, sans relire les commandes avant
+        self::entityManager()->find($order::class, $order->getId())->setStatus(OrderStatus::Ready);
+        self::revisions()->flushOrders($this->event);
         $this->client->request('GET', '/api/board', server: $this->auth() + ['HTTP_IF_NONE_MATCH' => $etag]);
         self::assertResponseStatusCodeSame(200);
+        self::assertSame([$order->getDisplayNumber()], json_decode((string) $this->client->getResponse()->getContent(), true)['ready']);
     }
 
     /** @return array<string, string> */

@@ -3,14 +3,11 @@
 // envoi : le serveur ne crée jamais de doublon. Une commande n'est jamais effacée sans accord :
 // un refus du serveur la met « À vérifier », avec tout son détail pour la ressaisir.
 
+// Décisions (quand renvoyer, quoi mettre « À vérifier ») : outbox-rules.js.
+
 import { apiFetch, ApiError } from "./api.js";
 import { deleteOutboxEntry, getOutbox, saveOutboxEntry } from "./device-store.js";
-
-const RETRY_MS = 5000;
-const MAX_RETRY_MS = 30000;
-const SEND_TIMEOUT_MS = 8000;
-/** Après un échec d'envoi, les nouvelles commandes vont directement dans la file pendant ce délai. */
-const OFFLINE_GRACE_MS = 30000;
+import { isOffline, otherOwnerMessage, refusalMessage, retryDelay, sameOwner, sendFailure, SEND_TIMEOUT_MS } from "./outbox-rules.js";
 
 export class TillOutbox {
   /** @param {{onChange: () => void}} handlers appelé à chaque changement de la file ou de la connexion */
@@ -26,6 +23,7 @@ export class TillOutbox {
     /** Caisse qui a encaissé : une commande n'est envoyée qu'avec le même appairage. */
     this.owner = null;
 
+    // Réseau revenu : envoi tout de suite, sans attendre le prochain essai
     window.addEventListener("online", () => this.flush());
   }
 
@@ -50,7 +48,7 @@ export class TillOutbox {
 
   /** Le dernier envoi a échoué il y a peu : inutile de faire attendre le caissier. */
   get offline() {
-    return this.failures > 0 && Date.now() - this.lastFailureAt < OFFLINE_GRACE_MS;
+    return isOffline({ failures: this.failures, lastFailureAt: this.lastFailureAt, now: Date.now() });
   }
 
   /** Envoi direct réussi : le réseau est revenu. */
@@ -77,7 +75,7 @@ export class TillOutbox {
     await saveOutboxEntry(saved);
     this.entries.push(saved);
     this.onChange();
-    this.schedule(RETRY_MS);
+    this.schedule(retryDelay(this.failures));
   }
 
   schedule(delay) {
@@ -85,11 +83,12 @@ export class TillOutbox {
     this.timer = setTimeout(() => this.flush(), delay);
   }
 
-  /** Envoie les commandes en attente, de la plus ancienne à la plus récente. */
+  /** Envoie les commandes en attente, de la plus ancienne à la plus récente, une à la fois. */
   async flush() {
     if (this.flushing || this.pending.length === 0) {
       return;
     }
+    clearTimeout(this.timer);
     this.flushing = true;
     try {
       for (const entry of this.pending) {
@@ -101,8 +100,8 @@ export class TillOutbox {
       this.flushing = false;
       this.onChange();
       if (this.pending.length > 0) {
-        // Réseau toujours absent : essais de plus en plus espacés
-        this.schedule(Math.min(MAX_RETRY_MS, RETRY_MS * 2 ** Math.max(0, this.failures - 1)));
+        // Réseau toujours absent : 3 s, 6 s, 12 s, puis toutes les 30 s
+        this.schedule(retryDelay(this.failures));
       }
     }
   }
@@ -110,13 +109,14 @@ export class TillOutbox {
   /** @returns {Promise<boolean>} true si l'on peut passer à la commande suivante */
   async send(entry) {
     if (!sameOwner(entry.owner, this.owner)) {
-      await this.block(entry, `Encaissée par la caisse ${entry.owner?.tillLetter ?? "?"} avant un nouvel appairage : à ressaisir.`);
+      await this.block(entry, otherOwnerMessage(entry));
       return true;
     }
     try {
       await apiFetch("/api/orders", { method: "POST", body: entry.body, timeout: SEND_TIMEOUT_MS });
     } catch (error) {
-      if (!(error instanceof ApiError) || error.status === 0 || error.status >= 500 || error.status === 429) {
+      const decision = sendFailure(error instanceof ApiError ? error.status : 0);
+      if (decision === "retry") {
         // Pas de réponse utile : on réessaiera, rien n'est perdu
         this.failures += 1;
         this.lastFailureAt = Date.now();
@@ -125,11 +125,8 @@ export class TillOutbox {
       }
       this.reachedServer = true;
       // Refus du serveur : la commande reste dans la tablette, à vérifier
-      const message = error.status === 409 && error.data?.nextNumber
-        ? `Le numéro ${entry.displayNumber} existe déjà sur le serveur pour une autre commande. Ressaisissez celle-ci et donnez son nouveau numéro au client.`
-        : error.message;
-      await this.block(entry, message);
-      return error.status !== 401 && error.status !== 403;
+      await this.block(entry, refusalMessage(entry, error));
+      return decision === "block";
     }
     this.failures = 0;
     this.reachedServer = true;
@@ -163,8 +160,4 @@ export class TillOutbox {
     this.entries = this.entries.filter((e) => e.uuid !== uuid);
     this.onChange();
   }
-}
-
-function sameOwner(a, b) {
-  return Boolean(a && b) && a.tillLetter === b.tillLetter && a.event === b.event;
 }

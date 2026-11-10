@@ -10,6 +10,7 @@ use App\Enum\DeviceRole;
 use App\Enum\OrderStatus;
 use App\Tests\FixturesTrait;
 use App\Tests\ResetDatabaseTrait;
+use App\Tests\RevisionsTrait;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -18,6 +19,7 @@ class TillApiTest extends WebTestCase
 {
     use FixturesTrait;
     use ResetDatabaseTrait;
+    use RevisionsTrait;
 
     private KernelBrowser $client;
     private Event $event;
@@ -121,10 +123,14 @@ class TillApiTest extends WebTestCase
         $order = $this->order(['Hot-dog' => 2, 'Café' => 1], amount: 1000);
         $order['totalCents'] = 1;
         $order['lines'][0]['unitPriceCents'] = 1;
+        $before = self::revisionsOf($this->event->getId());
 
         $data = $this->post($order);
 
         self::assertResponseStatusCodeSame(201);
+        self::assertRevisionsMoved($before, 1, 0, $this->event->getId(), 'la cuisine voit la nouvelle commande');
+        $this->post($order);
+        self::assertRevisionsMoved($before, 1, 0, $this->event->getId(), 'commande rejouée : rien de nouveau');
         self::assertSame(700, $data['totalCents']);
         self::assertSame(1000, $data['amountReceivedCents']);
         self::assertSame(300, $data['changeCents']);

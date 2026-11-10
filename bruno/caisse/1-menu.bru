@@ -20,11 +20,18 @@ script:post-response {
     bru.setVar("productId", res.body.products[0].id);
     bru.setVar("nextNumber", res.body.lastNumber + 1);
   }
+  // Pour « 7. Menu inchangé (304) »
+  bru.setVar("menuEtag", res.headers.etag);
 }
 
 tests {
   test("le menu est renvoyé (200)", function () {
     expect(res.status).to.equal(200);
+  });
+
+  test("avec une empreinte pour la relecture toutes les 30 secondes", function () {
+    expect(res.headers.etag).to.match(/^"e\d+-o\d+-m\d+-v\d+(-gzip)?"$/);
+    expect(res.headers["cache-control"]).to.equal("no-cache, private");
   });
 
   test("la lettre de la caisse et le dernier numéro sont indiqués", function () {

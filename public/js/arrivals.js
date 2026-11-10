@@ -1,4 +1,5 @@
-// Écran Arrivées : numéros prêts et en préparation, lus de loin, mis à jour toutes les 5 secondes.
+// Écran Arrivées : numéros prêts et en préparation, lus de loin, mis à jour toutes les 3 secondes
+// (2 secondes pendant les 30 secondes qui suivent un changement).
 // Un numéro qui vient d'être prêt est mis en évidence quelques secondes, avec un carillon.
 
 import { getPairing } from "./device-store.js";
@@ -17,6 +18,7 @@ let fresh = null;
 
 const sound = new Sound("son-arrivees");
 const poller = new Poller("/api/board", {
+  kind: "board",
   onData: receive,
   onSuccess: () => { $("arrivals-offline").hidden = true; },
   onError: () => { $("arrivals-offline").hidden = false; },

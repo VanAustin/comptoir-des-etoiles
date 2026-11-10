@@ -10,6 +10,7 @@ use App\Enum\OrderStatus;
 use App\Tests\FixturesTrait;
 use App\Tests\OrderFixturesTrait;
 use App\Tests\ResetDatabaseTrait;
+use App\Tests\RevisionsTrait;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -19,6 +20,7 @@ class KitchenApiTest extends WebTestCase
     use FixturesTrait;
     use OrderFixturesTrait;
     use ResetDatabaseTrait;
+    use RevisionsTrait;
 
     private KernelBrowser $client;
     private Event $event;
@@ -87,7 +89,9 @@ class KitchenApiTest extends WebTestCase
             array_column($data['orders'], 'displayNumber'),
         );
         self::assertSame(['prep', 'ready', 'new'], array_column($data['orders'], 'status'));
-        self::assertEqualsWithDelta(time(), (new \DateTimeImmutable($data['serverTime']))->getTimestamp(), 5);
+        // Heure du serveur dans l'en-tête Date (aussi sur une 304), plus dans le contenu
+        self::assertArrayNotHasKey('serverTime', $data);
+        self::assertEqualsWithDelta(time(), (new \DateTimeImmutable((string) $this->client->getResponse()->headers->get('Date')))->getTimestamp(), 5);
     }
 
     public function testTicketSeparatesKitchenAndCounterWithoutPrices(): void
@@ -168,6 +172,7 @@ class KitchenApiTest extends WebTestCase
     public function testOrderAdvancesStepByStep(): void
     {
         $order = self::createOrder($this->event, [[$this->crepe, 1]]);
+        $before = self::revisionsOf($this->event->getId());
 
         foreach (['prep', 'ready', 'served'] as $status) {
             $data = $this->advance($order, $status);
@@ -177,14 +182,17 @@ class KitchenApiTest extends WebTestCase
         }
 
         self::assertSame([], $this->list()['orders'], 'une commande remise au client quitte la cuisine');
+        self::assertRevisionsMoved($before, 3, 0, $this->event->getId(), 'une révision par étape');
     }
 
     public function testAskingTheCurrentStatusAgainChangesNothing(): void
     {
         $order = self::createOrder($this->event, [[$this->crepe, 1]], OrderStatus::Prep);
         $updatedAt = $this->reload($order)->getUpdatedAt();
+        $before = self::revisionsOf($this->event->getId());
 
         $data = $this->advance($order, 'prep');
+        self::assertRevisionsMoved($before, 0, 0, $this->event->getId(), 'rien n\'a changé : les tablettes gardent leur 304');
 
         self::assertResponseStatusCodeSame(200);
         self::assertSame('prep', $data['status']);

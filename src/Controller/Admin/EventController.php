@@ -9,6 +9,7 @@ use App\Repository\EventRepository;
 use App\Repository\OrderRepository;
 use App\Service\AuditLogger;
 use App\Service\Money;
+use App\Service\Revisions;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -29,6 +30,7 @@ class EventController extends AbstractController
         private readonly DeviceRepository $devices,
         private readonly EntityManagerInterface $entityManager,
         private readonly AuditLogger $auditLogger,
+        private readonly Revisions $revisions,
     ) {
     }
 
@@ -96,7 +98,8 @@ class EventController extends AbstractController
                 $before = self::snapshot($event);
                 $event->setName($name)->setDate($date)->setDepositCents($depositCents)->setWithKitchen($values['kitchen']);
                 $this->auditLogger->log('event.update', 'event:'.$event->getId().' '.$name, $before, self::snapshot($event));
-                $this->entityManager->flush();
+                // Nom, date, consigne et cuisine font partie du menu des caisses
+                $this->revisions->flushMenu($event);
                 $this->addFlash('info', \sprintf('L\'événement « %s » est enregistré.', $name));
                 if (!$event->hasKitchen() && $kitchenDevices) {
                     $this->addFlash('info', \sprintf(

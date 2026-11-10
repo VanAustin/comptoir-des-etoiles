@@ -1,0 +1,32 @@
+meta {
+  name: 7. Menu inchangé (304)
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/menu
+  body: none
+  auth: bearer
+}
+
+headers {
+  If-None-Match: {{menuEtag}}
+}
+
+auth:bearer {
+  token: {{deviceToken}}
+}
+
+tests {
+  test("ni menu ni commande changés depuis « 1. Menu » : 304 sans contenu", function () {
+    expect(res.status).to.equal(304);
+    expect(res.body || "").to.equal("");
+  });
+}
+
+docs {
+  La caisse relit le menu toutes les 30 secondes, sur la grille seulement. Tant que ni le menu ni les commandes n'ont changé (stocks restants, dernier numéro), le serveur répond 304 sans contenu.
+
+  À lancer juste après « 1. Menu », sans commande ni changement du menu entre les deux.
+}

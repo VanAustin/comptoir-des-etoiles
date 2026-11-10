@@ -8,10 +8,12 @@ use App\Entity\OrderLine;
 use App\Entity\Product;
 use App\Enum\OrderStatus;
 use App\Enum\PaymentMethod;
+use App\Service\Revisions;
 
 /**
  * Commandes créées directement en base, pour tester les écrans qui les lisent
- * (cuisine, Arrivées) sans repasser par la caisse.
+ * (cuisine, Arrivées) sans repasser par la caisse. Comme le vrai code, elles passent
+ * par App\Service\Revisions : les tablettes voient le changement.
  */
 trait OrderFixturesTrait
 {
@@ -23,7 +25,7 @@ trait OrderFixturesTrait
             ->setPriceCents(200)
             ->setGoesToKitchen($kitchen);
         self::entityManager()->persist($product);
-        self::entityManager()->flush();
+        self::revisions()->flushMenu($event);
 
         return $product;
     }
@@ -52,9 +54,14 @@ trait OrderFixturesTrait
             $order->setStatus($step);
         }
         $em->persist($order);
-        $em->flush();
+        self::revisions()->flushOrders($event);
 
         return $order;
+    }
+
+    protected static function revisions(): Revisions
+    {
+        return self::getContainer()->get(Revisions::class);
     }
 
     protected static function uuid(): string

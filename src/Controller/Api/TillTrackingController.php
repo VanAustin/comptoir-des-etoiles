@@ -6,7 +6,7 @@ use App\Entity\Device;
 use App\Entity\Order;
 use App\Enum\OrderStatus;
 use App\Repository\OrderRepository;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Service\Revisions;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -26,18 +26,18 @@ class TillTrackingController extends AbstractController
     private const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 
     #[Route('/api/till/orders', name: 'api_till_orders', methods: ['GET'])]
-    public function orders(#[CurrentUser] Device $device, Request $request, OrderRepository $orders): JsonResponse
+    public function orders(#[CurrentUser] Device $device, Request $request, PollResponse $poll, OrderRepository $orders): Response
     {
-        return PollResponse::create(
-            $request,
-            ['orders' => array_map(static fn (Order $o): array => self::describe($o, $device), $orders->findOpen($device->getEvent()))],
-            ['serverTime' => (new \DateTimeImmutable())->format(\DATE_ATOM)],
-        );
+        $event = $device->getEvent();
+
+        return $poll->create($request, $event, false, static fn (): array => [
+            'orders' => array_map(static fn (Order $o): array => self::describe($o, $device), $orders->findOpen($event)),
+        ]);
     }
 
     /** Le client récupère au comptoir une commande prête. Déjà remise : rien ne change. */
     #[Route('/api/till/orders/{uuid}/served', name: 'api_till_orders_served', requirements: ['uuid' => self::UUID], methods: ['POST'])]
-    public function served(#[CurrentUser] Device $device, string $uuid, OrderRepository $orders, EntityManagerInterface $entityManager): JsonResponse
+    public function served(#[CurrentUser] Device $device, string $uuid, OrderRepository $orders, Revisions $revisions): JsonResponse
     {
         $order = $orders->findOneInEvent($device->getEvent(), $uuid);
         if (null === $order) {
@@ -47,7 +47,7 @@ class TillTrackingController extends AbstractController
         $status = $order->getStatus();
         if (OrderStatus::Ready === $status) {
             $order->setStatus(OrderStatus::Served);
-            $entityManager->flush();
+            $revisions->flushOrders($device->getEvent());
         } elseif (OrderStatus::Served !== $status) {
             $message = OrderStatus::Cancelled === $status
                 ? \sprintf('La commande %s a été annulée.', $order->getDisplayNumber())

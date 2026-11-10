@@ -10,6 +10,7 @@ use App\Service\AuditLogger;
 use App\Service\Logbook;
 use App\Service\LogbookExport;
 use App\Service\Money;
+use App\Service\Revisions;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -36,6 +37,7 @@ class LogbookController extends AbstractController
         private readonly EventRepository $events,
         private readonly EntityManagerInterface $entityManager,
         private readonly AuditLogger $auditLogger,
+        private readonly Revisions $revisions,
     ) {
     }
 
@@ -119,7 +121,8 @@ class LogbookController extends AbstractController
             $before = ['status' => $order->getStatus()->value, 'totalCents' => $order->getTotalCents(), 'paymentMethod' => $order->getPaymentMethod()->value];
             $order->setStatus(OrderStatus::Cancelled);
             $this->auditLogger->log('order.cancel', 'order:'.$order->getId().' '.$order->getDisplayNumber(), before: $before, after: ['status' => OrderStatus::Cancelled->value]);
-            $this->entityManager->flush();
+            // La commande disparaît de la cuisine et des Arrivées, son stock revient au menu
+            $this->revisions->flushOrders($order->getEvent());
             $this->addFlash('info', \sprintf('La commande %s est annulée. %s', $order->getDisplayNumber(), self::refundHint($order)));
 
             return $this->redirect($back);

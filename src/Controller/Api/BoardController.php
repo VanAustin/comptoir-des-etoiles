@@ -7,8 +7,8 @@ use App\Entity\Order;
 use App\Enum\OrderStatus;
 use App\Repository\OrderRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -21,11 +21,23 @@ class BoardController extends AbstractController
     public const READY_SHOWN = 12;
 
     #[Route('/api/board', name: 'api_board', methods: ['GET'])]
-    public function board(#[CurrentUser] Device $device, Request $request, OrderRepository $orders): JsonResponse
+    public function board(#[CurrentUser] Device $device, Request $request, PollResponse $poll, OrderRepository $orders): Response
+    {
+        $event = $device->getEvent();
+
+        return $poll->create($request, $event, false, static fn (): array => self::numbers($orders->findOpen($event)));
+    }
+
+    /**
+     * @param list<Order> $open
+     *
+     * @return array{ready: list<string>, preparing: list<string>}
+     */
+    private static function numbers(array $open): array
     {
         $ready = [];
         $preparing = [];
-        foreach ($orders->findOpen($device->getEvent()) as $order) {
+        foreach ($open as $order) {
             if (OrderStatus::Ready === $order->getStatus()) {
                 $ready[] = $order;
             } else {
@@ -37,6 +49,6 @@ class BoardController extends AbstractController
         usort($ready, static fn (Order $a, Order $b): int => [$b->getUpdatedAt(), $b->getId()] <=> [$a->getUpdatedAt(), $a->getId()]);
         $ready = array_map(static fn (Order $o): string => $o->getDisplayNumber(), \array_slice($ready, 0, self::READY_SHOWN));
 
-        return PollResponse::create($request, ['ready' => $ready, 'preparing' => $preparing]);
+        return ['ready' => $ready, 'preparing' => $preparing];
     }
 }

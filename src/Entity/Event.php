@@ -34,6 +34,18 @@ class Event
     #[ORM\Column(options: ['default' => true])]
     private bool $withKitchen = true;
 
+    /**
+     * Numéros de révision, augmentés de 1 à chaque changement des commandes ou du menu, dans
+     * la même transaction (App\Service\Revisions, jamais en PHP). Les tablettes interrogent
+     * le serveur toutes les quelques secondes : tant que la révision n'a pas changé, il répond
+     * 304 sans relire les commandes (App\Controller\Api\PollResponse).
+     */
+    #[ORM\Column(options: ['default' => 0, 'unsigned' => true])]
+    private int $ordersRevision = 0;
+
+    #[ORM\Column(options: ['default' => 0, 'unsigned' => true])]
+    private int $menuRevision = 0;
+
     public function __construct(string $name, \DateTimeImmutable $date)
     {
         $this->name = $name;
@@ -103,5 +115,16 @@ class Event
         $this->withKitchen = $withKitchen;
 
         return $this;
+    }
+
+    /** Lecture seule : l'augmentation se fait en SQL, voir App\Service\Revisions. */
+    public function getOrdersRevision(): int
+    {
+        return $this->ordersRevision;
+    }
+
+    public function getMenuRevision(): int
+    {
+        return $this->menuRevision;
     }
 }

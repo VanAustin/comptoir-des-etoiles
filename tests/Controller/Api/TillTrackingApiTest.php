@@ -10,6 +10,7 @@ use App\Enum\OrderStatus;
 use App\Tests\FixturesTrait;
 use App\Tests\OrderFixturesTrait;
 use App\Tests\ResetDatabaseTrait;
+use App\Tests\RevisionsTrait;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -19,6 +20,7 @@ class TillTrackingApiTest extends WebTestCase
     use FixturesTrait;
     use OrderFixturesTrait;
     use ResetDatabaseTrait;
+    use RevisionsTrait;
 
     private KernelBrowser $client;
     private Event $event;
@@ -71,7 +73,7 @@ class TillTrackingApiTest extends WebTestCase
         self::assertSame(['prep', 'ready'], array_column($data['orders'], 'status'));
         self::assertSame([true, false], array_column($data['orders'], 'mine'), 'commandes de cette caisse repérées');
         self::assertSame(['uuid', 'displayNumber', 'status', 'createdAt', 'updatedAt', 'mine'], array_keys($data['orders'][0]));
-        self::assertArrayHasKey('serverTime', $data);
+        self::assertArrayNotHasKey('serverTime', $data, 'heure du serveur : en-tête Date');
     }
 
     public function testOnlyTheDeviceEventIsShown(): void
@@ -96,11 +98,13 @@ class TillTrackingApiTest extends WebTestCase
     public function testReadyOrderIsServedAtTheCounter(): void
     {
         $order = self::createOrder($this->event, [[$this->crepe, 1]], OrderStatus::Ready, letter: 'B');
+        $before = self::revisionsOf($this->event->getId());
 
         $data = $this->serve($order);
 
         self::assertResponseStatusCodeSame(200);
         self::assertSame('served', $data['status']);
+        self::assertRevisionsMoved($before, 1, 0, $this->event->getId());
         self::assertSame(OrderStatus::Served, $this->reload($order)->getStatus());
         self::assertSame([], $this->list()['orders']);
     }

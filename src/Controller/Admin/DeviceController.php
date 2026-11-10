@@ -10,6 +10,7 @@ use App\Repository\EventRepository;
 use App\Repository\ProductRepository;
 use App\Service\AuditLogger;
 use App\Service\DevicePairing;
+use App\Service\Revisions;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -33,6 +34,7 @@ class DeviceController extends AbstractController
         private readonly DevicePairing $pairing,
         private readonly EntityManagerInterface $entityManager,
         private readonly AuditLogger $auditLogger,
+        private readonly Revisions $revisions,
     ) {
     }
 
@@ -143,7 +145,8 @@ class DeviceController extends AbstractController
                 if ($before !== self::tillSnapshot($device)) {
                     $this->auditLogger->log('device.update', 'device:'.$device->getId().' '.$device->getName(), $before, self::tillSnapshot($device));
                 }
-                $this->entityManager->flush();
+                // Catégories vendues et poste de vente font partie du menu de cette caisse
+                $this->revisions->flushMenu($device->getEvent());
                 $this->addFlash('info', \sprintf('Les réglages de « %s » sont enregistrés. La caisse les applique d\'ici 30 secondes.', $device->getName()));
 
                 return $this->redirectToRoute('admin_device_index');

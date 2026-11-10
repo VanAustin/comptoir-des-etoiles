@@ -4,7 +4,7 @@
 
 import { apiFetch, ApiError } from "./api.js";
 import { el } from "./dom.js";
-import { Poller } from "./poller.js";
+import { Lane, Poller } from "./poller.js";
 
 const LATE_MINUTES = 10;
 const UNDO_SECONDS = 5;
@@ -14,9 +14,10 @@ const $ = (id) => document.getElementById(id);
 
 export class TillTracking {
   /**
-   * @param {{onOpen: () => void, onClose: () => void, onFatal: (error: ApiError) => void}} handlers
+   * @param {{onOpen: () => void, onClose: () => void, onFatal: (error: ApiError) => void, lane?: Lane}} handlers
+   *   lane : partagée avec le menu de la caisse, jamais deux requêtes à la fois
    */
-  constructor({ onOpen, onClose, onFatal }) {
+  constructor({ onOpen, onClose, onFatal, lane = new Lane() }) {
     this.orders = [];
     this.clockOffset = 0;
     this.loaded = false;
@@ -25,9 +26,16 @@ export class TillTracking {
     this.handlers = { onClose, onFatal };
 
     this.poller = new Poller("/api/till/orders", {
-      interval: 10000,
+      kind: "tracking",
+      lane,
       onData: (data) => this.receive(data),
-      onSuccess: () => { $("track-offline").hidden = true; },
+      onSuccess: ({ clockOffset }) => {
+        // Temps d'attente sur l'heure du serveur (en-tête Date), pas sur celle de la tablette
+        if (clockOffset !== null) {
+          this.clockOffset = clockOffset;
+        }
+        $("track-offline").hidden = true;
+      },
       onError: () => { $("track-offline").hidden = false; },
       onFatal: (error) => this.handlers.onFatal(error),
     });
@@ -73,7 +81,6 @@ export class TillTracking {
   }
 
   receive(data) {
-    this.clockOffset = new Date(data.serverTime).getTime() - Date.now();
     this.orders = data.orders;
     this.loaded = true;
     for (const uuid of this.pending.keys()) {

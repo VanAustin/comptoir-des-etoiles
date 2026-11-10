@@ -27,13 +27,22 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 class TillController extends AbstractController
 {
     #[Route('/api/menu', name: 'api_menu', methods: ['GET'])]
-    public function menu(#[CurrentUser] Device $device, ProductRepository $products, StockCalculator $stock, OrderRepository $orders): JsonResponse
+    public function menu(#[CurrentUser] Device $device, Request $request, PollResponse $poll, ProductRepository $products, StockCalculator $stock, OrderRepository $orders): Response
+    {
+        $event = $device->getEvent();
+
+        // Stocks restants et dernier numéro : dépend aussi des commandes
+        return $poll->create($request, $event, true, static fn (): array => self::menuContent($device, $products, $stock, $orders));
+    }
+
+    /** @return array<string, mixed> */
+    private static function menuContent(Device $device, ProductRepository $products, StockCalculator $stock, OrderRepository $orders): array
     {
         $event = $device->getEvent();
         $list = $products->findForEvent($event);
         $remaining = $stock->remaining($event, $list);
 
-        return new JsonResponse([
+        return [
             'event' => [
                 'name' => $event->getName(),
                 'date' => $event->getDate()->format('Y-m-d'),
@@ -66,7 +75,7 @@ class TillController extends AbstractController
                 // Information seulement : un stock épuisé ne bloque pas la vente
                 'remainingStock' => $remaining[$p->getId()] ?? null,
             ], $list),
-        ]);
+        ];
     }
 
     /**
