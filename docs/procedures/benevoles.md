@@ -4,6 +4,8 @@ Adresse du site : ______________________________ Responsable : _________________
 
 Les tablettes passent par le **partage de connexion d'un téléphone**. Un second téléphone est prêt en secours. Pour un stand sans cuisine (stand de Noël), seules les caisses servent : ignorez ce qui concerne la cuisine et l'écran Arrivées.
 
+Service à table (Loto) : les livreurs ont leur propre fiche, [Livreur](livreur.md).
+
 ## 1. Le téléphone, avant d'allumer les tablettes
 
 1. **Branchez-le sur secteur**, avec son chargeur. Posez-le en hauteur, près des caisses, loin des murs épais.
@@ -21,14 +23,6 @@ Les tablettes passent par le **partage de connexion d'un téléphone**. Un secon
 5. Sur la cuisine et l'écran Arrivées, touchez le bouton du son jusqu'à lire **« Son activé »**.
 6. Un bandeau « Nouvelle version » apparaît ? Touchez « Recharger » **entre deux commandes**.
 7. Ne maintenez pas le bouton « Tablette » (en haut) sans l'accord du ou de la responsable.
-
-## Service à table (Loto)
-
-Le client commande et **paie à la caisse** comme d'habitude, puis donne le numéro du chevalet posé sur sa table.
-
-- **Caisse** : touchez « Table », tapez le numéro, puis « Valider ». Sans numéro, c'est une commande au comptoir. L'écran indique ce qu'il faut faire : « Servi à la table 304 », ou « Plats servis à la table 304 · boissons à remettre maintenant ». **Les boissons sont toujours remises tout de suite au comptoir.**
-- **Cuisine** : « Table 304 » s'affiche en grand sur le ticket. « Déjà remis au comptoir » : ne mettez pas ces boissons sur le plateau. Une fois le plat apporté à la table, touchez « Remise au client ».
-- **Arrivées** : les commandes à table n'y apparaissent pas, c'est normal.
 
 ## 3. Passer sur le second téléphone
 

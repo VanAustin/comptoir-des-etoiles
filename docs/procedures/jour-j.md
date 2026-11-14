@@ -10,7 +10,7 @@
 5. Vérifiez que vous pouvez vous connecter à l'administration. Mot de passe oublié : voir [Incidents](incidents.md).
 6. Sur chaque tablette, **Chrome doit être le navigateur par défaut** : Paramètres, « Applications », « Applications par défaut », « Application de navigation », choisissez **Chrome** (les intitulés varient selon les marques ; sur Samsung, Samsung Internet est souvent choisi d'office). Sinon, le QR code d'appairage s'ouvrirait dans un autre navigateur, où l'application n'est pas installée, et la tablette ne fonctionnerait pas.
 7. Chargez toutes les tablettes et le ou les téléphones qui partageront la 4G. Prévoyez rallonges et chargeurs.
-8. Imprimez la fiche [Bénévoles](benevoles.md), en y écrivant l'adresse du site et votre nom, et la fiche [Coupure réseau](coupure-reseau.md) pour chaque poste, et prévoyez un carnet et un stylo par caisse.
+8. Imprimez la fiche [Bénévoles](benevoles.md), en y écrivant l'adresse du site et votre nom (pour le Loto, une fiche [Livreur](livreur.md) par livreur, avec sa zone), et la fiche [Coupure réseau](coupure-reseau.md) pour chaque poste, et prévoyez un carnet et un stylo par caisse.
 
 ## Installation sur place
 
@@ -26,6 +26,7 @@
 
 - Le bouton **Tablette** (retour à l'appairage) se maintient 2 secondes : un appui accidentel ne fait rien.
 - Une bande « Nouvelle version de l'application » propose de recharger : touchez « Recharger » **entre deux commandes**, jamais pendant un encaissement.
+- **Service à table** (Loto) : à la caisse, « Table » puis le numéro du chevalet ; sans numéro, c'est une commande au comptoir. Les boissons sont toujours remises tout de suite au comptoir ; la caisse affiche « Servi à la table 304 » ou « Plats servis à la table 304 · boissons à remettre maintenant ». En cuisine, « Table 304 » s'affiche en grand et « Déjà remis au comptoir » signale les boissons à ne pas mettre sur le plateau. Les commandes à table n'apparaissent pas sur l'écran Arrivées. Les livreurs suivent la fiche [Livreur](livreur.md), en remplissant leur zone ; le passe touche « Remise au client » quand le livreur revient.
 - Le stock affiché est une information : une vente n'est jamais bloquée, même si le stock devient négatif.
 - La remarque pour la cuisine ne contient **jamais** de nom ni de téléphone : la commande est un numéro.
 - Erreur d'encaissement : ne réencaissez pas par-dessus. Notez le numéro ; la commande s'annule depuis l'administration, **Carnet de bord**, ligne de la commande, **Annuler** (l'annulation est tracée).
