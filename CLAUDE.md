@@ -151,6 +151,8 @@ Usage prévu : une APE, petite échelle. Mais le code est écrit **comme s'il é
 - Symfony Security avec formulaire de connexion, mot de passe haché (`auto`, donc bcrypt ou argon2), protection CSRF sur la connexion et sur **chaque** formulaire qui modifie des données.
 - `login_throttling` : 5 tentatives par tranche de 15 minutes, par IP et par identifiant.
 - Session régénérée à la connexion (comportement par défaut de Symfony, à ne pas désactiver), expiration après 2 heures d'inactivité.
+- « Rester connectée sur cet appareil » (case décochée par défaut) : `remember_me` de Symfony Security, cookie `REMEMBERME` de 30 jours (`secure: auto`, donc sécurisé en HTTPS ; `httponly`, `samesite: lax`), signé avec l'empreinte du mot de passe (`signature_properties: ['password']`) : `app:admin:password` déconnecte tous les appareils. Sans la case, l'expiration après 2 heures d'inactivité est inchangée ; avec, la session est rouverte par le cookie, sans message d'expiration (`SessionIdleListener`). « Se déconnecter » efface le cookie.
+- Champ mot de passe : bouton en forme d'œil dans le champ, ouvert pour afficher, barré pour masquer (`public/js/password-toggle.js`, attribut `data-password-toggle` ; nom fixe « Afficher le mot de passe » et `aria-pressed`), masqué sans JavaScript ; le champ redevient masqué à l'envoi du formulaire.
 - **Aucun identifiant par défaut livré.** Le premier administrateur est créé par une commande : `php bin/console app:install`, qui demande le mot de passe (12 caractères minimum) et génère `APP_SECRET`. Mot de passe oublié : `php bin/console app:admin:password` (mêmes règles de saisie, `App\Command\NewPasswordPrompt` ; ferme les sessions ouvertes, tracé `admin.password`).
 
 ### Tablettes : appairage, sans comptes
@@ -262,7 +264,7 @@ La référence est `public/css/tokens.css`. Renard est passé de #A66927 à #A56
 
 Icônes des articles : pictogrammes au trait de la bibliothèque **Lucide** (licence ISC), choisis dans une grille de l'administration. Pas d'émojis.
 
-- Une sélection de fichiers SVG est copiée dans `public/img/icons/` avec la licence (`LICENSE.txt`) ; aucune dépendance, rien de chargé depuis internet.
+- Une sélection de fichiers SVG est copiée dans `public/img/icons/` avec la licence (`LICENSE.txt`) ; aucune dépendance, rien de chargé depuis internet. Les icônes de l'interface (œil du mot de passe) sont à part, dans `public/img/ui/`, avec la même licence : `public/img/icons/` ne contient que le catalogue du menu.
 - La liste fait foi dans `src/Menu/IconCatalog.php` ; chaque icône a sa règle dans `public/css/icons.css` (masque CSS, couleur du texte : compatible avec le thème sombre). `IconCatalogTest` vérifie que les trois concordent.
 - Pour ajouter une icône : copier le SVG depuis le paquet `lucide-static`, l'ajouter au catalogue et à `icons.css`.
 - Là où Lucide n'a rien (frites, crêpe, saucisse, agneau, cochon), l'icône est dessinée pour le projet dans le même style (grille 24 px, trait de 2, extrémités arrondies, `currentColor`), sous la licence du projet ; c'est indiqué dans le fichier et dans `public/img/icons/LICENSE.txt`.
@@ -304,6 +306,8 @@ Fait au 3 novembre : Caisse, Menu, Cuisine, Arrivées, hors ligne (service worke
 Fait au 10 novembre : réglage « Avec cuisine », en-tête `X-Robots-Tag`, Symfony 7.4.23 (sécurité), Mercure retiré, développement sous Docker identique à la production (Apache, PHP 8.4, MySQL 8.4), interrogations par révisions (304 sans relire les commandes), `docs/hebergement.md` (mise à jour de novembre, réglages d'Apache).
 
 Fait au 10 novembre, documentation : fiche bénévoles (`docs/procedures/benevoles.md`), vérifications avant un événement (`docs/hebergement.md`, section 7).
+
+Nouvelles évolutions, à mettre en production avant le 4 décembre, une PR chacune, dans cet ordre : A connexion à l'administration (« Rester connectée », « Afficher » le mot de passe), B QR code d'appairage, C service à table (Loto), D chevalets de table (facultative, seulement si prête avant le 27 novembre).
 
 1. Semaine du 9 novembre : mettre la production à jour (`docs/hebergement.md`, section 5), puis réglages d'Apache (section 6).
 2. D'ici le 20 novembre : vérifier que la production est à jour et fonctionne avec le réglage « Avec cuisine » (`docs/hebergement.md`, section 7).

@@ -108,6 +108,28 @@ main { padding-block: var(--espace) calc(var(--espace) * 1.5); }
 .login { max-width: 420px; margin: 8vh auto 0; }
 .login h1 { margin-bottom: 16px; }
 .login .btn-primary { width: 100%; }
+.login .check { margin-bottom: 4px; }
+.login .remember-help { margin-bottom: 20px; }
+
+/* Champ mot de passe : œil ouvert (afficher) ou barré (masquer), dans le champ, à droite.
+   Icônes Lucide (public/img/ui/LICENSE.txt), en masque : couleur du texte, thème sombre compris. */
+.password-field { position: relative; display: flex; }
+.password-field input { flex: 1 1 auto; min-width: 0; padding-right: 52px; }
+.password-toggle {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 48px;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0; border: 0; border-radius: 0 8px 8px 0; background: transparent;
+  color: var(--encre-douce); cursor: pointer;
+}
+.password-toggle:hover, .password-toggle[aria-pressed="true"] { color: var(--encre); }
+.password-toggle:focus-visible { outline: 2px solid var(--renard); outline-offset: -2px; }
+.password-toggle-icon {
+  width: 22px; height: 22px; background-color: currentColor;
+  -webkit-mask: url(../img/ui/eye.svg) center / contain no-repeat; mask: url(../img/ui/eye.svg) center / contain no-repeat;
+}
+.password-toggle[aria-pressed="true"] .password-toggle-icon {
+  -webkit-mask-image: url(../img/ui/eye-off.svg); mask-image: url(../img/ui/eye-off.svg);
+}
 
 /* Accueil et tableau de bord */
 .home { text-align: center; }

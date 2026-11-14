@@ -2,6 +2,10 @@
 
 {% block title %}Connexion · Le Comptoir des étoiles{% endblock %}
 
+{% block javascripts %}
+    <script type="module" src="{{ app.request.basePath }}/js/password-toggle.js"></script>
+{% endblock %}
+
 {% block body %}
     <section class="login card">
         <h1>Connexion à l'administration</h1>
@@ -17,8 +21,13 @@
             </div>
             <div class="field">
                 <label for="password">Mot de passe</label>
-                <input type="password" id="password" name="_password" autocomplete="current-password" required>
+                <div class="password-field">
+                    <input type="password" id="password" name="_password" autocomplete="current-password" required data-password-toggle>
+                    <button type="button" class="password-toggle" aria-controls="password" aria-pressed="false" aria-label="Afficher le mot de passe" title="Afficher le mot de passe" hidden><span class="password-toggle-icon" aria-hidden="true"></span></button>
+                </div>
             </div>
+            <label class="check"><input type="checkbox" name="_remember_me" value="on"> Rester connectée sur cet appareil</label>
+            <p class="field-help remember-help">Pendant 30 jours. À ne pas cocher sur un appareil partagé.</p>
             <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
             <button type="submit" class="btn btn-primary">Se connecter</button>
         </form>

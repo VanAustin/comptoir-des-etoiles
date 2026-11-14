@@ -6,6 +6,7 @@ use App\Entity\AdminUser;
 use App\Tests\ResetDatabaseTrait;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 class SecurityControllerTest extends WebTestCase
@@ -115,6 +116,78 @@ class SecurityControllerTest extends WebTestCase
         self::assertSame('lax', $cookie->getSameSite());
     }
 
+    public function testLoginWithoutRememberMeSetsNoRememberMeCookie(): void
+    {
+        $this->login('camille', self::PASSWORD);
+
+        self::assertResponseRedirects('/admin');
+        self::assertNull($this->rememberMeCookie());
+    }
+
+    public function testRememberMeCookieIsHttpOnlyLaxAndLasts30Days(): void
+    {
+        $this->login('camille', self::PASSWORD, rememberMe: true);
+
+        $cookie = $this->rememberMeCookie();
+        self::assertNotNull($cookie);
+        self::assertTrue($cookie->isHttpOnly());
+        self::assertSame('lax', $cookie->getSameSite());
+        self::assertEqualsWithDelta(time() + 30 * 86400, $cookie->getExpiresTime(), 60);
+    }
+
+    public function testRememberMeCookieIsSecureOverHttps(): void
+    {
+        $this->client->setServerParameter('HTTPS', 'on');
+        $this->login('camille', self::PASSWORD, rememberMe: true);
+
+        self::assertTrue($this->rememberMeCookie()?->isSecure());
+    }
+
+    public function testRememberMeCookieAloneReopensTheAdministration(): void
+    {
+        $this->login('camille', self::PASSWORD, rememberMe: true);
+        $this->keepOnlyRememberMeCookie();
+
+        $this->client->request('GET', '/admin');
+
+        self::assertResponseIsSuccessful();
+        $this->assertClassContains('who', 'camille');
+    }
+
+    public function testWithoutRememberMeClosingTheBrowserLogsOut(): void
+    {
+        $this->login('camille', self::PASSWORD);
+        $this->client->getCookieJar()->clear();
+
+        $this->assertNotLoggedIn();
+    }
+
+    public function testLogoutDeletesRememberMeCookie(): void
+    {
+        $this->login('camille', self::PASSWORD, rememberMe: true);
+        $crawler = $this->client->followRedirect();
+
+        $this->client->submit($crawler->selectButton('Se déconnecter')->form());
+
+        self::assertNull($this->client->getCookieJar()->get('REMEMBERME'));
+        $this->assertNotLoggedIn();
+    }
+
+    public function testLoginPageHasPasswordToggleAndUncheckedRememberMe(): void
+    {
+        $crawler = $this->client->request('GET', '/login');
+
+        $toggle = $crawler->filterXPath('//button[@aria-controls="password"]');
+        self::assertSame('false', $toggle->attr('aria-pressed'));
+        self::assertSame('Afficher le mot de passe', $toggle->attr('aria-label'));
+        self::assertNotNull($toggle->attr('hidden'), 'masqué sans JavaScript');
+        self::assertSame(1, $crawler->filterXPath('//script[contains(@src, "/js/password-toggle.js")]')->count());
+
+        $rememberMe = $crawler->filterXPath('//input[@name="_remember_me"]');
+        self::assertSame('checkbox', $rememberMe->attr('type'));
+        self::assertNull($rememberMe->attr('checked'));
+    }
+
     public function testHomeAndLogoArePublic(): void
     {
         $this->client->request('GET', '/');
@@ -125,13 +198,39 @@ class SecurityControllerTest extends WebTestCase
         self::assertResponseHeaderSame('Content-Type', 'image/svg+xml');
     }
 
-    private function login(string $username, string $password): void
+    private function login(string $username, string $password, bool $rememberMe = false): void
     {
         $crawler = $this->client->request('GET', '/login');
-        $this->client->submit($crawler->selectButton('Se connecter')->form([
+        $form = $crawler->selectButton('Se connecter')->form([
             '_username' => $username,
             '_password' => $password,
-        ]));
+        ]);
+        if ($rememberMe) {
+            $form['_remember_me']->tick();
+        }
+        $this->client->submit($form);
+    }
+
+    private function rememberMeCookie(): ?Cookie
+    {
+        foreach ($this->client->getResponse()->headers->getCookies() as $cookie) {
+            // Symfony envoie aussi un cookie vide et périmé, qui efface un ancien cookie
+            if ('REMEMBERME' === $cookie->getName() && !$cookie->isCleared()) {
+                return $cookie;
+            }
+        }
+
+        return null;
+    }
+
+    /** Comme un navigateur fermé puis rouvert : la session est perdue, le cookie de 30 jours reste. */
+    private function keepOnlyRememberMeCookie(): void
+    {
+        $jar = $this->client->getCookieJar();
+        $rememberMe = $jar->get('REMEMBERME');
+        self::assertNotNull($rememberMe);
+        $jar->clear();
+        $jar->set($rememberMe);
     }
 
     /** Équivalent de assertSelectorTextContains('.classe', …) sans le composant css-selector. */

@@ -20,6 +20,14 @@ class SessionIdleListenerTest extends TestCase
         self::assertNotEmpty($session->getFlashBag()->peek('info'));
     }
 
+    public function testNoExpiryMessageWhenRememberMeCookieWillReopenTheSession(): void
+    {
+        $session = $this->runListener(lastUsedSecondsAgo: SessionIdleListener::MAX_IDLE_SECONDS + 60, rememberMe: true);
+
+        self::assertFalse($session->has('_security_main'), 'la session est fermée : le cookie en rouvre une, vérifiée par Symfony');
+        self::assertEmpty($session->getFlashBag()->peek('info'));
+    }
+
     public function testRecentSessionIsKept(): void
     {
         $session = $this->runListener(lastUsedSecondsAgo: SessionIdleListener::MAX_IDLE_SECONDS - 60);
@@ -28,7 +36,7 @@ class SessionIdleListenerTest extends TestCase
         self::assertEmpty($session->getFlashBag()->peek('info'));
     }
 
-    private function runListener(int $lastUsedSecondsAgo): Session
+    private function runListener(int $lastUsedSecondsAgo, bool $rememberMe = false): Session
     {
         $storage = new MockArraySessionStorage();
         $storage->setSessionData([
@@ -40,6 +48,9 @@ class SessionIdleListenerTest extends TestCase
         $request = Request::create('/admin');
         $request->setSession($session);
         $request->cookies->set($session->getName(), 'identifiant-de-session');
+        if ($rememberMe) {
+            $request->cookies->set(SessionIdleListener::REMEMBER_ME_COOKIE, 'cookie-de-connexion');
+        }
 
         $event = new RequestEvent($this->createStub(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST);
         (new SessionIdleListener())($event);
