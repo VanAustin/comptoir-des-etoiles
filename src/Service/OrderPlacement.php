@@ -40,6 +40,7 @@ class OrderPlacement
         private readonly OrderRepository $orders,
         private readonly ProductRepository $products,
         private readonly Revisions $revisions,
+        private readonly AuditLogger $auditLogger,
     ) {
     }
 
@@ -100,7 +101,8 @@ class OrderPlacement
 
         // Commande encaissée hors ligne et envoyée plus tard : l'argent est déjà dans la caisse
         $offline = true === ($payload['offline'] ?? false);
-        $table = self::readTable($payload['tableNumber'] ?? null, $offline);
+        $rawTable = $payload['tableNumber'] ?? null;
+        $table = self::readTable($rawTable, $offline);
 
         $order = new Order($uuid, $event, $letter, $number, $method);
         $order->setDevice($device);
@@ -143,6 +145,10 @@ class OrderPlacement
         // « Service à table » n'est pas vérifié : il ne fait qu'afficher le bouton de la caisse,
         // et une commande encaissée avant qu'il soit décoché garde sa table.
         $order->setTableNumber($kitchen ? $table : null);
+        if (null !== $rawTable && null === $table) {
+            // Hors ligne : commande gardée sans table, valeur reçue tracée pour la retrouver après coup
+            $this->auditLogger->log('order.table_rejected', 'order:'.$uuid.' '.$order->getDisplayNumber(), before: ['tableNumber' => self::describeRejected($rawTable)], actor: $device);
+        }
 
         if ($this->orders->numberExists($event, $letter, $number)) {
             throw $this->numberTaken($this->orders, $device);
@@ -267,6 +273,14 @@ class OrderPlacement
         }
 
         throw new OrderRejectedException(\sprintf('Numéro de table invalide : un nombre de %d à %d.', Order::TABLE_MIN, Order::TABLE_MAX));
+    }
+
+    /** Valeur reçue, en texte court : l'historique ne doit pas grossir pour une donnée invalide. */
+    private static function describeRejected(mixed $value): string
+    {
+        $text = json_encode($value, \JSON_UNESCAPED_UNICODE | \JSON_PRESERVE_ZERO_FRACTION | \JSON_PARTIAL_OUTPUT_ON_ERROR);
+
+        return mb_strlen((string) $text) > 40 ? mb_substr((string) $text, 0, 40).'…' : (string) $text;
     }
 
     /**

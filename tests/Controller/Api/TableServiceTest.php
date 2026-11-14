@@ -2,6 +2,7 @@
 
 namespace App\Tests\Controller\Api;
 
+use App\Entity\AuditLog;
 use App\Entity\Event;
 use App\Entity\Order;
 use App\Entity\Product;
@@ -110,13 +111,34 @@ class TableServiceTest extends WebTestCase
         self::assertSame(0, self::entityManager()->getRepository(Order::class)->count([]));
     }
 
-    public function testOfflineOrderWithInvalidTableIsKeptWithoutTable(): void
+    public function testOfflineOrderWithInvalidTableIsKeptWithoutTableAndTraced(): void
     {
         // Déjà payée : jamais perdue pour un numéro de table illisible
         $this->placeOrder(['offline' => true, 'tableNumber' => 1000, 'lines' => [['productId' => $this->hotdog->getId(), 'quantity' => 1]]]);
 
         self::assertResponseStatusCodeSame(201);
         self::assertNull($this->json()['tableNumber']);
+        $log = self::entityManager()->getRepository(AuditLog::class)->findOneBy(['action' => 'order.table_rejected']);
+        self::assertNotNull($log, 'table invalide écartée : tracée');
+        self::assertStringStartsWith('tablette:', $log->getActor());
+        self::assertSame('order:'.$this->json()['uuid'].' '.$this->json()['displayNumber'], $log->getSubject());
+        self::assertSame(['tableNumber' => '1000'], $log->getBefore());
+    }
+
+    public function testRejectedValueIsTracedShortened(): void
+    {
+        $this->placeOrder(['offline' => true, 'tableNumber' => str_repeat('9', 100), 'lines' => [['productId' => $this->hotdog->getId(), 'quantity' => 1]]]);
+
+        $log = self::entityManager()->getRepository(AuditLog::class)->findOneBy(['action' => 'order.table_rejected']);
+        self::assertSame('"'.str_repeat('9', 39).'…', $log?->getBefore()['tableNumber']);
+    }
+
+    public function testValidOrAbsentTableIsNotTraced(): void
+    {
+        $this->placeOrder(['offline' => true, 'tableNumber' => 304, 'lines' => [['productId' => $this->hotdog->getId(), 'quantity' => 1]]]);
+        $this->placeOrder(['offline' => true, 'lines' => [['productId' => $this->hotdog->getId(), 'quantity' => 1]]]);
+
+        self::assertSame(0, self::entityManager()->getRepository(AuditLog::class)->count(['action' => 'order.table_rejected']));
     }
 
     public function testTableIsKeptEvenAfterTableServiceIsSwitchedOff(): void
