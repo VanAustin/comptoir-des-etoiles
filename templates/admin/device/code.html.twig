@@ -2,21 +2,46 @@
 
 {% block title %}Code d'appairage · Administration{% endblock %}
 
+{% block javascripts %}
+    {{ parent() }}
+    {% if code %}
+        <script type="module" src="{{ app.request.basePath }}/js/pairing-qr.js"></script>
+    {% endif %}
+{% endblock %}
+
 {% block body %}
     <p><a href="{{ path('admin_device_index') }}">← Retour aux tablettes</a></p>
 
     <section class="card form-card pairing">
         <h1>Appairer « {{ device.name }} »</h1>
 
-        {% if code %}
-            <p class="lede">Sur la tablette, ouvrez dans Chrome l'adresse ci-dessous et saisissez ce code.</p>
-            <p class="pairing-code num" aria-label="Code d'appairage">{{ code }}</p>
-            <p class="pairing-url num">{{ url('app_pair') }}</p>
-            <p>Ce code est valable jusqu'à <strong>{{ device.pairingCodeExpiresAt|date('H\\hi') }}</strong> et ne sert qu'une fois. Il ne sera plus affiché ensuite.</p>
+        {% if code and remaining_seconds > 0 %}
+            <div data-pairing-panel data-remaining-seconds="{{ remaining_seconds }}">
+                <p class="lede">Scannez ce QR code avec l'appareil photo de la tablette : le lien s'ouvre dans Chrome et appaire la tablette. Ou ouvrez l'adresse ci-dessous dans Chrome et saisissez le code.</p>
+                <div class="pairing-grid">
+                    <canvas class="pairing-qr" data-pair-url="{{ pair_url }}" role="img" aria-label="QR code du lien d'appairage de « {{ device.name }} »" hidden></canvas>
+                    <div>
+                        <p class="pairing-code num" aria-label="Code d'appairage">{{ code }}</p>
+                        <p class="pairing-url num">{{ url('app_pair') }}</p>
+                        <p class="pairing-remaining">Valable encore <strong class="num" data-countdown>{{ (remaining_seconds // 60) }} min {{ '%02d'|format(remaining_seconds % 60) }} s</strong>, jusqu'à {{ device.pairingCodeExpiresAt|date('H\\hi') }}. Il ne sert qu'une fois et ne sera plus affiché ensuite.</p>
+                    </div>
+                </div>
+            </div>
+            <p class="alert alert-info" data-pairing-expired hidden>Ce code a expiré : il ne fonctionne plus. Créez-en un nouveau.</p>
+        {% elseif code %}
+            <p class="alert alert-info">Ce code a expiré : il ne fonctionne plus. Créez-en un nouveau.</p>
         {% else %}
-            <p class="alert alert-info">Ce code n'est plus affiché, pour qu'il ne reste pas visible à l'écran. Si la tablette n'est pas encore appairée, créez un nouveau code depuis la liste des tablettes.</p>
+            <p class="alert alert-info">Ce code n'est plus affiché, pour qu'il ne reste pas visible à l'écran. Si la tablette n'est pas encore appairée, créez un nouveau code.</p>
         {% endif %}
 
-        <a class="btn" href="{{ path('admin_device_index') }}">Revenir aux tablettes</a>
+        <div class="pairing-actions">
+            {% if can_regenerate %}
+                <form method="post" action="{{ path('admin_device_regenerate', {id: device.id}) }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('device-regenerate-' ~ device.id) }}">
+                    <button type="submit" class="btn">Nouveau code</button>
+                </form>
+            {% endif %}
+            <a class="btn" href="{{ path('admin_device_index') }}">Revenir aux tablettes</a>
+        </div>
     </section>
 {% endblock %}

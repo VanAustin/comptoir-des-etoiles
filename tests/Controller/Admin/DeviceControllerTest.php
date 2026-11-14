@@ -68,6 +68,52 @@ class DeviceControllerTest extends WebTestCase
         self::assertDoesNotMatchRegularExpression('/\b'.$matches[1].'-'.$matches[2].'\b/', $this->content());
     }
 
+    public function testCodePageShowsQrCodeOfThePairingLinkAndRemainingTime(): void
+    {
+        self::createEvent();
+
+        $crawler = $this->client->request('GET', '/admin/tablettes/nouvelle');
+        $this->client->submit($crawler->selectButton('Ajouter la tablette')->form(['name' => 'Caisse buvette', 'role' => 'caisse']));
+        $crawler = $this->client->followRedirect();
+        $device = $this->findDevice('Caisse buvette');
+
+        $code = trim($crawler->filterXPath('//*[contains(@class, "pairing-code")]')->text());
+        $canvas = $crawler->filterXPath('//canvas[@data-pair-url]');
+        self::assertSame('http://localhost/appairer#code='.$code, $canvas->attr('data-pair-url'));
+        self::assertSame('img', $canvas->attr('role'));
+        self::assertSame(1, $crawler->filterXPath('//script[contains(@src, "/js/pairing-qr.js")]')->count());
+
+        $remaining = (int) $crawler->filterXPath('//*[@data-remaining-seconds]')->attr('data-remaining-seconds');
+        self::assertEqualsWithDelta(600, $remaining, 5, 'calculé par le serveur');
+
+        // « Nouveau code » sur la page même, avec son jeton CSRF
+        $form = $crawler->selectButton('Nouveau code')->form();
+        $previousHash = $device->getPairingCodeHash();
+        $this->client->submit($form);
+        self::assertResponseRedirects('/admin/tablettes/'.$device->getId().'/code');
+        self::assertNotSame($previousHash, $this->findDevice('Caisse buvette')->getPairingCodeHash());
+    }
+
+    public function testCodePageWithoutCodeShowsNoQrCodeButOffersANewCode(): void
+    {
+        [$device] = self::createDeviceWithCode(self::createEvent());
+
+        $crawler = $this->client->request('GET', '/admin/tablettes/'.$device->getId().'/code');
+
+        self::assertSame(0, $crawler->filterXPath('//canvas')->count());
+        self::assertSame(0, $crawler->filterXPath('//script[contains(@src, "/js/pairing-qr.js")]')->count());
+        self::assertSame(1, $crawler->selectButton('Nouveau code')->count());
+    }
+
+    public function testPairedDeviceIsNotOfferedANewCode(): void
+    {
+        [$device] = self::createPairedDevice(self::createEvent());
+
+        $crawler = $this->client->request('GET', '/admin/tablettes/'.$device->getId().'/code');
+
+        self::assertSame(0, $crawler->selectButton('Nouveau code')->count());
+    }
+
     public function testWithoutKitchenOnlyTillsAreOffered(): void
     {
         self::createEvent()->setWithKitchen(false);

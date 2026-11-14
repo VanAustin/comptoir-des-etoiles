@@ -187,6 +187,12 @@ fieldset.field legend { font-size: 14px; font-weight: 700; color: var(--encre-do
 .pairing { text-align: center; }
 .pairing-code { font-size: 56px; font-weight: 700; letter-spacing: .08em; margin: 16px 0 8px; color: var(--encre); }
 .pairing-url { font-size: 18px; color: var(--renard-texte); word-break: break-all; }
+.pairing-grid { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 24px; margin: 16px 0; }
+.pairing-grid > div { flex: 1 1 260px; }
+/* Fond blanc dans les deux thèmes, marge blanche comprise dans le dessin */
+.pairing-qr { width: 260px; height: 260px; max-width: 100%; background: var(--qr-fond); border-radius: 8px; image-rendering: pixelated; }
+.pairing-remaining { color: var(--encre-douce); }
+.pairing-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 16px; }
 
 /* Page d'appairage de la tablette */
 .pair .code-input { font-size: 32px; letter-spacing: .08em; text-align: center; text-transform: uppercase; min-height: 64px; }

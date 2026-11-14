@@ -17,6 +17,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[IsGranted('ROLE_ADMIN')]
@@ -167,9 +168,18 @@ class DeviceController extends AbstractController
         $session = $request->getSession();
         $codes = $session instanceof FlashBagAwareSessionInterface ? $session->getFlashBag()->get(self::CODE_FLASH) : [];
 
+        $now = new \DateTimeImmutable();
+        $code = $codes ? DevicePairing::formatCode($codes[0]) : null;
+        $expiresAt = $device->getPairingCodeExpiresAt();
+
         return $this->render('admin/device/code.html.twig', [
             'device' => $device,
-            'code' => $codes ? DevicePairing::formatCode($codes[0]) : null,
+            'code' => $code,
+            // Lien scanné avec l'appareil photo de la tablette : le code est après le #, jamais envoyé au serveur
+            'pair_url' => null !== $code ? $this->generateUrl('app_pair', [], UrlGeneratorInterface::ABSOLUTE_URL).'#code='.$code : null,
+            // Calculé par le serveur : l'horloge de l'ordinateur de l'administration peut être fausse
+            'remaining_seconds' => null !== $expiresAt ? max(0, $expiresAt->getTimestamp() - $now->getTimestamp()) : 0,
+            'can_regenerate' => !$device->isPaired() && !$device->isRevoked() && $device->getEvent()->isActive(),
         ]);
     }
 

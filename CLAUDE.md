@@ -24,6 +24,8 @@ Dépendances de production autorisées, et rien d'autre :
 
 Développement uniquement : `symfony/maker-bundle`, PHPUnit.
 
+Seule bibliothèque JavaScript, exception accordée pour le QR code d'appairage : **qrcode-generator 2.0.4** de Kazuhiko Arase (licence MIT, un seul fichier, sans dépendance), copiée sans modification dans `public/js/vendor/qrcode-generator.js` (fichier `dist/qrcode.mjs` du paquet npm, renommé en `.js` pour qu'Apache l'envoie comme du JavaScript), avec sa licence (`qrcode-generator.LICENSE.txt`). L'en-tête du fichier donne la version et l'empreinte SHA-256 de l'original. Pour la mettre à jour : télécharger la nouvelle version fixée, vérifier son empreinte, relire les changements, relancer les tests. Pas de Dependabot pour ce fichier.
+
 Explicitement exclus : EasyAdmin, Symfony Form, Stimulus, AssetMapper, Webpack Encore, tout framework CSS ou JS.
 
 Node est exclu de l'application et de toute construction. Seule exception : le lanceur de tests intégré (node --test), sans dépendance, dans Docker et en CI, pour tester la logique JavaScript critique.
@@ -157,7 +159,7 @@ Usage prévu : une APE, petite échelle. Mais le code est écrit **comme s'il é
 
 ### Tablettes : appairage, sans comptes
 
-- L'administration crée une tablette (nom + rôle) et affiche un **code d'appairage** à usage unique (8 caractères, valable 10 minutes). QR code : plus tard.
+- L'administration crée une tablette (nom + rôle) et affiche un **code d'appairage** à usage unique (8 caractères, valable 10 minutes), avec à côté un **QR code** du lien d'appairage (`/appairer#code=…`), le temps restant (calculé par le serveur, l'horloge de l'ordinateur peut être fausse) et un bouton « Nouveau code ». Code expiré : le QR code et le code disparaissent. Le QR code se scanne avec l'appareil photo de la tablette, qui ouvre le lien dans le navigateur par défaut : Chrome doit l'être (fiche Jour J). L'application n'utilise pas la caméra : `Permissions-Policy` inchangée. Dessin dans un `<canvas>` (`public/js/pairing-qr.js`, règles dans `public/js/pairing-qr-rules.js`, `tests/js/pairing-qr-rules.test.js`), noir sur blanc dans les deux thèmes (`--qr-encre`, `--qr-fond`).
 - Appairage par lien : `/appairer#code=K7QM-3XRP`. Le code est après le `#`, jamais envoyé au serveur par le navigateur ; `pair.js` le retire de l'adresse dès qu'il l'a lu (`history.replaceState`). Tablette déjà appairée : « Cette tablette est déjà appairée comme <nom>. La remplacer ? », confirmé en deux appuis ; refusé tant que des commandes attendent d'être envoyées (comme le désappairage). Code expiré ou déjà utilisé : message clair, champ vide. Décisions dans `public/js/pair-link.js` (fonctions pures, `tests/js/pair-link.test.js`). Seul le code passe par une adresse, jamais le jeton.
 - La tablette échange ce code contre un **jeton** aléatoire (32 octets, `random_bytes`). Le serveur n'en garde que l'empreinte SHA-256. La tablette le conserve et l'envoie dans l'en-tête `Authorization: Bearer`.
 - Le jeton expire à la fin de l'événement (par défaut le lendemain à 6 h) et peut être révoqué à tout moment depuis l'administration.
@@ -178,7 +180,7 @@ Usage prévu : une APE, petite échelle. Mais le code est écrit **comme s'il é
   - `X-Content-Type-Options: nosniff`
   - `X-Robots-Tag: noindex` (le site n'apparaît pas dans les moteurs de recherche)
   - `Referrer-Policy: same-origin`
-  - `Permissions-Policy: camera=(), microphone=(), geolocation=()` (à assouplir pour la caméra si le scan du QR code d'appairage se fait dans l'app)
+  - `Permissions-Policy: camera=(), microphone=(), geolocation=()` (le QR code d'appairage se scanne avec l'appareil photo de la tablette, hors de l'application : rien à assouplir)
   - `Strict-Transport-Security: max-age=31536000` quand le site est servi en HTTPS
 - Cookies de session : `secure: auto`, `httponly: true`, `samesite: lax`.
 - Sessions rangées dans `var/sessions/` (pas dans le dossier de l'hébergeur, vidé selon ses propres règles sur un mutualisé : l'administrateur était déconnecté).
@@ -322,4 +324,3 @@ Pistes, rien à faire avant le 18 décembre :
 - Raspberry Pi (point d'accès Wi-Fi et serveur local), pour les lieux sans réseau.
 - Export et import du menu d'un événement en JSON.
 - Heure du serveur : avertissement dans l'administration si l'heure du serveur s'écarte de celle de l'appareil.
-- QR code d'appairage.
