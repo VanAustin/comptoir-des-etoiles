@@ -139,6 +139,7 @@ Le numéro donné au client est la **lettre de la caisse suivie d'un numéro** :
 | Cuisine | Cuisine | Tickets à préparer, boutons « Je prépare », « Prête », « Remise au client », alerte au-delà de 10 min |
 | Appel client | Arrivées | Numéros prêts et en préparation, très grands, façon tableau d'aéroport (sans les commandes servies à table) |
 | Bilan | Carnet de bord | `/admin/carnet` (`App\Service\Logbook`) : CA hors consignes, commandes, panier moyen, espèces et carte, consignes (encaissées, rendues, gobelets non rendus), espèces attendues par caisse (hors fond de caisse) et écarts des commandes hors ligne, ventes et stock restant par article (articles retirés compris), historique filtrable, annulation confirmée dans la page et tracée (`order.cancel`), événements passés ; export CSV pour Excel (`App\Service\LogbookExport` : commandes, une ligne par commande avec CA, consignes encaissées et rendues, total, reçu, rendu, écart ; détail des lignes sans aucun montant de commande répété ; bilan par article. Commandes annulées exclues : chaque colonne de montant doit se sommer sans double compte. UTF-8 avec BOM, point-virgule, virgule décimale ; toute cellule de texte commençant par `=`, `+`, `-`, `@` est précédée d'une apostrophe contre l'injection de formules) |
+| Administration | Chevalets de table | `/admin/chevalets` (`App\Service\TableTents`) : rangées (1 à 9) et tables par rangée (1 à 99), numéros rangée × 100 + table (101 à 808), rien d'enregistré. Deux chevalets par feuille A4 (`public/css/chevalets.css`, `@page` sans marge), chaque moitié pliée en deux, face du haut à l'envers : le numéro se lit des deux côtés. Noir sur blanc dans les deux thèmes (`--impression-encre`, `--impression-fond`, `--impression-trait`) |
 | Administration | Menu | Deux parties, Articles et Formules : tableau de modification rapide (prix, stock, cuisine, consigne, ordre ↑ ↓) et une page par article ou formule (nom, icône, catégorie, composition avec quantités). Colonne cuisine masquée si l'événement est sans cuisine |
 
 Le prototype validé par l'APE sert de référence pour l'ergonomie : `docs/prototype.html`.
@@ -327,6 +328,7 @@ Nouvelles évolutions, à mettre en production avant le 4 décembre, une PR chac
 
 Pistes, rien à faire avant le 18 décembre :
 
+- Journal (`AuditLog`) visible dans l'administration : annulations, changements de prix, appairages, tables invalides écartées (`order.table_rejected`)…
 - Raspberry Pi (point d'accès Wi-Fi et serveur local), pour les lieux sans réseau.
 - Export et import du menu d'un événement en JSON.
 - Heure du serveur : avertissement dans l'administration si l'heure du serveur s'écarte de celle de l'appareil.

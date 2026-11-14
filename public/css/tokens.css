@@ -52,6 +52,11 @@
      par certains appareils photo). Volontairement absents des blocs du thème sombre. */
   --qr-encre: #000000;
   --qr-fond: #FFFFFF;
+  /* Chevalets de table imprimés : noir sur blanc dans les deux thèmes (encre de l'imprimante).
+     Trait : pointillés et « Couper ici » (7:1 sur blanc). Absents des blocs du thème sombre. */
+  --impression-encre: #000000;
+  --impression-fond: #FFFFFF;
+  --impression-trait: #595959;
 
   --f-titre: "Baloo 2", "Trebuchet MS", sans-serif;
   --f-texte: "Atkinson Hyperlegible", "Segoe UI", Roboto, sans-serif;
