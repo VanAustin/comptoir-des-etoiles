@@ -15,7 +15,7 @@ Sans réseau, **les caisses continuent d'encaisser** : chaque commande est gard�
 ### Caisse
 
 1. Continuez d'encaisser normalement : le client reçoit son numéro (A12…).
-2. Si la caisse affiche **« Pas encore en cuisine : annoncez-la de vive voix »**, écrivez un **ticket papier** : le numéro, les plats et la remarque éventuelle. Portez-le en cuisine.
+2. Si la caisse affiche **« Pas encore en cuisine : annoncez-la de vive voix »**, écrivez un **ticket papier** : le numéro, la table s'il y en a une, les plats et la remarque éventuelle. Portez-le en cuisine.
 3. Si elle affiche **« À servir directement au comptoir »**, servez tout de suite : rien ne passe en cuisine.
 4. **Ne jamais** :
    - effacer les données de Chrome ou désinstaller l'application : les commandes en attente seraient perdues ;

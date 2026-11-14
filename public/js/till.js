@@ -11,6 +11,7 @@ import { Lane, Poller } from "./poller.js";
 import { Cart, MAX_QUANTITY, indexMenu, newUuid } from "./till-cart.js";
 import { TillOutbox } from "./till-outbox.js";
 import { TillTracking } from "./till-tracking.js";
+import { eraseDigit, parseTable, pressDigit, tableForOrder, tableMessage } from "./table-rules.js";
 
 const ALL = "Tout";
 /** Relecture du menu : stocks des autres caisses, prix modifiés, articles retirés. */
@@ -18,7 +19,7 @@ const ALL = "Tout";
 const SEND_TIMEOUT_MS = 6000;
 
 const $ = (id) => document.getElementById(id);
-const views = { status: $("till-status"), main: $("till-main"), pay: $("till-pay"), track: $("till-track-view"), outbox: $("till-outbox-view"), done: $("till-done") };
+const views = { status: $("till-status"), main: $("till-main"), pay: $("till-pay"), table: $("till-table-view"), track: $("till-track-view"), outbox: $("till-outbox-view"), done: $("till-done") };
 
 const cart = new Cart();
 let menu = null;
@@ -29,6 +30,10 @@ const payment = { method: "cash", received: new CashReceived() };
 /** Dernière tentative d'envoi : renvoyée avec le même UUID si rien n'a changé (pas de doublon). */
 let attempt = null;
 let sending = false;
+/** Service à table : numéro choisi pour la commande en cours (null : au comptoir). */
+let tableNumber = null;
+/** Saisie en cours sur le pavé numérique. */
+let tableEntry = "";
 
 /** Vue affichée avant d'ouvrir un panneau (suivi, commandes en attente), pour y revenir. */
 let returnTo = "main";
@@ -178,6 +183,7 @@ async function applyMenu(data, { fromCache }) {
   cart.keepOnly(menu);
   // Menu gardé avant l'arrivée du réglage : avec cuisine
   tracking.setEnabled(menu.event.withKitchen !== false);
+  tracking.setTableService(menu.event.tableService === true);
   $("till-who").textContent = `Caisse ${menu.tillLetter} · ${menu.event.name}`;
 
   // Numérotation : on reprend après le plus grand numéro connu, ici ou sur le serveur
@@ -309,6 +315,7 @@ function renderCart() {
   $("till-lines").replaceChildren(...(rows.length ? rows : [el("p", { class: "empty", text: "Touchez un article pour l'ajouter." })]));
   $("till-add-return").hidden = menu.depositCents === 0 || cart.depositReturns > 0;
   $("till-note-field").hidden = !cart.hasKitchenItem(menu);
+  renderTable();
   $("till-total").textContent = formatEuros(cart.total(menu));
   const count = lines.filter((line) => line.kind === "article").reduce((sum, line) => sum + line.quantity, 0);
   $("till-mini").hidden = cart.isEmpty();
@@ -321,9 +328,10 @@ function renderCart() {
 $("till-add-return").addEventListener("click", () => { cart.changeReturns(1); render(); });
 $("till-clear").addEventListener("click", () => { clearCart(); showMessage($("till-cart-error"), ""); render(); });
 
-/** Vide la commande en cours, remarque comprise. */
+/** Vide la commande en cours, remarque et table comprises. */
 function clearCart() {
   cart.clear();
+  tableNumber = null;
   $("till-note").value = "";
   renderNoteCount();
 }
@@ -333,6 +341,76 @@ function renderNoteCount() {
 }
 
 $("till-note").addEventListener("input", renderNoteCount);
+
+// --- Service à table (Loto) ---
+
+/** Bouton « Table » du panier, et ce que deviendra la commande. */
+function renderTable() {
+  // Réglage décoché entre-temps : une table déjà choisie reste visible, et retirable
+  $("till-table-field").hidden = !menu.event.tableService && tableNumber === null;
+  $("till-table").textContent = tableNumber === null ? "Table" : `Table ${tableNumber}`;
+  $("till-table").setAttribute("aria-pressed", tableNumber === null ? "false" : "true");
+  $("till-table-clear").hidden = tableNumber === null;
+  const message = cart.isEmpty() ? null : tableMessage({ table: tableNumber, kitchen: cart.hasKitchenItem(menu), counter: cart.hasCounterItem(menu) });
+  $("till-table-hint").hidden = message === null;
+  $("till-table-hint").textContent = message ?? "";
+}
+
+function renderTablePad() {
+  $("table-entry").textContent = tableEntry || "—";
+  $("table-ok").disabled = parseTable(tableEntry) === null;
+}
+
+function typeTable(action) {
+  tableEntry = action(tableEntry);
+  renderTablePad();
+}
+
+function closeTablePad(table) {
+  if (table !== undefined) {
+    tableNumber = table;
+  }
+  show("main");
+  render();
+}
+
+$("till-table").addEventListener("click", () => {
+  tableEntry = tableNumber === null ? "" : String(tableNumber);
+  renderTablePad();
+  show("table");
+  $("table-ok").focus();
+});
+$("till-table-clear").addEventListener("click", () => { tableNumber = null; render(); });
+for (const key of document.querySelectorAll("#till-table-view [data-digit]")) {
+  key.addEventListener("click", () => typeTable((entry) => pressDigit(entry, key.dataset.digit)));
+}
+$("table-erase").addEventListener("click", () => typeTable(eraseDigit));
+$("table-none").addEventListener("click", () => closeTablePad(null));
+$("table-back").addEventListener("click", () => closeTablePad());
+$("table-ok").addEventListener("click", () => {
+  const table = parseTable(tableEntry);
+  if (table !== null) {
+    closeTablePad(table);
+  }
+});
+// Clavier physique (essais sur ordinateur) : chiffres, retour arrière, Entrée, Échap
+document.addEventListener("keydown", (event) => {
+  if (views.table.hidden || event.altKey || event.ctrlKey || event.metaKey) {
+    return;
+  }
+  if (/^[0-9]$/.test(event.key)) {
+    typeTable((entry) => pressDigit(entry, event.key));
+  } else if (event.key === "Backspace") {
+    typeTable(eraseDigit);
+  } else if (event.key === "Enter" && parseTable(tableEntry) !== null && event.target === document.body) {
+    closeTablePad(parseTable(tableEntry));
+  } else if (event.key === "Escape") {
+    closeTablePad();
+  } else {
+    return;
+  }
+  event.preventDefault();
+});
 $("till-status-retry").addEventListener("click", () => {
   showStatus("Chargement du menu…");
   loadMenu();
@@ -463,6 +541,8 @@ function orderPayload() {
     depositReturns: cart.depositReturns,
     // Remarque pour la cuisine : le serveur la nettoie et l'ignore sans article cuisine
     ...(cart.hasKitchenItem(menu) && $("till-note").value.trim() ? { note: $("till-note").value.trim() } : {}),
+    // Service à table : seulement avec un article cuisine (boissons seules : au comptoir)
+    ...(tableForOrder(tableNumber, cart.hasKitchenItem(menu)) !== null ? { tableNumber } : {}),
   };
 }
 
@@ -548,6 +628,8 @@ async function queueOrder(content) {
     paymentMethod: content.paymentMethod,
     receivedCents: content.amountReceivedCents ?? null,
     kitchen: cart.hasKitchenItem(menu),
+    counter: cart.hasCounterItem(menu),
+    tableNumber: content.tableNumber ?? null,
   };
   try {
     await outbox.add(entry);
@@ -611,6 +693,7 @@ function outboxRow(entry) {
   return el("li", { class: `track-row outbox-row${blocked ? " late" : " prep"}` }, [
     el("span", { class: "track-number", text: entry.displayNumber }),
     el("span", { class: blocked ? "pill pill-revoked" : "pill prep", text: blocked ? "À vérifier" : "En attente" }),
+    entry.tableNumber ? el("span", { class: "tag", text: `Table ${entry.tableNumber}` }) : null,
     el("span", { class: "track-time num", text: `encaissée à ${time}` }),
     el("span", { class: "outbox-detail" }, [
       el("span", { text: entry.lines.map((l) => `${l.quantity} × ${l.label}`).join(", ") }),
@@ -683,6 +766,7 @@ function showDoneOffline(entry) {
     ? "Pas encore en cuisine : annoncez-la de vive voix. Elle partira dès le retour du réseau."
     : "À servir directement au comptoir. Elle sera transmise dès le retour du réseau.";
   $("done-queue").hidden = true;
+  showDoneTable(tableMessage({ table: entry.tableNumber ?? null, kitchen: entry.kitchen, counter: entry.counter ?? false }));
 
   const change = entry.receivedCents === null ? 0 : entry.receivedCents - entry.totalCents;
   $("done-change").hidden = change <= 0 && entry.totalCents >= 0;
@@ -702,6 +786,9 @@ function showDone(order) {
   $("done-lede").textContent = kitchen ? "Commande enregistrée, envoyée en cuisine" : "Commande enregistrée";
   $("done-number").textContent = order.displayNumber;
   $("done-help").textContent = kitchen ? "Donnez ce numéro au client." : "À servir directement au comptoir.";
+  // Service à table : selon la réponse du serveur, qui fait référence
+  const counter = order.lines.some((line) => line.kind === "article" && !line.goesToKitchen);
+  showDoneTable(tableMessage({ table: order.tableNumber ?? null, kitchen, counter }));
   // Commandes déjà en cuisine avant celle-ci : de quoi annoncer l'attente au client
   const ahead = kitchen ? tracking.waitingInKitchen(order.uuid) : null;
   $("done-queue").hidden = ahead === null;
@@ -722,6 +809,12 @@ function showDone(order) {
   finishDirectSale(!$("done-change").hidden);
   show("done");
   $("done-next").focus();
+}
+
+/** « Servi à la table 304 » sous le numéro, ou rien pour une commande au comptoir. */
+function showDoneTable(message) {
+  $("done-table").hidden = message === null;
+  $("done-table").textContent = message ?? "";
 }
 
 $("done-next").addEventListener("click", nextOrder);

@@ -34,7 +34,8 @@ tests {
 
   test("numéros et états seulement, ni montant ni article", function () {
     res.body.orders.forEach(function (o) {
-      expect(Object.keys(o).sort()).to.eql(["createdAt", "displayNumber", "mine", "status", "updatedAt", "uuid"]);
+      // Numéro de table : pour le filtre « À table » (ni montant ni article)
+      expect(Object.keys(o).sort()).to.eql(["createdAt", "displayNumber", "mine", "status", "tableNumber", "updatedAt", "uuid"]);
       expect(["new", "prep", "ready"]).to.include(o.status);
     });
   });

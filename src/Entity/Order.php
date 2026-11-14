@@ -20,6 +20,9 @@ use Doctrine\ORM\Mapping as ORM;
 class Order
 {
     public const NOTE_MAX_LENGTH = 140;
+    /** Numéros de table : 1 à 999 (rangée et table : 101 à 808). */
+    public const TABLE_MIN = 1;
+    public const TABLE_MAX = 999;
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -67,6 +70,10 @@ class Order
     /** Remarque pour la cuisine (« sans oignons »), texte brut. Jamais de nom ni de téléphone. */
     #[ORM\Column(length: self::NOTE_MAX_LENGTH, nullable: true)]
     private ?string $note = null;
+
+    /** Service à table : numéro de la table (1 à 999), seulement si la commande passe en cuisine. */
+    #[ORM\Column(type: 'smallint', nullable: true, options: ['unsigned' => true])]
+    private ?int $tableNumber = null;
 
     /** @var Collection<int, OrderLine> */
     #[ORM\OneToMany(targetEntity: OrderLine::class, mappedBy: 'order', cascade: ['persist'], orphanRemoval: true)]
@@ -194,6 +201,19 @@ class Order
     public function setNote(?string $note): static
     {
         $this->note = $note;
+
+        return $this;
+    }
+
+    /** Table où le plat est apporté ; null : commande au comptoir. Fixé à l'encaissement, jamais modifié. */
+    public function getTableNumber(): ?int
+    {
+        return $this->tableNumber;
+    }
+
+    public function setTableNumber(?int $tableNumber): static
+    {
+        $this->tableNumber = $tableNumber;
 
         return $this;
     }

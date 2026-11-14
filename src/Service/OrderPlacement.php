@@ -100,6 +100,7 @@ class OrderPlacement
 
         // Commande encaissée hors ligne et envoyée plus tard : l'argent est déjà dans la caisse
         $offline = true === ($payload['offline'] ?? false);
+        $table = self::readTable($payload['tableNumber'] ?? null, $offline);
 
         $order = new Order($uuid, $event, $letter, $number, $method);
         $order->setDevice($device);
@@ -138,6 +139,10 @@ class OrderPlacement
         $order->setStatus($kitchen ? OrderStatus::New : OrderStatus::Served);
         // La remarque n'a de sens que pour la cuisine
         $order->setNote($kitchen ? $note : null);
+        // Boissons seules : remises au comptoir, ce n'est pas une commande à table. Le réglage
+        // « Service à table » n'est pas vérifié : il ne fait qu'afficher le bouton de la caisse,
+        // et une commande encaissée avant qu'il soit décoché garde sa table.
+        $order->setTableNumber($kitchen ? $table : null);
 
         if ($this->orders->numberExists($event, $letter, $number)) {
             throw $this->numberTaken($this->orders, $device);
@@ -241,6 +246,27 @@ class OrderPlacement
         }
 
         return '' === $note ? null : $note;
+    }
+
+    /**
+     * Numéro de table : entier de 1 à 999, ou absent. Hors ligne, un numéro invalide est
+     * ignoré plutôt que de refuser une commande déjà payée (la caisse n'en envoie pas).
+     *
+     * @throws OrderRejectedException
+     */
+    private static function readTable(mixed $table, bool $offline): ?int
+    {
+        if (null === $table) {
+            return null;
+        }
+        if (\is_int($table) && $table >= Order::TABLE_MIN && $table <= Order::TABLE_MAX) {
+            return $table;
+        }
+        if ($offline) {
+            return null;
+        }
+
+        throw new OrderRejectedException(\sprintf('Numéro de table invalide : un nombre de %d à %d.', Order::TABLE_MIN, Order::TABLE_MAX));
     }
 
     /**

@@ -173,3 +173,20 @@ main.till { padding-block: 20px; }
 .outbox-badge { border-color: var(--or-texte); color: var(--or-texte); }
 .outbox-badge.blocked { border-color: var(--erreur); color: var(--erreur); }
 .outbox-detail { flex-basis: 100%; color: var(--encre-douce); }
+
+/* Service à table (Loto) */
+.table-field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.table-field .row { display: flex; gap: 8px; flex-wrap: wrap; }
+#till-table[aria-pressed="true"] { background: var(--or-fond); border-color: var(--or-texte); color: var(--or-texte); }
+.table-hint { margin: 0; font-weight: 700; color: var(--encre-douce); }
+.table-pad .table-entry { margin: 0; min-height: 72px; text-align: center; font: 800 64px/72px var(--f-chiffres); color: var(--encre); }
+.keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.keypad .key {
+  min-height: 64px; border: 1px solid var(--kraft); border-radius: var(--rayon-bouton);
+  background: var(--surface); color: var(--encre); font-weight: 700; font-size: 17px; cursor: pointer;
+}
+.keypad .key.num { font: 700 28px var(--f-chiffres); }
+.keypad .key:active { background: var(--nuage); }
+.done-table { margin: 0 0 8px; padding: 10px 14px; border-radius: var(--rayon-bouton); background: var(--or-fond); color: var(--or-texte); font: 800 28px/1.2 var(--f-titre); }
+#track-table-filter { align-self: flex-start; }
+#track-table-filter[aria-pressed="true"] { background: var(--or-fond); border-color: var(--or-texte); color: var(--or-texte); }

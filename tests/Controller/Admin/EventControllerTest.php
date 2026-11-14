@@ -125,8 +125,8 @@ class EventControllerTest extends WebTestCase
         $log = $this->entityManager->getRepository(AuditLog::class)->findOneBy(['action' => 'event.update']);
         self::assertSame('admin:camille', $log?->getActor());
         // assertEquals : MySQL ne garde pas l'ordre des clés d'une colonne JSON
-        self::assertEquals(['name' => 'Loto', 'date' => '2026-12-18', 'deposit_cents' => 0, 'with_kitchen' => true], $log->getBefore());
-        self::assertEquals(['name' => 'Loto de Noël', 'date' => '2026-12-19', 'deposit_cents' => 150, 'with_kitchen' => true], $log->getAfter());
+        self::assertEquals(['name' => 'Loto', 'date' => '2026-12-18', 'deposit_cents' => 0, 'with_kitchen' => true, 'table_service' => false], $log->getBefore());
+        self::assertEquals(['name' => 'Loto de Noël', 'date' => '2026-12-19', 'deposit_cents' => 150, 'with_kitchen' => true, 'table_service' => false], $log->getAfter());
     }
 
     public function testNewEventHasKitchenByDefault(): void
@@ -138,6 +138,57 @@ class EventControllerTest extends WebTestCase
 
         self::assertResponseRedirects('/admin/evenements');
         self::assertTrue($this->findEvent('Loto de Noël')?->hasKitchen());
+    }
+
+    public function testTableServiceIsOffByDefaultAndCanBeTicked(): void
+    {
+        $crawler = $this->client->request('GET', '/admin/evenements/nouveau');
+        self::assertNull($crawler->filterXPath('//input[@name="table_service"]')->attr('checked'));
+        self::assertSame(1, $crawler->filterXPath('//script[contains(@src, "/js/admin-event.js")]')->count());
+
+        $form = $crawler->selectButton('Créer l\'événement')->form(['name' => 'Loto de Noël', 'date' => '2026-12-18']);
+        $form['table_service']->tick();
+        $this->client->submit($form);
+
+        self::assertResponseRedirects('/admin/evenements');
+        self::assertTrue($this->findEvent('Loto de Noël')?->hasTableService());
+        $crawler = $this->client->followRedirect();
+        self::assertStringContainsString('Service à table', $crawler->filterXPath('//tr[td[contains(., "Loto de Noël")]]')->text());
+    }
+
+    public function testTableServiceNeedsTheKitchen(): void
+    {
+        $crawler = $this->client->request('GET', '/admin/evenements/nouveau');
+        $form = $crawler->selectButton('Créer l\'événement')->form(['name' => 'Stand de Noël', 'date' => '2026-12-11']);
+        $form['with_kitchen']->untick();
+        $form['table_service']->tick();
+        $this->client->submit($form);
+
+        self::assertResponseRedirects('/admin/evenements');
+        self::assertFalse($this->findEvent('Stand de Noël')?->hasTableService());
+
+        // Événement sans cuisine : la case est désactivée
+        $crawler = $this->client->request('GET', '/admin/evenements/'.$this->findEvent('Stand de Noël')->getId().'/modifier');
+        self::assertNotNull($crawler->filterXPath('//input[@name="table_service"]')->attr('disabled'));
+    }
+
+    public function testTableServiceCanChangeAfterOrdersAndMovesTheMenuRevision(): void
+    {
+        $event = $this->createEvent('Loto', '2026-12-18');
+        $this->entityManager->persist(new Order('2b6a1f0e-3c4d-4e5f-8a9b-0c1d2e3f4a5c', $event, 'A', 1, PaymentMethod::Cash));
+        $this->entityManager->flush();
+
+        $crawler = $this->client->request('GET', '/admin/evenements/'.$event->getId().'/modifier');
+        $before = self::revisionsOf($event->getId());
+        // « Avec cuisine » est verrouillée (désactivée, donc absente de l'envoi) : son état enregistré fait foi
+        $form = $crawler->selectButton('Enregistrer l\'événement')->form();
+        $form['table_service']->tick();
+        $this->client->submit($form);
+
+        self::assertResponseRedirects('/admin/evenements');
+        self::assertRevisionsMoved($before, 0, 1, $event->getId(), 'le bouton « Table » des caisses dépend du réglage');
+        $this->entityManager->clear();
+        self::assertTrue($this->findEvent('Loto')?->hasTableService());
     }
 
     public function testCreateEventWithoutKitchen(): void

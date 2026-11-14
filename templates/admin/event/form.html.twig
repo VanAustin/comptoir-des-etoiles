@@ -4,6 +4,11 @@
 
 {% block title %}{{ heading }} · Administration{% endblock %}
 
+{% block javascripts %}
+    {{ parent() }}
+    <script type="module" src="{{ app.request.basePath }}/js/admin-event.js"></script>
+{% endblock %}
+
 {% block body %}
     <p><a href="{{ path('admin_event_index') }}">← Retour aux événements</a></p>
 
@@ -36,7 +41,7 @@
                 {% if errors.deposit is defined %}<p class="field-error" id="deposit-error">{{ errors.deposit }}</p>{% endif %}
             </div>
             <div class="field">
-                <label class="check"><input type="checkbox" name="with_kitchen" value="1" {{ values.kitchen ? 'checked' }}
+                <label class="check"><input type="checkbox" name="with_kitchen" value="1" id="with-kitchen" {{ values.kitchen ? 'checked' }}
                        {{ kitchen_locked ? 'disabled' }} aria-describedby="kitchen-help{{ kitchen_devices is not empty ? ' kitchen-devices' }}"> Avec cuisine</label>
                 <p class="field-help" id="kitchen-help">
                     {% if kitchen_locked %}
@@ -54,6 +59,13 @@
                         {% endif %}
                     </p>
                 {% endif %}
+            </div>
+            <div class="field">
+                <label class="check"><input type="checkbox" name="table_service" value="1" id="table-service" {{ values.table ? 'checked' }}
+                       {{ not values.kitchen ? 'disabled' }} aria-describedby="table-help"> Service à table</label>
+                <p class="field-help" id="table-help">
+                    Le client commande et paie à la caisse, donne son numéro de table, et un bénévole lui apporte son plat. Les boissons sont toujours remises au comptoir. Seulement avec « Avec cuisine ».
+                </p>
             </div>
             <input type="hidden" name="_token" value="{{ csrf_token('event-form') }}">
             <button type="submit" class="btn btn-primary">{{ event ? 'Enregistrer l\'événement' : 'Créer l\'événement' }}</button>

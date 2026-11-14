@@ -45,15 +45,16 @@ class EventController extends AbstractController
     #[Route('/nouveau', name: 'admin_event_new', methods: ['GET', 'POST'])]
     public function new(Request $request): Response
     {
-        $values = ['name' => '', 'date' => '', 'deposit' => '0,00', 'kitchen' => true];
+        $values = ['name' => '', 'date' => '', 'deposit' => '0,00', 'kitchen' => true, 'table' => false];
         $errors = [];
 
         if ($request->isMethod('POST')) {
             $this->denyUnlessCsrfValid($request, 'event-form');
             [$values, $errors, $name, $date, $depositCents] = $this->validate($request);
+            $values['table'] = self::tableService($values);
 
             if (!$errors) {
-                $event = (new Event($name, $date))->setDepositCents($depositCents)->setWithKitchen($values['kitchen']);
+                $event = (new Event($name, $date))->setDepositCents($depositCents)->setWithKitchen($values['kitchen'])->setTableService($values['table']);
                 $this->entityManager->persist($event);
                 $this->auditLogger->log('event.create', 'event:'.$name, after: self::snapshot($event));
                 $this->entityManager->flush();
@@ -80,6 +81,7 @@ class EventController extends AbstractController
             'date' => $event->getDate()->format('Y-m-d'),
             'deposit' => Money::formatEuros($event->getDepositCents()),
             'kitchen' => $event->hasKitchen(),
+            'table' => $event->hasTableService(),
         ];
         $errors = [];
         // Après la première commande, changer le réglage fausserait les commandes déjà passées
@@ -93,12 +95,13 @@ class EventController extends AbstractController
                 // La case est désactivée dans la page : la valeur envoyée est ignorée
                 $values['kitchen'] = $event->hasKitchen();
             }
+            $values['table'] = self::tableService($values);
 
             if (!$errors) {
                 $before = self::snapshot($event);
-                $event->setName($name)->setDate($date)->setDepositCents($depositCents)->setWithKitchen($values['kitchen']);
+                $event->setName($name)->setDate($date)->setDepositCents($depositCents)->setWithKitchen($values['kitchen'])->setTableService($values['table']);
                 $this->auditLogger->log('event.update', 'event:'.$event->getId().' '.$name, $before, self::snapshot($event));
-                // Nom, date, consigne et cuisine font partie du menu des caisses
+                // Nom, date, consigne, cuisine et service à table font partie du menu des caisses
                 $this->revisions->flushMenu($event);
                 $this->addFlash('info', \sprintf('L\'événement « %s » est enregistré.', $name));
                 if (!$event->hasKitchen() && $kitchenDevices) {
@@ -152,7 +155,7 @@ class EventController extends AbstractController
     }
 
     /**
-     * @return array{array{name: string, date: string, deposit: string, kitchen: bool}, array<string, string>, string, ?\DateTimeImmutable, int}
+     * @return array{array{name: string, date: string, deposit: string, kitchen: bool, table: bool}, array<string, string>, string, ?\DateTimeImmutable, int}
      */
     private function validate(Request $request): array
     {
@@ -163,6 +166,7 @@ class EventController extends AbstractController
             'deposit' => trim($payload->getString('deposit')),
             // Case à cocher : absente du formulaire envoyé quand elle est décochée
             'kitchen' => $payload->has('with_kitchen'),
+            'table' => $payload->has('table_service'),
         ];
         $errors = [];
 
@@ -188,6 +192,16 @@ class EventController extends AbstractController
         return [$values, $errors, $values['name'], $date, $depositCents];
     }
 
+    /**
+     * Sans cuisine, tout est remis au comptoir : pas de service à table (la case est désactivée dans la page).
+     *
+     * @param array{kitchen: bool, table: bool} $values
+     */
+    private static function tableService(array $values): bool
+    {
+        return $values['table'] && $values['kitchen'];
+    }
+
     /** @return array<string, mixed> */
     private static function snapshot(Event $event): array
     {
@@ -196,6 +210,7 @@ class EventController extends AbstractController
             'date' => $event->getDate()->format('Y-m-d'),
             'deposit_cents' => $event->getDepositCents(),
             'with_kitchen' => $event->hasKitchen(),
+            'table_service' => $event->hasTableService(),
         ];
     }
 

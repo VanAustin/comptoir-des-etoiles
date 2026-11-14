@@ -22,6 +22,14 @@ Les tablettes passent par le **partage de connexion d'un téléphone**. Un secon
 6. Un bandeau « Nouvelle version » apparaît ? Touchez « Recharger » **entre deux commandes**.
 7. Ne maintenez pas le bouton « Tablette » (en haut) sans l'accord du ou de la responsable.
 
+## Service à table (Loto)
+
+Le client commande et **paie à la caisse** comme d'habitude, puis donne le numéro du chevalet posé sur sa table.
+
+- **Caisse** : touchez « Table », tapez le numéro, puis « Valider ». Sans numéro, c'est une commande au comptoir. L'écran indique ce qu'il faut faire : « Servi à la table 304 », ou « Plats servis à la table 304 · boissons à remettre maintenant ». **Les boissons sont toujours remises tout de suite au comptoir.**
+- **Cuisine** : « Table 304 » s'affiche en grand sur le ticket. « Déjà remis au comptoir » : ne mettez pas ces boissons sur le plateau. Une fois le plat apporté à la table, touchez « Remise au client ».
+- **Arrivées** : les commandes à table n'y apparaissent pas, c'est normal.
+
 ## 3. Passer sur le second téléphone
 
 Quand le premier n'a plus de réseau, plus de batterie ou chauffe trop :
@@ -36,7 +44,7 @@ Aucune commande n'est perdue pendant ce temps : la caisse les garde.
 
 **La caisse continue d'encaisser.** Une bande rouge « Pas de connexion au serveur… » s'affiche : c'est normal.
 
-- **Caisse** : donnez son numéro au client comme d'habitude. Pour chaque commande avec des plats, écrivez un **ticket papier** (numéro, plats, remarque) et portez-le en cuisine.
+- **Caisse** : donnez son numéro au client comme d'habitude. Pour chaque commande avec des plats, écrivez un **ticket papier** (numéro, table s'il y en a une, plats, remarque) et portez-le en cuisine.
 - **Cuisine** : préparez à partir des tickets papier, et **annoncez les numéros à voix haute**.
 - **Arrivées** : ne vous y fiez plus jusqu'au retour du réseau.
 - **Jamais** : effacer les données de Chrome, désinstaller l'application, changer la tablette d'une caisse. Les commandes gardées seraient perdues.

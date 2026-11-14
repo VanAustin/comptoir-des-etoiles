@@ -61,6 +61,14 @@
                 <input type="text" id="till-note" maxlength="140" autocomplete="off" placeholder="Sans oignons, bien cuit…" aria-describedby="till-note-help">
                 <p class="field-help" id="till-note-help">Pas de nom ni de téléphone. <span class="num" id="till-note-count">0/140</span></p>
             </div>
+            {# Service à table (Loto) : facultatif, sans numéro la commande est servie au comptoir #}
+            <div class="table-field" id="till-table-field" hidden>
+                <div class="row">
+                    <button type="button" class="btn btn-small" id="till-table">Table</button>
+                    <button type="button" class="btn btn-small" id="till-table-clear" hidden>Retirer la table</button>
+                </div>
+                <p class="table-hint" id="till-table-hint" role="status" hidden></p>
+            </div>
             <p id="till-cart-error" class="alert alert-error" role="alert" hidden></p>
             <div class="total"><span>Total</span><span class="num" id="till-total"></span></div>
             <div class="row">
@@ -114,15 +122,34 @@
         </div>
     </section>
 
+    <section id="till-table-view" class="card panel table-pad" aria-labelledby="table-title" hidden>
+        <h2 id="table-title">Numéro de table</h2>
+        <p class="lede">Le numéro du chevalet posé sur la table. Les boissons sont toujours remises au comptoir.</p>
+        <p class="table-entry num" id="table-entry" role="status" aria-live="polite"></p>
+        <div class="keypad" role="group" aria-label="Pavé numérique">
+            {% for digit in 1..9 %}
+                <button type="button" class="key num" data-digit="{{ digit }}">{{ digit }}</button>
+            {% endfor %}
+            <button type="button" class="key" id="table-erase" aria-label="Effacer le dernier chiffre">Effacer</button>
+            <button type="button" class="key num" data-digit="0">0</button>
+            <button type="button" class="key" id="table-none">Sans table</button>
+        </div>
+        <div class="row">
+            <button type="button" class="btn" id="table-back">Retour</button>
+            <button type="button" class="btn btn-primary" id="table-ok">Valider</button>
+        </div>
+    </section>
+
     <section id="till-track-view" class="card panel track" aria-labelledby="track-title" hidden>
         <div class="track-head">
             <h2 id="track-title">Suivi des commandes</h2>
             <button type="button" class="btn" id="track-close">Revenir à la caisse</button>
         </div>
         <div class="field">
-            <label for="track-search">Rechercher un numéro</label>
-            <input type="text" id="track-search" autocomplete="off" autocapitalize="characters" class="num" placeholder="A12">
+            <label for="track-search">Rechercher un numéro de commande ou de table</label>
+            <input type="text" id="track-search" autocomplete="off" autocapitalize="characters" class="num" placeholder="A12 ou 304">
         </div>
+        <button type="button" class="btn btn-small" id="track-table-filter" aria-pressed="false" hidden>À table</button>
         <p id="track-offline" class="alert alert-error" role="status" hidden>Connexion perdue : le suivi n'est peut-être plus à jour.</p>
 
         {# Une ligne par commande, les prêtes (à remettre au client) en premier #}
@@ -145,6 +172,7 @@
     <section id="till-done" class="card panel ordernum" aria-labelledby="done-lede" hidden>
         <p class="lede" id="done-lede"></p>
         <p class="n num" id="done-number"></p>
+        <p class="done-table" id="done-table" hidden></p>
         <p id="done-help"></p>
         <p class="lede" id="done-queue" hidden></p>
         <div class="change" id="done-change" hidden>

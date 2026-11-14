@@ -35,6 +35,13 @@ class Event
     private bool $withKitchen = true;
 
     /**
+     * Service à table (Loto) : la caisse propose un numéro de table. Seulement avec cuisine.
+     * Ne fait qu'afficher ou masquer le bouton « Table » : un numéro déjà saisi est toujours gardé.
+     */
+    #[ORM\Column(options: ['default' => false])]
+    private bool $tableService = false;
+
+    /**
      * Numéros de révision, augmentés de 1 à chaque changement des commandes ou du menu, dans
      * la même transaction (App\Service\Revisions, jamais en PHP). Les tablettes interrogent
      * le serveur toutes les quelques secondes : tant que la révision n'a pas changé, il répond
@@ -113,6 +120,19 @@ class Event
     public function setWithKitchen(bool $withKitchen): static
     {
         $this->withKitchen = $withKitchen;
+
+        return $this;
+    }
+
+    /** Vrai seulement avec cuisine : sans cuisine, tout est servi au comptoir. */
+    public function hasTableService(): bool
+    {
+        return $this->withKitchen && $this->tableService;
+    }
+
+    public function setTableService(bool $tableService): static
+    {
+        $this->tableService = $tableService;
 
         return $this;
     }

@@ -49,6 +49,8 @@ class TillController extends AbstractController
                 'depositCents' => $event->getDepositCents(),
                 // Sans cuisine : pas de remarque ni de suivi des commandes à la caisse
                 'withKitchen' => $event->hasKitchen(),
+                // Bouton « Table » dans le panier (Loto)
+                'tableService' => $event->hasTableService(),
             ],
             'tillLetter' => $device->getTillLetter(),
             // Poste de vente : pas de grand numéro à la fin (cartons, jetons…)
@@ -118,6 +120,7 @@ class TillController extends AbstractController
             'changeBreakdown' => $order->getChangeCents() > 0 ? Money::changeBreakdown((int) $order->getChangeCents()) : null,
             'createdAt' => $order->getCreatedAt()->format(\DATE_ATOM),
             'note' => $order->getNote(),
+            'tableNumber' => $order->getTableNumber(),
             'lines' => array_map(static fn (OrderLine $l): array => [
                 'kind' => $l->getKind()->value,
                 'productId' => $l->getProduct()?->getId(),

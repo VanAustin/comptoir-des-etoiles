@@ -1,0 +1,44 @@
+meta {
+  name: 13. Numéro de table invalide
+  type: http
+  seq: 13
+}
+
+post {
+  url: {{baseUrl}}/api/orders
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_caisse}}
+}
+
+body:json {
+  {
+    "uuid": "{{badTableUuid}}",
+    "number": 9998,
+    "paymentMethod": "card",
+    "lines": [{ "productId": {{productId}}, "quantity": 1 }],
+    "tableNumber": 1000
+  }
+}
+
+script:pre-request {
+  bru.setVar("badTableUuid", "8b3c4d5e-6f7a-4b8c-9d0e-" + Date.now().toString(16).padStart(12, "0").slice(-12));
+}
+
+tests {
+  test("refusé (422)", function () {
+    expect(res.status).to.equal(422);
+  });
+
+  test("le message indique les limites", function () {
+    expect(res.body.error).to.include("Numéro de table invalide");
+    expect(res.body.error).to.include("1 à 999");
+  });
+}
+
+docs {
+  Un numéro de table est un entier de 1 à 999. La caisse n'en envoie pas d'autre ; une commande encaissée hors ligne (`"offline": true`) avec un numéro invalide serait gardée sans table plutôt que refusée. Lancez d'abord « Caisse / 1. Menu ».
+}

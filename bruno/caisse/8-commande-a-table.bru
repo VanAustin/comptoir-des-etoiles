@@ -1,0 +1,61 @@
+meta {
+  name: 8. Commande à table
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/api/orders
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{deviceToken}}
+}
+
+body:json {
+  {
+    "uuid": "{{tableOrderUuid}}",
+    "number": {{nextNumber}},
+    "paymentMethod": "card",
+    "lines": [{ "productId": {{kitchenProductId}}, "quantity": 1 }],
+    "tableNumber": 304
+  }
+}
+
+script:pre-request {
+  const hex = "0123456789abcdef";
+  let uuid = "";
+  for (let i = 0; i < 36; i++) {
+    if ([8, 13, 18, 23].includes(i)) uuid += "-";
+    else if (i === 14) uuid += "4";
+    else if (i === 19) uuid += hex[8 + Math.floor(Math.random() * 4)];
+    else uuid += hex[Math.floor(Math.random() * 16)];
+  }
+  bru.setVar("tableOrderUuid", uuid);
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("tableDisplayNumber", res.body.displayNumber);
+    bru.setVar("nextNumber", res.body.number + 1);
+  }
+}
+
+tests {
+  test("la commande est créée (201)", function () {
+    expect(res.status).to.equal(201);
+  });
+
+  test("elle part en cuisine avec son numéro de table", function () {
+    expect(res.body.status).to.equal("new");
+    expect(res.body.tableNumber).to.equal(304);
+  });
+}
+
+docs {
+  Service à table (Loto) : une commande avec un article qui passe en cuisine, pour la table 304. Le numéro de table est gardé même si l'événement n'a pas coché « Service à table » (le réglage ne fait qu'afficher le bouton de la caisse).
+
+  Il faut un événement avec cuisine et au moins un article « Passe en cuisine ». Lancez d'abord « 1. Menu ». Ensuite, « Arrivées / 2. Sans les commandes à table » vérifie qu'elle n'apparaît pas sur l'écran Arrivées.
+}

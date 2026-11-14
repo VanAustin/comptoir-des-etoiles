@@ -38,6 +38,10 @@ class BoardController extends AbstractController
         $ready = [];
         $preparing = [];
         foreach ($open as $order) {
+            // Servie à table : le client n'attend pas son numéro à l'écran
+            if (null !== $order->getTableNumber()) {
+                continue;
+            }
             if (OrderStatus::Ready === $order->getStatus()) {
                 $ready[] = $order;
             } else {
