@@ -48,6 +48,10 @@
   --or-fond: #FBF0CF;        /* fond « en préparation » */
   --sauge-fond: #EEF3DF;     /* fond « prête » */
   --papier: #FFFDF8;         /* tickets, panier */
+  /* QR code d'appairage : noir sur blanc dans les deux thèmes (un QR inversé est mal lu
+     par certains appareils photo). Volontairement absents des blocs du thème sombre. */
+  --qr-encre: #000000;
+  --qr-fond: #FFFFFF;
 
   --f-titre: "Baloo 2", "Trebuchet MS", sans-serif;
   --f-texte: "Atkinson Hyperlegible", "Segoe UI", Roboto, sans-serif;
