@@ -88,7 +88,7 @@ class AdminPasswordCommand extends Command
 
         $io->success([
             \sprintf('Le mot de passe de « %s » est remplacé.', $admin->getUsername()),
-            'Les sessions ouvertes avec l\'ancien mot de passe sont fermées : reconnectez-vous à l\'administration.',
+            'Les sessions ouvertes avec l\'ancien mot de passe sont fermées, sur tous les appareils (même avec « Rester connectée sur cet appareil ») : reconnectez-vous à l\'administration.',
         ]);
 
         return Command::SUCCESS;

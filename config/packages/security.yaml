@@ -33,6 +33,18 @@ security:
                 default_target_path: app_admin
                 enable_csrf: true
 
+            # « Rester connectée sur cet appareil » (case décochée par défaut) : cookie de 30 jours,
+            # signé avec l'empreinte du mot de passe : app:admin:password déconnecte tous les appareils.
+            # secure: auto, comme le cookie de session : sécurisé dès que le site est en HTTPS.
+            remember_me:
+                secret: '%kernel.secret%'
+                name: REMEMBERME
+                lifetime: 2592000
+                signature_properties: ['password']
+                secure: auto
+                httponly: true
+                samesite: lax
+
             # Déconnexion par formulaire POST avec jeton CSRF
             logout:
                 path: app_logout

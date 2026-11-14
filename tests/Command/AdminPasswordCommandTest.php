@@ -135,6 +135,31 @@ class AdminPasswordCommandTest extends WebTestCase
         self::assertResponseRedirects('/login');
     }
 
+    public function testRememberMeCookieIsInvalidatedAfterChange(): void
+    {
+        $this->createAdmin('camille');
+        $crawler = $this->client->request('GET', '/login');
+        $form = $crawler->selectButton('Se connecter')->form(['_username' => 'camille', '_password' => self::OLD_PASSWORD]);
+        $form['_remember_me']->tick();
+        $this->client->submit($form);
+
+        // Un autre appareil : seulement le cookie « Rester connectée », sans session
+        $jar = $this->client->getCookieJar();
+        $rememberMe = $jar->get('REMEMBERME');
+        self::assertNotNull($rememberMe);
+        $jar->clear();
+        $jar->set($rememberMe);
+        $this->client->request('GET', '/admin');
+        self::assertResponseIsSuccessful();
+
+        $jar->clear();
+        $jar->set($rememberMe);
+        $this->runCommand([self::NEW_PASSWORD, self::NEW_PASSWORD]);
+
+        $this->client->request('GET', '/admin');
+        self::assertResponseRedirects('/login');
+    }
+
     private function createAdmin(string $username): AdminUser
     {
         $admin = new AdminUser($username);
@@ -165,7 +190,8 @@ class AdminPasswordCommandTest extends WebTestCase
         $container = self::getContainer();
         $tester = new CommandTester(new AdminPasswordCommand(
             $container->get(AdminUserRepository::class),
-            $this->entityManager,
+            // Celui du conteneur en cours : après une requête, le noyau a redémarré
+            $container->get(EntityManagerInterface::class),
             $container->get(UserPasswordHasherInterface::class),
         ));
         $tester->setInputs($inputs);
