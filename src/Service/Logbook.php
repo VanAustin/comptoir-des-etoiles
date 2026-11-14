@@ -28,7 +28,7 @@ final class Logbook
     /**
      * @return array{
      *     orders: list<Order>,
-     *     totals: array{orders: int, cancelled: int, revenue: int, basket: int|null, cashCount: int, cashAmount: int, cardCount: int, cardAmount: int, depositsIn: int, depositsOut: int, depositBalance: int, cupsNotReturned: int|null},
+     *     totals: array{orders: int, cancelled: int, revenue: int, basket: int|null, cashCount: int, cashAmount: int, cardCount: int, cardAmount: int, depositsIn: int, depositsOut: int, depositBalance: int, cupsNotReturned: int|null, tableOrders: int, tableRevenue: int},
      *     tills: array<string, array{orders: int, cashExpected: int, card: int, shortfall: int}>,
      *     shortfalls: list<array{order: Order, missing: int}>,
      *     articles: list<array{name: string, archived: bool, formula: bool, sold: int, revenue: int, initial: int|null, remaining: int|null}>
@@ -37,7 +37,7 @@ final class Logbook
     public function summarize(Event $event): array
     {
         $orders = $this->orders->findForEvent($event);
-        $totals = ['orders' => 0, 'cancelled' => 0, 'revenue' => 0, 'basket' => null, 'cashCount' => 0, 'cashAmount' => 0, 'cardCount' => 0, 'cardAmount' => 0, 'depositsIn' => 0, 'depositsOut' => 0, 'depositBalance' => 0, 'cupsNotReturned' => null];
+        $totals = ['orders' => 0, 'cancelled' => 0, 'revenue' => 0, 'basket' => null, 'cashCount' => 0, 'cashAmount' => 0, 'cardCount' => 0, 'cardAmount' => 0, 'depositsIn' => 0, 'depositsOut' => 0, 'depositBalance' => 0, 'cupsNotReturned' => null, 'tableOrders' => 0, 'tableRevenue' => 0];
         $tills = [];
         $shortfalls = [];
         $sold = [];
@@ -54,6 +54,7 @@ final class Logbook
             ++$tills[$letter]['orders'];
 
             $hasArticle = false;
+            $articlesRevenue = 0;
             foreach ($order->getLines() as $line) {
                 match ($line->getKind()) {
                     LineKind::Article => $totals['revenue'] += $line->getTotalCents(),
@@ -66,9 +67,15 @@ final class Logbook
                     $sold[$key] ??= ['quantity' => 0, 'revenue' => 0, 'label' => $line->getLabel()];
                     $sold[$key]['quantity'] += $line->getQuantity();
                     $sold[$key]['revenue'] += $line->getTotalCents();
+                    $articlesRevenue += $line->getTotalCents();
                 }
             }
             $withArticles += $hasArticle ? 1 : 0;
+            // Service à table : chiffre d'affaires hors consignes, boissons de la commande comprises
+            if (null !== $order->getTableNumber()) {
+                ++$totals['tableOrders'];
+                $totals['tableRevenue'] += $articlesRevenue;
+            }
 
             $total = $order->getTotalCents();
             if (PaymentMethod::Card === $order->getPaymentMethod()) {

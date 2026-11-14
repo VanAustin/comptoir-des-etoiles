@@ -60,6 +60,38 @@ class LogbookControllerTest extends WebTestCase
         self::assertCount(1, $crawler->filterXPath('//meter'));
     }
 
+    public function testTableServiceFiguresAndTableInHistory(): void
+    {
+        $this->login();
+        $soda = self::createProduct($this->event, 'Soda');
+        $atTable = self::createOrder($this->event, [[$this->crepe, 1], [$soda, 1]], OrderStatus::Served);
+        self::createOrder($this->event, [[$this->crepe, 1]], OrderStatus::Served);
+        $cancelled = self::createOrder($this->event, [[$this->crepe, 3]], OrderStatus::Cancelled);
+        foreach ([$atTable, $cancelled] as $order) {
+            self::entityManager()->find(Order::class, $order->getId())->setTableNumber(304);
+        }
+        self::entityManager()->flush();
+
+        $crawler = $this->client->request('GET', '/admin/carnet');
+
+        // Une commande à table (l'annulée ne compte pas) : crêpe et soda, 2,00 € chacun
+        $kpi = $crawler->filterXPath('//div[contains(@class, "kpi")][span[.="Service à table"]]');
+        self::assertSame(1, $kpi->count());
+        self::assertStringContainsString('4,00', $kpi->text());
+        self::assertStringContainsString('1 commande à table', $kpi->text());
+        self::assertStringContainsString('Table 304', $crawler->filterXPath('//tr[td[contains(., "'.$atTable->getDisplayNumber().'")]]')->text());
+    }
+
+    public function testNoTableServiceFiguresForACounterOnlyEvent(): void
+    {
+        $this->login();
+        self::createOrder($this->event, [[$this->crepe, 1]], OrderStatus::Served);
+
+        $crawler = $this->client->request('GET', '/admin/carnet');
+
+        self::assertSame(0, $crawler->filterXPath('//div[contains(@class, "kpi")][span[.="Service à table"]]')->count());
+    }
+
     public function testHistoryFilters(): void
     {
         $this->login();

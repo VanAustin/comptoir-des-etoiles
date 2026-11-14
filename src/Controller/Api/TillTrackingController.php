@@ -70,6 +70,8 @@ class TillTrackingController extends AbstractController
             // Dernier changement d'état : pour une commande prête, l'heure où elle l'est devenue
             'updatedAt' => $order->getUpdatedAt()->format(\DATE_ATOM),
             'mine' => $order->getTillLetter() === $device->getTillLetter(),
+            // Service à table : un bénévole apporte le plat, pas de remise au comptoir
+            'tableNumber' => $order->getTableNumber(),
         ];
     }
 }

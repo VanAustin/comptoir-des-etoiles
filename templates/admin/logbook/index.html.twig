@@ -48,6 +48,9 @@
         <div class="card kpi"><span>Panier moyen</span><strong class="num">{{ totals.basket is null ? '—' : totals.basket|euros }}</strong><small>par commande avec articles</small></div>
         <div class="card kpi"><span>Espèces</span><strong class="num">{{ totals.cashAmount|euros }}</strong><small>{{ totals.cashCount }} commande{{ totals.cashCount > 1 ? 's' }}</small></div>
         <div class="card kpi"><span>Carte</span><strong class="num">{{ totals.cardAmount|euros }}</strong><small>{{ totals.cardCount }} commande{{ totals.cardCount > 1 ? 's' }}</small></div>
+        {% if event.hasTableService or totals.tableOrders > 0 %}
+            <div class="card kpi"><span>Service à table</span><strong class="num">{{ totals.tableRevenue|euros }}</strong><small>{{ totals.tableOrders }} commande{{ totals.tableOrders > 1 ? 's' }} à table, hors consignes</small></div>
+        {% endif %}
         {% if event.depositCents > 0 or totals.depositsIn > 0 %}
             <div class="card kpi">
                 <span>Consignes</span><strong class="num">{{ totals.depositBalance|euros }}</strong>
@@ -153,7 +156,7 @@
                         {% for order in history %}
                             {% set articles = order.lines|filter(l => l.kind.value == 'article') %}
                             <tr{{ order.status.value == 'cancelled' ? ' class="cancelled"' }}>
-                                <td class="stack-title num">{{ order.displayNumber }}</td>
+                                <td class="stack-title num">{{ order.displayNumber }}{% if order.tableNumber is not null %} <span class="pill">Table {{ order.tableNumber }}</span>{% endif %}</td>
                                 <td class="num" data-label="Heure">{{ order.createdAt|date('H\\hi') }}</td>
                                 <td data-label="Articles">
                                     <details>

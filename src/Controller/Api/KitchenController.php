@@ -115,6 +115,7 @@ class KitchenController extends AbstractController
             'updatedAt' => $order->getUpdatedAt()->format(\DATE_ATOM),
             // Texte brut : l'écran l'insère avec textContent, jamais comme du HTML
             'note' => $order->getNote(),
+            'tableNumber' => $order->getTableNumber(),
             'kitchenLines' => $kitchen,
             'counterLines' => $counter,
         ];

@@ -8,6 +8,7 @@ import { getPairing } from "./device-store.js";
 import { el } from "./dom.js";
 import { Poller } from "./poller.js";
 import { keepScreenOn, Sound } from "./screen.js";
+import { counterTitle } from "./table-rules.js";
 
 const LATE_MINUTES = 10;
 const UNDO_SECONDS = 5;
@@ -256,10 +257,12 @@ function ticket(order) {
 
   return el("article", {
     class: ["ticket", status, late ? "late" : "", entry ? "pending" : ""].filter(Boolean).join(" "),
-    attrs: { "aria-label": `Commande ${order.displayNumber}` },
+    attrs: { "aria-label": `Commande ${order.displayNumber}${order.tableNumber != null ? `, table ${order.tableNumber}` : ""}` },
   }, [
     el("div", { class: "tk-head" }, [
       el("span", { class: "n num", text: order.displayNumber }),
+      // Service à table : un bénévole apporte le plat à cette table
+      order.tableNumber != null ? el("span", { class: "tk-table num", text: `Table ${order.tableNumber}` }) : null,
       el("span", { class: "t num", text: `${minutes} min` }),
     ]),
     el("span", { class: `pill ${status}`, text: STATUS_LABELS[status] + (late ? " · En retard" : "") }),
@@ -267,7 +270,7 @@ function ticket(order) {
     order.note ? el("p", { class: "ticket-note", text: order.note, attrs: { "aria-label": `Remarque : ${order.note}` } }) : null,
     el("ul", { class: "kitchen-lines" }, order.kitchenLines.map(kitchenLine)),
     order.counterLines.length
-      ? el("p", { class: "counter", text: `Au comptoir : ${order.counterLines.map((l) => `${l.quantity} × ${l.label}`).join(", ")}` })
+      ? el("p", { class: "counter", text: `${counterTitle(order.tableNumber)} : ${order.counterLines.map((l) => `${l.quantity} × ${l.label}`).join(", ")}` })
       : null,
     notice ? el("p", { class: "alert alert-error", attrs: { role: "status" }, text: notice }) : null,
     entry ? pendingActions(order, entry) : actionButton(order),

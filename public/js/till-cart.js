@@ -86,6 +86,11 @@ export class Cart {
     return [...this.quantities.keys()].some((id) => menu.byId.get(id)?.goesToKitchen);
   }
 
+  /** Au moins un article remis au comptoir (boissons…), hors consigne. */
+  hasCounterItem(menu) {
+    return [...this.quantities.keys()].some((id) => !menu.byId.get(id)?.goesToKitchen);
+  }
+
   /** Lignes envoyées au serveur : identifiants et quantités, aucun prix. */
   payloadLines() {
     return [...this.quantities].map(([productId, quantity]) => ({ productId, quantity }));

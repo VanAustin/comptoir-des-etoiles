@@ -35,7 +35,7 @@ final class LogbookExport
      */
     public function orders(Event $event): string
     {
-        $rows = [['Numéro', 'Caisse', 'Date', 'Heure', 'Paiement', 'Articles', 'Chiffre d\'affaires (€)', 'Consignes encaissées (€)', 'Consignes rendues (€)', 'Total encaissé (€)', 'Reçu en espèces (€)', 'Rendu (€)', 'Écart de caisse (€)', 'Remarque']];
+        $rows = [['Numéro', 'Caisse', 'Date', 'Heure', 'Paiement', 'Articles', 'Chiffre d\'affaires (€)', 'Consignes encaissées (€)', 'Consignes rendues (€)', 'Total encaissé (€)', 'Reçu en espèces (€)', 'Rendu (€)', 'Écart de caisse (€)', 'Remarque', 'Table']];
 
         foreach ($this->activeOrders($event) as $order) {
             $revenue = $depositsIn = $depositsOut = 0;
@@ -62,6 +62,8 @@ final class LogbookExport
                 null !== $change && $change > 0 ? self::euros($change) : '',
                 null !== $change && $change < 0 ? self::euros(-$change) : '',
                 self::text((string) $order->getNote()),
+                // Vide : commande au comptoir
+                (string) $order->getTableNumber(),
             ];
         }
 

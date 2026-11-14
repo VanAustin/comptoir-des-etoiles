@@ -1,0 +1,32 @@
+meta {
+  name: 2. Sans les commandes à table
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/board
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_affichage}}
+}
+
+tests {
+  test("le tableau est renvoyé (200)", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("la commande à table n'y figure pas", function () {
+    const number = bru.getVar("tableDisplayNumber");
+    expect(number, "lancez d'abord « Caisse / 8. Commande à table »").to.be.a("string");
+    expect(res.body.ready).to.not.include(number);
+    expect(res.body.preparing).to.not.include(number);
+  });
+}
+
+docs {
+  Le client servi à table n'attend pas son numéro à l'écran : les commandes avec un numéro de table n'apparaissent pas sur l'écran Arrivées. Lancez d'abord « Caisse / 8. Commande à table ».
+}

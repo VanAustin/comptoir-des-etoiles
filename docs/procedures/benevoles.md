@@ -4,6 +4,8 @@ Adresse du site : ______________________________ Responsable : _________________
 
 Les tablettes passent par le **partage de connexion d'un téléphone**. Un second téléphone est prêt en secours. Pour un stand sans cuisine (stand de Noël), seules les caisses servent : ignorez ce qui concerne la cuisine et l'écran Arrivées.
 
+Service à table (Loto) : les livreurs ont leur propre fiche, [Livreur](livreur.md).
+
 ## 1. Le téléphone, avant d'allumer les tablettes
 
 1. **Branchez-le sur secteur**, avec son chargeur. Posez-le en hauteur, près des caisses, loin des murs épais.
@@ -36,7 +38,7 @@ Aucune commande n'est perdue pendant ce temps : la caisse les garde.
 
 **La caisse continue d'encaisser.** Une bande rouge « Pas de connexion au serveur… » s'affiche : c'est normal.
 
-- **Caisse** : donnez son numéro au client comme d'habitude. Pour chaque commande avec des plats, écrivez un **ticket papier** (numéro, plats, remarque) et portez-le en cuisine.
+- **Caisse** : donnez son numéro au client comme d'habitude. Pour chaque commande avec des plats, écrivez un **ticket papier** (numéro, table s'il y en a une, plats, remarque) et portez-le en cuisine.
 - **Cuisine** : préparez à partir des tickets papier, et **annoncez les numéros à voix haute**.
 - **Arrivées** : ne vous y fiez plus jusqu'au retour du réseau.
 - **Jamais** : effacer les données de Chrome, désinstaller l'application, changer la tablette d'une caisse. Les commandes gardées seraient perdues.

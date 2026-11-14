@@ -5,6 +5,7 @@
 import { apiFetch, ApiError } from "./api.js";
 import { el } from "./dom.js";
 import { Lane, Poller } from "./poller.js";
+import { matchesTracking } from "./table-rules.js";
 
 const LATE_MINUTES = 10;
 const UNDO_SECONDS = 5;
@@ -23,6 +24,9 @@ export class TillTracking {
     this.loaded = false;
     this.pending = new Map();
     this.notices = new Map();
+    /** Service à table : filtre « À table » proposé, et activé ou non. */
+    this.tableService = false;
+    this.tableOnly = false;
     this.handlers = { onClose, onFatal };
 
     this.poller = new Poller("/api/till/orders", {
@@ -47,6 +51,10 @@ export class TillTracking {
     });
     $("track-close").addEventListener("click", () => onClose());
     $("track-search").addEventListener("input", () => this.render());
+    $("track-table-filter").addEventListener("click", () => {
+      this.tableOnly = !this.tableOnly;
+      this.render();
+    });
     // Temps d'attente à jour même quand rien ne change
     setInterval(() => this.render(), 15000);
   }
@@ -65,6 +73,15 @@ export class TillTracking {
     if (!$("till-track-view").hidden) {
       this.handlers.onClose();
     }
+  }
+
+  /** Filtre « À table » : proposé avec le service à table (Loto). */
+  setTableService(enabled) {
+    this.tableService = enabled;
+    if (!enabled) {
+      this.tableOnly = false;
+    }
+    this.render();
   }
 
   /** Après un encaissement : la nouvelle commande apparaît tout de suite. */
@@ -193,14 +210,21 @@ export class TillTracking {
 
   renderPanel() {
     const search = $("track-search").value.toUpperCase().replace(/\s/g, "");
-    const visible = this.orders.filter((o) => !search || o.displayNumber.includes(search));
+    // Commandes à table encore en cours : le filtre reste proposé si le réglage a été décoché
+    const filter = $("track-table-filter");
+    filter.hidden = !this.tableService && !this.orders.some((o) => o.tableNumber != null);
+    filter.setAttribute("aria-pressed", this.tableOnly && !filter.hidden ? "true" : "false");
+    const tableOnly = this.tableOnly && !filter.hidden;
+    const visible = this.orders.filter((o) => matchesTracking(o, { search, tableOnly }));
     // Prêtes d'abord (celle qui attend depuis le plus longtemps en tête), puis les autres de la plus ancienne à la plus récente
     const ready = visible.filter((o) => o.status === "ready").sort((a, b) => a.updatedAt.localeCompare(b.updatedAt));
     const kitchen = visible.filter((o) => o.status !== "ready");
 
     $("track-list").replaceChildren(...[...ready, ...kitchen].map((o) => this.row(o)));
     $("track-none").hidden = visible.length > 0;
-    $("track-none").textContent = search ? `Aucune commande en cours ne correspond à « ${search} ».` : "Aucune commande en cours.";
+    $("track-none").textContent = search
+      ? `Aucune commande en cours ne correspond à « ${search} »${tableOnly ? " parmi celles à table" : ""}.`
+      : tableOnly ? "Aucune commande à table en cours." : "Aucune commande en cours.";
   }
 
   row(order) {
@@ -214,6 +238,7 @@ export class TillTracking {
       el("span", { class: `pill ${order.status}`, text: STATUS_LABELS[order.status] }),
       el("span", { class: "track-time num", text: ready ? `depuis ${minutes} min` : `${minutes} min` }),
       late ? el("span", { class: "track-late", text: "En retard" }) : null,
+      order.tableNumber != null ? el("span", { class: "tag tag-table", text: `Table ${order.tableNumber}` }) : null,
       order.mine ? el("span", { class: "tag", text: "Cette caisse" }) : null,
       ready ? this.serveAction(order) : null,
       notice ? el("span", { class: "track-error", attrs: { role: "status" }, text: notice }) : null,

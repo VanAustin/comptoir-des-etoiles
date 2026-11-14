@@ -73,6 +73,20 @@ class LogbookExportTest extends WebTestCase
         // 2 crêpes (4,00) + 1 soda (1,50) + 1 consigne (1,00) = 6,50 ; 10,00 reçus, 3,50 rendus
         self::assertSame(['Espèces', '2 × Crêpe "maison", 1 × Soda', '5,50', '1,00', '0,00', '6,50', '10,00', '3,50', ''], \array_slice($row, 4, 9));
         self::assertSame("'+33 6 00 00 00 00", $row[13], 'texte commençant par + neutralisé');
+        self::assertSame('Table', $this->rows($csv)[0][14]);
+        self::assertSame('', $row[14], 'commande au comptoir : pas de table');
+    }
+
+    public function testOrdersExportGivesTheTable(): void
+    {
+        $this->login();
+        $order = $this->place(['Crêpe' => 1], card: true);
+        self::entityManager()->find(Order::class, $order->getId())->setTableNumber(304);
+        self::entityManager()->flush();
+
+        $row = $this->rows($this->download('/admin/carnet/export/commandes'))[1];
+
+        self::assertSame('304', $row[14]);
     }
 
     /** Signalé à l'usage : les montants de la commande répétés sur chaque ligne faussaient les sommes. */

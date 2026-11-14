@@ -20,6 +20,9 @@ script:post-response {
     bru.setVar("productId", res.body.products[0].id);
     bru.setVar("nextNumber", res.body.lastNumber + 1);
   }
+  // Pour « 8. Commande à table » : un article qui passe en cuisine, s'il y en a un
+  const kitchenProduct = res.status === 200 ? res.body.products.find(function (p) { return p.goesToKitchen; }) : null;
+  bru.setVar("kitchenProductId", kitchenProduct ? kitchenProduct.id : null);
   // Pour « 7. Menu inchangé (304) »
   bru.setVar("menuEtag", res.headers.etag);
 }

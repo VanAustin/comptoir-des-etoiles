@@ -72,7 +72,8 @@ class TillTrackingApiTest extends WebTestCase
         self::assertSame([$mine->getDisplayNumber(), $other->getDisplayNumber()], array_column($data['orders'], 'displayNumber'));
         self::assertSame(['prep', 'ready'], array_column($data['orders'], 'status'));
         self::assertSame([true, false], array_column($data['orders'], 'mine'), 'commandes de cette caisse repérées');
-        self::assertSame(['uuid', 'displayNumber', 'status', 'createdAt', 'updatedAt', 'mine'], array_keys($data['orders'][0]));
+        // Ni montant ni article ; le numéro de table sert au filtre « À table » (service à table)
+        self::assertSame(['uuid', 'displayNumber', 'status', 'createdAt', 'updatedAt', 'mine', 'tableNumber'], array_keys($data['orders'][0]));
         self::assertArrayNotHasKey('serverTime', $data, 'heure du serveur : en-tête Date');
     }
 
