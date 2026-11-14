@@ -1,0 +1,72 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Chevalets de table · Administration{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <link rel="stylesheet" href="{{ app.request.basePath }}/css/chevalets.css">
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script type="module" src="{{ app.request.basePath }}/js/admin-tents.js"></script>
+{% endblock %}
+
+{% block body %}
+    <section class="card form-card no-print">
+        <h1>Chevalets de table</h1>
+        <p class="lede">Service à table : un chevalet par table, avec son numéro, à donner au comptoir. Numéros : rangée puis table (304 : rangée 3, table 4). Deux chevalets par feuille A4 ; coupez la feuille en deux, puis pliez chaque moitié sur les pointillés.</p>
+
+        <form method="get" action="{{ path('admin_table_tents') }}" class="tents-form">
+            <div class="field-row">
+                <div class="field">
+                    <label for="rangees">Rangées</label>
+                    <input type="text" id="rangees" name="rangees" value="{{ values.rows }}" inputmode="numeric" class="num input-short" required
+                           aria-describedby="rangees-help{% if errors.rows is defined %} rangees-error{% endif %}"
+                           {% if errors.rows is defined %}aria-invalid="true"{% endif %}>
+                    <p class="field-help" id="rangees-help">De 1 à {{ max_rows }}.</p>
+                    {% if errors.rows is defined %}<p class="field-error" id="rangees-error">{{ errors.rows }}</p>{% endif %}
+                </div>
+                <div class="field">
+                    <label for="tables">Tables par rangée</label>
+                    <input type="text" id="tables" name="tables" value="{{ values.tables }}" inputmode="numeric" class="num input-short" required
+                           aria-describedby="tables-help{% if errors.tables is defined %} tables-error{% endif %}"
+                           {% if errors.tables is defined %}aria-invalid="true"{% endif %}>
+                    <p class="field-help" id="tables-help">De 1 à {{ max_tables }}.</p>
+                    {% if errors.tables is defined %}<p class="field-error" id="tables-error">{{ errors.tables }}</p>{% endif %}
+                </div>
+            </div>
+            <button type="submit" class="btn{{ numbers is empty ? ' btn-primary' }}">Préparer les chevalets</button>
+        </form>
+
+        {% if numbers is not empty %}
+            <p class="tents-summary">
+                {{ numbers|length }} chevalet{{ numbers|length > 1 ? 's' }}, de {{ numbers|first }} à {{ numbers|last }},
+                sur {{ sheets|length }} feuille{{ sheets|length > 1 ? 's' }} A4.
+                Dans la fenêtre d'impression : papier A4, marges « Aucune » ou « Par défaut », mise à l'échelle 100 %.
+            </p>
+            <button type="button" class="btn btn-primary" id="tents-print" hidden>Imprimer les chevalets</button>
+        {% endif %}
+    </section>
+
+    {% if numbers is not empty %}
+        <div class="tents" aria-label="Aperçu des chevalets">
+            {% for sheet in sheets %}
+                <div class="tent-sheet">
+                    {% for number in sheet %}
+                        <div class="tent">
+                            {% if not loop.first %}<span class="tent-cut">Couper ici</span>{% endif %}
+                            {# Face du haut à l'envers : à l'endroit une fois la moitié de feuille pliée #}
+                            {% for side in ['back', 'front'] %}
+                                <div class="tent-face tent-face-{{ side }}"{% if side == 'back' %} aria-hidden="true"{% endif %}>
+                                    <span class="tent-number">{{ number }}</span>
+                                    <span class="tent-text">Servi à table : donnez ce numéro au comptoir</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endblock %}

@@ -1,0 +1,48 @@
+/* Chevalets de table (service à table) : deux par feuille A4 portrait, chaque moitié
+   pliée en deux dans la longueur. La face du haut est à l'envers : une fois pliée,
+   le numéro se lit à l'endroit des deux côtés.
+   Tailles en unités du conteneur (cqw) : le même dessin sert à l'aperçu et à l'impression,
+   où 1cqw = 2,1 mm (largeur A4 de 210 mm). Couleurs d'impression : tokens.css. */
+
+.tents-form .btn { margin-top: 4px; }
+.tents-summary { margin: 20px 0 12px; color: var(--encre-douce); }
+
+.tents { display: flex; flex-direction: column; align-items: center; gap: 24px; margin-top: 24px; }
+
+.tent-sheet {
+  container-type: inline-size;
+  width: 100%; max-width: 210mm; aspect-ratio: 210 / 297;
+  display: flex; flex-direction: column;
+  background: var(--impression-fond); color: var(--impression-encre);
+  border: 1px solid var(--kraft);
+}
+
+.tent { position: relative; flex: 0 0 50%; display: flex; flex-direction: column; }
+/* Ligne de coupe entre les deux chevalets d'une feuille */
+.tent + .tent { border-top: 0.3cqw dashed var(--impression-trait); }
+.tent-cut {
+  position: absolute; top: 0; left: 3cqw; transform: translateY(-55%);
+  padding: 0 1.5cqw; background: var(--impression-fond); color: var(--impression-trait);
+  font: 700 2.2cqw var(--f-texte);
+}
+
+.tent-face {
+  flex: 1 1 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.5cqw;
+  text-align: center;
+}
+/* Pli : entre la face du haut et celle du bas */
+.tent-face-back { transform: rotate(180deg); border-top: 0.25cqw dotted var(--impression-trait); }
+.tent-number { font: 800 26cqw/0.8 var(--f-titre); letter-spacing: 0.02em; }
+.tent-text { font: 700 3.4cqw/1.2 var(--f-texte); }
+
+@page { size: A4 portrait; margin: 0; }
+
+@media print {
+  /* Seuls les chevalets s'impriment : ni en-tête, ni formulaire, ni bandeau de mise à jour */
+  .site-header, .no-print, .update-banner, main > .alert { display: none !important; }
+  html, body, main, .wrap { margin: 0 !important; padding: 0 !important; max-width: none !important; background: var(--impression-fond) !important; }
+  .tents { display: block; margin: 0; }
+  .tent-sheet { width: 210mm; height: 297mm; max-width: none; aspect-ratio: auto; border: 0; break-after: page; }
+  .tent-sheet:last-child { break-after: auto; }
+  .tent { flex-basis: 148.5mm; height: 148.5mm; overflow: hidden; }
+}
