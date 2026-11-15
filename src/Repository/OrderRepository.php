@@ -2,6 +2,7 @@
 
 namespace App\Repository;
 
+use App\Entity\Device;
 use App\Entity\Event;
 use App\Entity\Order;
 use App\Enum\OrderStatus;
@@ -87,6 +88,40 @@ class OrderRepository extends ServiceEntityRepository
     public function hasOrders(Event $event): bool
     {
         return null !== $this->findOneBy(['event' => $event]);
+    }
+
+    /** La tablette a-t-elle encaissé au moins une commande (annulées comprises) ? */
+    public function hasOrdersFromDevice(Device $device): bool
+    {
+        return null !== $this->findOneBy(['device' => $device]);
+    }
+
+    /**
+     * Tablettes, parmi celles données, qui ont encaissé au moins une commande, en une requête.
+     *
+     * @param list<Device> $devices
+     *
+     * @return array<int, true> identifiants
+     */
+    public function devicesWithOrders(array $devices): array
+    {
+        if ([] === $devices) {
+            return [];
+        }
+        $ids = $this->createQueryBuilder('o')
+            ->select('DISTINCT IDENTITY(o.device) AS id')
+            ->where('o.device IN (:devices)')
+            ->setParameter('devices', $devices)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_fill_keys(array_map('intval', $ids), true);
+    }
+
+    /** Commandes de l'événement, annulées comprises. */
+    public function countForEvent(Event $event): int
+    {
+        return $this->count(['event' => $event]);
     }
 
     public function numberExists(Event $event, string $tillLetter, int $number): bool

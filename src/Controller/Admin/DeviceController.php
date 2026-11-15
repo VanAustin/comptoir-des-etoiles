@@ -7,6 +7,7 @@ use App\Entity\Event;
 use App\Enum\DeviceRole;
 use App\Repository\DeviceRepository;
 use App\Repository\EventRepository;
+use App\Repository\OrderRepository;
 use App\Repository\ProductRepository;
 use App\Service\AuditLogger;
 use App\Service\DevicePairing;
@@ -36,25 +37,85 @@ class DeviceController extends AbstractController
         private readonly EntityManagerInterface $entityManager,
         private readonly AuditLogger $auditLogger,
         private readonly Revisions $revisions,
+        private readonly OrderRepository $orders,
     ) {
     }
 
     #[Route('', name: 'admin_device_index', methods: ['GET'])]
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $event = $this->events->findActive();
         $devices = $event ? $this->devices->findForEvent($event) : [];
         $now = new \DateTimeImmutable();
+        $states = array_combine(
+            array_map(static fn (Device $d) => $d->getId(), $devices),
+            array_map(static fn (Device $d) => $d->getState($now), $devices),
+        );
+        // Tablettes révoquées : masquées par défaut, affichées sur demande (?retirees=1)
+        $revoked = array_values(array_filter($devices, static fn (Device $d): bool => Device::STATE_REVOKED === $states[$d->getId()]));
+        $showRevoked = $request->query->getBoolean('retirees');
+        $listed = $showRevoked ? $devices : array_values(array_filter($devices, static fn (Device $d): bool => Device::STATE_REVOKED !== $states[$d->getId()]));
+        $withOrders = $this->orders->devicesWithOrders($listed);
 
         return $this->render('admin/device/index.html.twig', [
             'event' => $event,
-            'devices' => $devices,
+            'devices' => $listed,
+            'revoked_count' => \count($revoked),
+            'show_revoked' => $showRevoked,
             'unsold_categories' => $event ? $this->unsoldCategories($event, $devices, $now) : [],
-            'states' => array_combine(
-                array_map(static fn (Device $d) => $d->getId(), $devices),
-                array_map(static fn (Device $d) => $d->getState($now), $devices),
-            ),
+            'states' => $states,
+            'deletable' => array_fill_keys(array_map(
+                static fn (Device $d) => $d->getId(),
+                array_filter($listed, static fn (Device $d): bool => self::canDelete($d, isset($withOrders[$d->getId()]))),
+            ), true),
         ]);
+    }
+
+    /**
+     * Suppression, confirmée dans la page. Seulement une tablette sans commande, jamais appairée,
+     * ou cuisine ou Arrivées : une caisse appairée peut garder des commandes hors ligne pas encore
+     * envoyées, et sa lettre ne doit jamais être réattribuée pendant l'événement (on la révoque).
+     */
+    #[Route('/{id<\d+>}/supprimer', name: 'admin_device_delete', methods: ['GET', 'POST'])]
+    public function delete(Device $device, Request $request): Response
+    {
+        if (!self::canDelete($device, $this->orders->hasOrdersFromDevice($device))) {
+            $this->addFlash('error', \sprintf('La tablette « %s » ne peut pas être supprimée : %s', $device->getName(), self::whyNotDeletable($device)));
+
+            return $this->redirectToRoute('admin_device_index');
+        }
+
+        if ($request->isMethod('POST')) {
+            $this->denyUnlessCsrfValid($request, 'device-delete-'.$device->getId());
+            $name = $device->getName();
+            $this->auditLogger->log('device.delete', 'device:'.$device->getId().' '.$name, before: [
+                'role' => $device->getRole()->value,
+                'paired' => $device->isPaired(),
+                'revoked' => $device->isRevoked(),
+            ]);
+            $this->entityManager->remove($device);
+            $this->entityManager->flush();
+            $this->addFlash('info', \sprintf('La tablette « %s » est supprimée.', $name));
+
+            return $this->redirectToRoute('admin_device_index');
+        }
+
+        return $this->render('admin/device/delete.html.twig', [
+            'device' => $device,
+            'state' => $device->getState(new \DateTimeImmutable()),
+        ]);
+    }
+
+    private static function canDelete(Device $device, bool $hasOrders): bool
+    {
+        return !$hasOrders && (!$device->isPaired() || DeviceRole::Till !== $device->getRole());
+    }
+
+    private static function whyNotDeletable(Device $device): string
+    {
+        return DeviceRole::Till === $device->getRole() && $device->isPaired()
+            ? 'une caisse appairée se révoque, elle ne se supprime pas (commandes peut-être encore dans le téléphone, lettre à ne jamais réattribuer). Révoquée, elle disparaît de la liste.'
+            : 'elle a encaissé des commandes, que le Carnet de bord rattache à elle.';
     }
 
     #[Route('/nouvelle', name: 'admin_device_new', methods: ['GET', 'POST'])]

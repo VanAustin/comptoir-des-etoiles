@@ -234,6 +234,26 @@ class EventControllerTest extends WebTestCase
         );
     }
 
+    public function testTableServiceExplainsWhyItIsGreyed(): void
+    {
+        $withKitchen = $this->createEvent('Loto', '2026-12-18');
+        $crawler = $this->client->request('GET', '/admin/evenements/'.$withKitchen->getId().'/modifier');
+        self::assertNull($crawler->filterXPath('//input[@name="table_service"]')->attr('disabled'));
+        self::assertNotNull($crawler->filterXPath('//*[@id="table-blocked"]')->attr('hidden'), 'avec cuisine : rien à expliquer');
+
+        $withoutKitchen = $this->createEvent('Stand de Noël', '2026-12-11')->setWithKitchen(false);
+        $this->entityManager->flush();
+        $crawler = $this->client->request('GET', '/admin/evenements/'.$withoutKitchen->getId().'/modifier');
+        $blocked = $crawler->filterXPath('//*[@id="table-blocked"]');
+        self::assertNull($blocked->attr('hidden'));
+        self::assertSame('Cochez d\'abord « Avec cuisine ».', $blocked->text());
+
+        $this->entityManager->persist(new Order('3c7b2a1f-4d5e-4f6a-9b0c-1d2e3f4a5b6c', $this->entityManager->find(Event::class, $withoutKitchen->getId()), 'A', 1, PaymentMethod::Cash));
+        $this->entityManager->flush();
+        $crawler = $this->client->request('GET', '/admin/evenements/'.$withoutKitchen->getId().'/modifier');
+        self::assertSame('Impossible : l\'événement est sans cuisine et a déjà des commandes.', $crawler->filterXPath('//*[@id="table-blocked"]')->text());
+    }
+
     public function testKitchenSettingIsLockedOnceTheEventHasOrders(): void
     {
         $event = $this->createEvent('Loto de Noël', '2026-12-18');
@@ -242,7 +262,10 @@ class EventControllerTest extends WebTestCase
 
         $crawler = $this->client->request('GET', '/admin/evenements/'.$event->getId().'/modifier');
         self::assertNotNull($crawler->filterXPath('//input[@name="with_kitchen"]')->attr('disabled'));
-        self::assertStringContainsString('l\'événement a déjà des commandes', $crawler->filterXPath('//*[@id="kitchen-help"]')->text());
+        $help = $crawler->filterXPath('//*[@id="kitchen-help"]');
+        self::assertStringContainsString('Cet événement a déjà 1 commande : « Avec cuisine » ne peut plus être modifié', $help->text());
+        self::assertStringContainsString('créez un nouvel événement', $help->text());
+        self::assertStringContainsString('alert', (string) $help->attr('class'), 'bien visible, pas une petite aide');
         self::assertCount(0, $crawler->filterXPath('//*[@id="kitchen-devices"]'), 'aucune tablette cuisine : pas d\'annonce');
 
         // Case contournée : la valeur envoyée est ignorée, le reste est enregistré
@@ -310,6 +333,20 @@ class EventControllerTest extends WebTestCase
         $this->entityManager->flush();
 
         return $event;
+    }
+
+    public function testLockedEventWithKitchenDoesNotWarnAboutUnchecking(): void
+    {
+        // Déjà des commandes : « Avec cuisine » ne peut plus être décochée, l'annonce n'a pas lieu d'être
+        $event = $this->createEvent('Loto', '2026-12-18');
+        $this->createDevice($event, 'Cuisine 1', DeviceRole::Kitchen);
+        $this->entityManager->persist(new Order('4d8c3b2a-5e6f-4a7b-8c9d-0e1f2a3b4c5d', $this->entityManager->find(Event::class, $event->getId()), 'A', 1, PaymentMethod::Cash));
+        $this->entityManager->flush();
+
+        $crawler = $this->client->request('GET', '/admin/evenements/'.$event->getId().'/modifier');
+
+        self::assertCount(0, $crawler->filterXPath('//*[@id="kitchen-devices"]'));
+        self::assertSame('kitchen-help', $crawler->filterXPath('//input[@name="with_kitchen"]')->attr('aria-describedby'));
     }
 
     public function testLockedEventWithoutKitchenOnlySuggestsRevokingDevices(): void

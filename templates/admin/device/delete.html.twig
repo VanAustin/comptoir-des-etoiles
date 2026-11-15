@@ -1,0 +1,23 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Supprimer la tablette {{ device.name }} · Administration{% endblock %}
+
+{% block body %}
+    <p><a href="{{ path('admin_device_index') }}">← Retour aux tablettes</a></p>
+
+    <section class="card form-card">
+        <h1>Supprimer la tablette « {{ device.name }} » ?</h1>
+        <p>{{ device.role.label }}, événement « {{ device.event.name }} ».</p>
+        {% if state == 'paired' %}
+            <p class="alert alert-warning">Elle est appairée : elle cessera aussitôt de fonctionner. Pour la réutiliser, il faudra l'ajouter de nouveau et scanner un nouveau code.</p>
+        {% endif %}
+        <p>Elle disparaîtra de la liste ; la suppression est notée dans l'historique. Elle ne peut pas être annulée.</p>
+        <form method="post">
+            <input type="hidden" name="_token" value="{{ csrf_token('device-delete-' ~ device.id) }}">
+            <div class="row">
+                <a class="btn" href="{{ path('admin_device_index') }}">Garder la tablette</a>
+                <button type="submit" class="btn btn-danger">Supprimer la tablette</button>
+            </div>
+        </form>
+    </section>
+{% endblock %}

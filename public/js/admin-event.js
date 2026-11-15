@@ -3,6 +3,7 @@
 
 const kitchen = document.getElementById("with-kitchen");
 const table = document.getElementById("table-service");
+const blocked = document.querySelector("[data-table-blocked]");
 
 if (kitchen && table) {
   const sync = () => {
@@ -10,6 +11,9 @@ if (kitchen && table) {
     table.disabled = !kitchen.checked;
     if (!kitchen.checked) {
       table.checked = false;
+    }
+    if (blocked) {
+      blocked.hidden = kitchen.checked;
     }
   };
   kitchen.addEventListener("change", sync);

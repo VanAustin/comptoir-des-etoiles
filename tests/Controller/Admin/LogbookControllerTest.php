@@ -60,6 +60,28 @@ class LogbookControllerTest extends WebTestCase
         self::assertCount(1, $crawler->filterXPath('//meter'));
     }
 
+    public function testRevenueByCategoryWithCancelledOrdersExcluded(): void
+    {
+        $this->login();
+        $carton = self::createProduct($this->event, 'Carton');
+        $em = self::entityManager();
+        $em->find(Product::class, $carton->getId())->setCategory('Cartons');
+        $em->find(Product::class, $this->crepe->getId())->setCategory('Sucré');
+        $em->flush();
+        self::createOrder($this->event, [[$carton, 3]], OrderStatus::Served);
+        self::createOrder($this->event, [[$this->crepe, 1]], OrderStatus::Served);
+        self::createOrder($this->event, [[$carton, 5]], OrderStatus::Cancelled);
+
+        $crawler = $this->client->request('GET', '/admin/carnet');
+
+        $rows = $crawler->filterXPath('//section[@aria-labelledby="categories-title"]//tbody/tr')->each(
+            static fn ($tr) => array_map('trim', $tr->filterXPath('descendant::td')->each(static fn ($td) => $td->text())),
+        );
+        // Montants avec espace insécable avant « € », comme partout dans l'interface
+        self::assertSame([['Sucré', '1', "2,00\u{a0}€"], ['Cartons', '3', "6,00\u{a0}€"]], $rows);
+        self::assertCount(1, $crawler->filterXPath('//a[contains(@href, "/admin/carnet/export/categories")]'));
+    }
+
     public function testTableServiceFiguresAndTableInHistory(): void
     {
         $this->login();

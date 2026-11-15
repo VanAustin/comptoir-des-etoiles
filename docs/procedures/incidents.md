@@ -18,7 +18,7 @@ La commande rappelle l'identifiant de l'administrateur et demande deux fois le n
 
 ## Tablette perdue ou volée
 
-Dans l'administration, **Tablettes**, **Révoquer** sur sa ligne : elle ne peut plus rien lire ni envoyer, immédiatement.
+Dans l'administration, **Tablettes**, **Révoquer** sur sa ligne : elle ne peut plus rien lire ni envoyer, immédiatement. Elle disparaît de la liste ; « Afficher les tablettes retirées » la remontre.
 
 ## Tablette « n'est plus reconnue » ou « appairage expiré »
 

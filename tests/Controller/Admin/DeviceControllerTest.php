@@ -314,7 +314,91 @@ class DeviceControllerTest extends WebTestCase
         $this->client->submit($row->selectButton($button)->form());
     }
 
-    private function findDevice(string $name): Device
+    public function testRevokedDevicesAreHiddenUntilAsked(): void
+    {
+        $event = self::createEvent();
+        self::createDeviceWithCode($event, 'Caisse buvette');
+        [$old] = self::createDeviceWithCode($event, 'Vieux téléphone');
+        $old->setRevokedAt(new \DateTimeImmutable());
+        self::entityManager()->flush();
+
+        $crawler = $this->client->request('GET', '/admin/tablettes');
+        self::assertStringContainsString('Caisse buvette', $this->content());
+        self::assertStringNotContainsString('Vieux téléphone', $this->content());
+        $link = $crawler->filterXPath('//*[@class="revoked-toggle"]/a');
+        self::assertSame('Afficher les tablettes retirées (1)', $link->text());
+
+        $this->client->request('GET', (string) $link->attr('href'));
+        self::assertStringContainsString('Vieux téléphone', $this->content());
+        self::assertStringContainsString('Masquer les tablettes retirées (1)', $this->content());
+    }
+
+    public function testNoToggleWithoutRevokedDevices(): void
+    {
+        self::createDeviceWithCode(self::createEvent());
+
+        $crawler = $this->client->request('GET', '/admin/tablettes');
+        self::assertCount(0, $crawler->filterXPath('//*[@class="revoked-toggle"]'));
+    }
+
+    public function testDeleteNeverPairedDeviceAfterConfirmation(): void
+    {
+        [$device] = self::createDeviceWithCode(self::createEvent(), 'Téléphone de Paul');
+        $id = $device->getId();
+
+        $crawler = $this->client->request('GET', '/admin/tablettes');
+        $this->client->click($crawler->filterXPath('//a[@href="/admin/tablettes/'.$id.'/supprimer"]')->link());
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('Supprimer la tablette « Téléphone de Paul » ?', $this->content());
+        self::assertNotNull($this->findDevice('Téléphone de Paul'), 'rien avant la confirmation');
+
+        $this->client->submit($this->client->getCrawler()->selectButton('Supprimer la tablette')->form());
+        self::assertResponseRedirects('/admin/tablettes');
+        self::assertNull($this->findDevice('Téléphone de Paul'));
+        $log = self::entityManager()->getRepository(AuditLog::class)->findOneBy(['action' => 'device.delete']);
+        self::assertSame('device:'.$id.' Téléphone de Paul', $log?->getSubject());
+        self::assertSame(['role' => 'caisse', 'paired' => false, 'revoked' => false], $log->getBefore());
+    }
+
+    public function testPairedKitchenCanBeDeletedAndStopsWorking(): void
+    {
+        $event = self::createEvent();
+        [$kitchen, $token] = self::createPairedDevice($event, 'Cuisine', DeviceRole::Kitchen);
+
+        $crawler = $this->client->request('GET', '/admin/tablettes/'.$kitchen->getId().'/supprimer');
+        self::assertStringContainsString('elle cessera aussitôt de fonctionner', $this->content());
+        $this->client->submit($crawler->selectButton('Supprimer la tablette')->form());
+        self::assertNull($this->findDevice('Cuisine'));
+
+        $this->client->request('GET', '/api/orders', server: ['HTTP_AUTHORIZATION' => 'Bearer '.$token]);
+        self::assertResponseStatusCodeSame(401);
+    }
+
+    public function testPairedTillIsRevokedNeverDeleted(): void
+    {
+        [$till] = self::createPairedDevice(self::createEvent(), 'Caisse buvette');
+
+        $crawler = $this->client->request('GET', '/admin/tablettes');
+        self::assertCount(0, $crawler->filterXPath('//a[contains(@href, "/supprimer")]'), 'pas de bouton');
+
+        // Adresse saisie à la main, avec ou sans jeton : refusé, rien n'est supprimé
+        $this->client->request('POST', '/admin/tablettes/'.$till->getId().'/supprimer', ['_token' => 'x']);
+        self::assertResponseRedirects('/admin/tablettes');
+        $this->client->followRedirect();
+        self::assertStringContainsString('une caisse appairée se révoque', $this->content());
+        self::assertNotNull($this->findDevice('Caisse buvette'));
+    }
+
+    public function testDeleteRefusesInvalidCsrfToken(): void
+    {
+        [$device] = self::createDeviceWithCode(self::createEvent(), 'Téléphone de Paul');
+
+        $this->client->request('POST', '/admin/tablettes/'.$device->getId().'/supprimer', ['_token' => 'faux']);
+        self::assertResponseStatusCodeSame(403);
+        self::assertNotNull($this->findDevice('Téléphone de Paul'));
+    }
+
+    private function findDevice(string $name): ?Device
     {
         self::entityManager()->clear();
 

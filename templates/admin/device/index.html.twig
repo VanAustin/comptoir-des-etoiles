@@ -31,8 +31,24 @@
             </p>
         {% endif %}
 
+        {% if revoked_count > 0 %}
+            <p class="revoked-toggle">
+                {% if show_revoked %}
+                    <a href="{{ path('admin_device_index') }}">Masquer les tablettes retirées ({{ revoked_count }})</a>
+                {% else %}
+                    <a href="{{ path('admin_device_index', {retirees: 1}) }}">Afficher les tablettes retirées ({{ revoked_count }})</a>
+                {% endif %}
+            </p>
+        {% endif %}
+
         {% if devices is empty %}
-            <p class="card empty">Aucune tablette pour l'instant. Ajoutez la première, par exemple « Caisse buvette ».</p>
+            <p class="card empty">
+                {%- if revoked_count > 0 -%}
+                    Aucune tablette en service. Ajoutez-en une, par exemple « Caisse buvette ».
+                {%- else -%}
+                    Aucune tablette pour l'instant. Ajoutez la première, par exemple « Caisse buvette ».
+                {%- endif -%}
+            </p>
         {% else %}
             <div class="tablewrap">
                 <table class="stack-table">
@@ -73,6 +89,9 @@
                                             <input type="hidden" name="_token" value="{{ csrf_token('device-revoke-' ~ device.id) }}">
                                             <button type="submit" class="btn btn-small">Révoquer</button>
                                         </form>
+                                    {% endif %}
+                                    {% if deletable[device.id] is defined %}
+                                        <a class="btn btn-small" href="{{ path('admin_device_delete', {id: device.id}) }}">Supprimer</a>
                                     {% endif %}
                                 </td>
                             </tr>

@@ -85,7 +85,8 @@ class EventController extends AbstractController
         ];
         $errors = [];
         // Après la première commande, changer le réglage fausserait les commandes déjà passées
-        $kitchenLocked = $this->orders->hasOrders($event);
+        $orderCount = $this->orders->countForEvent($event);
+        $kitchenLocked = $orderCount > 0;
         $kitchenDevices = $this->kitchenDevices($event);
 
         if ($request->isMethod('POST')) {
@@ -121,6 +122,7 @@ class EventController extends AbstractController
             'values' => $values,
             'errors' => $errors,
             'kitchen_locked' => $kitchenLocked,
+            'order_count' => $orderCount,
             'kitchen_devices' => $kitchenDevices,
             'kitchen_devices_text' => self::deviceList($kitchenDevices),
         ], new Response(status: $errors ? 422 : 200));
