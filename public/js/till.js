@@ -68,7 +68,8 @@ const tracking = new TillTracking({
   lane,
   onOpen: () => {
     if (openPanel("track")) {
-      $("track-search").focus();
+      // Sur téléphone, le clavier cacherait la moitié de la liste : pas de curseur d'office
+      if (window.matchMedia("(min-width: 641px)").matches) $("track-search").focus();
     }
   },
   onClose: closePanel,
