@@ -125,7 +125,9 @@ Si le port 8080, 8081 ou 8082 est déjà utilisé par un autre programme, arrêt
 
 Le jour de l'événement, les tablettes se connectent à un serveur en ligne, en HTTPS, par le partage 4G d'un téléphone ou par le Wi-Fi de la salle. Le HTTPS est indispensable : sans lui, Chrome refuse le mode hors ligne et l'installation de l'application sur les tablettes. Rien n'est à installer sur les tablettes elles-mêmes.
 
-Notre installation : un serveur privé virtuel (VPS) avec Apache, PHP 8.4 et MySQL 8.4, sans Docker. L'environnement de développement (Docker, voir plus haut) reproduit la même pile. Les opérations sur ce serveur (mise à jour, sauvegarde, retour arrière, réglages d'Apache) sont décrites commande par commande dans [docs/hebergement.md](docs/hebergement.md).
+Notre installation : un serveur privé virtuel (VPS) géré avec le panneau ISPConfig, avec Apache, PHP 8.4 et MySQL 8.4, sans Docker. L'environnement de développement (Docker, voir plus haut) reproduit la même pile. Les opérations sur ce serveur (mise à jour, sauvegarde, retour arrière, réglages d'Apache) sont décrites commande par commande dans [docs/hebergement.md](docs/hebergement.md).
+
+Les commandes ci-dessous sont écrites pour un serveur où vous avez les droits d'administrateur (`sudo`) et où le serveur web tourne sous l'utilisateur `www-data`. **Hébergement avec panneau (ISPConfig, Plesk, cPanel, mutualisé)** : votre utilisateur SSH est en général déjà celui du site. Lancez alors les commandes **sans** `sudo -u www-data` et sans `chown`. Si plusieurs versions de PHP sont installées, `php -v` peut afficher une version trop ancienne : utilisez la commande de la bonne version (`php8.4 bin/console …`, `php8.4 <chemin de composer> …`), comme dans [docs/hebergement.md](docs/hebergement.md).
 
 ### Ce qu'il faut
 
@@ -180,7 +182,7 @@ Notre installation : un serveur privé virtuel (VPS) avec Apache, PHP 8.4 et MyS
    ```
 
 6. Faites pointer le site sur le dossier **`public/`**, jamais sur la racine du projet : `.env.local` (qui contient le mot de passe de la base) et `var/` ne doivent pas être accessibles par une adresse web.
-   - **Apache** : le fichier `public/.htaccess` est fourni. Il redirige le HTTP vers le HTTPS et transmet le jeton des tablettes à l'application. Le site doit autoriser ce fichier (`AllowOverride All`) et le module `rewrite` doit être actif (`sudo a2enmod rewrite`). Réglages recommandés pour les tablettes (connexions gardées ouvertes, compression du JSON) : [docs/hebergement.md](docs/hebergement.md), section 6.
+   - **Apache** : le fichier `public/.htaccess` est fourni. Il redirige le HTTP vers le HTTPS et transmet le jeton des tablettes à l'application. Le site doit autoriser ce fichier (`AllowOverride All`) et le module `rewrite` doit être actif (`sudo a2enmod rewrite`). Réglages recommandés pour les tablettes (connexions gardées ouvertes, compression du JSON) : [docs/hebergement.md](docs/hebergement.md), section 4.
    - **Nginx** : partez de l'exemple `docs/deploiement/nginx.conf`.
 
 7. Ouvrez l'adresse du site : l'accueil s'affiche. Connectez-vous à l'administration, créez l'événement, le menu et les tablettes.
@@ -228,7 +230,9 @@ sudo -u www-data php bin/console cache:warmup
 sudo -u www-data php bin/console doctrine:migrations:migrate --no-interaction
 ```
 
-Le cache est effacé puis reconstruit : en production, Symfony réutilise l'ancien sans vérifier qu'il correspond encore au code. Ne mettez jamais à jour pendant un événement. Procédure détaillée, avec les vérifications et le retour arrière (migration défaite **avant** de remettre l'ancien code) : [docs/hebergement.md](docs/hebergement.md), section 3.
+Sur un hébergement avec panneau, les mêmes commandes sans `sudo` ni `sudo -u www-data` (voir plus haut).
+
+**Effacer puis reconstruire le cache est obligatoire après chaque `git pull`** : en production, Symfony réutilise l'ancien cache sans vérifier qu'il correspond encore au code, et des pages tombent en erreur 500 (`ArgumentCountError` dans le journal). Ne mettez jamais à jour pendant un événement. Procédure détaillée, avec les vérifications et le retour arrière (migration défaite **avant** de remettre l'ancien code) : [docs/hebergement.md](docs/hebergement.md), section 3.
 
 ## Installer l'application sur une tablette
 

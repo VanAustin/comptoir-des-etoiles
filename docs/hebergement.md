@@ -1,15 +1,68 @@
 # Hébergement : notre serveur de production
 
-Ce document décrit, commande par commande, les opérations sur le serveur de production : un serveur privé virtuel (VPS) chez OVHcloud, avec Apache, PHP 8.4 et MySQL 8.4. Il ne suppose aucune connaissance préalable en administration de serveur.
+Ce document décrit, commande par commande, les opérations sur le serveur de production : un serveur privé virtuel (VPS) chez OVHcloud, géré avec le panneau **ISPConfig**, avec Apache, PHP 8.4 et MySQL 8.4. Il ne suppose aucune connaissance préalable en administration de serveur.
 
-**Règle d'or : jamais de mise à jour pendant un événement**, ni dans les heures qui précèdent. En cas de doute, ne faites rien : la version en place fonctionne.
+**Règle d'or : jamais de mise à jour pendant un événement**, ni dans les trois jours qui précèdent (voir 5, « Gel des modifications »). En cas de doute, ne faites rien : la version en place fonctionne.
 
 ## Conventions de ce document
 
 - Les lignes dans un cadre gris sont des commandes : tapez-les (ou copiez-les) telles quelles, puis appuyez sur Entrée.
-- Ce qui est entre `<` et `>` est à remplacer par votre valeur, **sans** les signes `<` et `>`. Par exemple `<dossier du projet>` devient `/var/www/comptoir-des-etoiles`.
+- Ce qui est entre `<` et `>` est à remplacer par votre valeur, **sans** les signes `<` et `>`. Par exemple `<adresse du site>` devient `caisse.exemple.fr`.
 - Les lignes « Résultat attendu » indiquent ce qui doit s'afficher. Si ce n'est pas le cas, arrêtez-vous et passez à « Revenir en arrière » (ou ne faites rien de plus si vous n'avez encore rien modifié).
-- Le mot de passe demandé par `sudo` est celui de votre compte sur le serveur. Rien ne s'affiche pendant que vous le tapez, c'est normal.
+
+### Votre compte sur le serveur
+
+Le serveur est géré par ISPConfig. Votre utilisateur SSH est rattaché au site : une fois connectée, **vous êtes déjà le site** (son utilisateur s'appelle `web54`). Conséquences :
+
+- **Jamais de `sudo`** : il n'est pas nécessaire (les fichiers que vous créez appartiennent déjà au site) et votre compte n'y a pas droit.
+- Pas de `chown`, pas de `systemctl reload` ni de `restart` : ISPConfig et l'administrateur du serveur s'en chargent.
+
+### Toujours `php8.4`, jamais `php` seul
+
+Plusieurs versions de PHP sont installées sur le serveur. La commande `php` seule lance une **ancienne version (7.3)**, avec laquelle l'application ne fonctionne pas. Toutes les commandes de ce document écrivent donc la version en toutes lettres :
+
+- `php8.4 bin/console …` pour les commandes de l'application ;
+- `php8.4 /usr/local/bin/composer …` pour Composer (jamais `composer` seul : il lancerait lui aussi PHP 7.3).
+
+Si une commande répond `PHP Parse error`, `syntax error, unexpected` ou mentionne PHP 7.3 : vous avez tapé `php` au lieu de `php8.4`. Rien n'est cassé ; relancez la commande avec `php8.4`.
+
+#### Facultatif : faire lancer PHP 8.4 à la commande `php`
+
+Ce réglage ne concerne que **votre** compte, ne demande aucun droit d'administrateur et ne change rien pour le site. Il évite l'erreur ci-dessus si vous tapez `php` par habitude. Les commandes de ce document gardent `php8.4` en toutes lettres : elles fonctionnent avec ou sans ce réglage.
+
+1. Trouver le fichier lu par le serveur à chaque connexion :
+
+   ```
+   for f in ~/.bash_profile ~/.bash_login ~/.profile; do [ -f "$f" ] && break; done; echo "$f"
+   ```
+
+   Résultat attendu : un chemin qui se termine par `.bash_profile`, `.bash_login` ou `.profile`. Notez-le : c'est `<fichier de connexion>` ci-dessous.
+
+2. Ajouter le raccourci à la fin de ce fichier (les deux `>` sont importants : avec un seul, le fichier serait remplacé) :
+
+   ```
+   echo "alias php='php8.4'  # Comptoir des étoiles : php lance PHP 8.4" >> <fichier de connexion>
+   ```
+
+   Résultat attendu : rien ne s'affiche.
+
+3. Vérifier : déconnectez-vous (`exit`), reconnectez-vous (section 1), puis :
+
+   ```
+   php -v
+   ```
+
+   Résultat attendu : une première ligne qui commence par `PHP 8.4`. Si elle commence encore par `PHP 7.3`, le réglage n'est pas lu : revenez en arrière (ci-dessous) et gardez simplement `php8.4`.
+
+**Revenir en arrière** : supprimer la ligne ajoutée, puis se reconnecter.
+
+```
+sed -i '/# Comptoir des étoiles : php lance PHP 8.4/d' <fichier de connexion>
+```
+
+Résultat attendu : rien ne s'affiche ; après reconnexion, `php -v` affiche de nouveau `PHP 7.3`.
+
+Le raccourci ne vaut que pour les commandes que vous tapez vous-même : les scripts et `composer` seul utilisent toujours PHP 7.3. C'est pourquoi on garde `php8.4` et `php8.4 /usr/local/bin/composer` partout.
 
 ## 1. Se connecter au serveur
 
@@ -19,36 +72,26 @@ Sur le Mac, ouvrez l'application **Terminal** (Applications, Utilitaires), puis 
 ssh <utilisateur>@<adresse du serveur>
 ```
 
-L'utilisateur et l'adresse du serveur figurent dans l'e-mail de livraison du VPS envoyé par OVHcloud (ou dans votre espace client, rubrique « Bare Metal Cloud », « Serveurs privés virtuels »).
+`<utilisateur>` est votre utilisateur SSH, créé dans ISPConfig pour le site ; si un mot de passe est demandé, c'est le sien (rien ne s'affiche pendant que vous le tapez, c'est normal).
 
-Résultat attendu : une invite qui se termine par `$`, par exemple `ubuntu@vps-1234:~$`. Vous tapez désormais les commandes **sur le serveur**.
+Résultat attendu : une invite qui se termine par `$`. Vous tapez désormais les commandes **sur le serveur**.
 
 Pour vous déconnecter à la fin : `exit`.
 
 ## 2. Aller dans le dossier du projet
 
-Si vous ne connaissez pas le dossier, Apache le connaît :
-
 ```
-grep -ri documentroot /etc/apache2/sites-enabled/
-```
-
-Résultat attendu : une ligne qui se termine par `…/public`, par exemple `DocumentRoot /var/www/comptoir-des-etoiles/public`. Le dossier du projet est ce chemin **sans** `/public` à la fin.
-
-```
-cd <dossier du projet>
+cd /var/www/clients/client5/web54/web
 ls
 ```
 
 Résultat attendu : la liste contient notamment `bin`, `composer.json`, `public`, `src` et `var`.
 
+Toutes les commandes des sections suivantes se tapent dans ce dossier.
+
 ## 3. Mettre à jour l'application
 
-Procédure générale, valable pour toute mise à jour. Pour la grande mise à jour de novembre 2026 (sécurité Symfony, retrait de Mercure, Apache et PHP 8.4, interrogations des tablettes), suivez plutôt la **section 5**, qui reprend ces étapes une par une avec les résultats attendus.
-
-Comptez quinze minutes. Faites-le un jour sans événement, après avoir vérifié sur GitHub que la dernière pull request est fusionnée sur `main` avec la coche verte.
-
-Les commandes qui écrivent dans `var/` (sauvegarde, cache, migrations) sont lancées **au nom du serveur web** (`sudo -u www-data …`) : les fichiers créés appartiennent ainsi à Apache, qui doit pouvoir les lire et les modifier.
+Procédure valable pour toute mise à jour. Comptez quinze minutes. Faites-le un jour sans événement, en dehors du gel des modifications (section 5), après avoir vérifié sur GitHub que la dernière pull request est fusionnée sur `main` avec la coche verte.
 
 ### 3.1 Vérifier que rien n'a été modifié à la main sur le serveur
 
@@ -58,31 +101,43 @@ git status
 
 Résultat attendu : `nothing to commit, working tree clean` (ou « rien à valider, la copie de travail est propre »). Le fichier `.env.local` n'apparaît pas : c'est normal, Git l'ignore.
 
-Si des fichiers sont listés : **arrêtez-vous**. Quelqu'un a modifié le code sur le serveur ; la mise à jour l'écraserait. Notez la liste et demandez de l'aide.
+- Seul `stats/` est listé (« Untracked files ») : c'est le dossier des statistiques de fréquentation créé par ISPConfig, sans rapport avec l'application. Continuez. Il n'apparaît plus une fois le dépôt à jour (il est ignoré depuis novembre 2026).
+- D'autres fichiers sont listés : **arrêtez-vous**. Quelqu'un a modifié le code sur le serveur ; la mise à jour l'écraserait. Notez la liste et demandez de l'aide.
 
 ### 3.2 Noter la version actuelle (pour revenir en arrière)
 
 ```
 git rev-parse --short HEAD
-sudo -u www-data php bin/console doctrine:migrations:current
+php8.4 bin/console doctrine:migrations:current
 ```
 
-Résultat attendu : un code de 7 caractères, par exemple `0c34dd7`, puis une ligne comme `DoctrineMigrations\Version20261103152436 - Catégories vendues et vente directe des caisses`. **Notez le code, et la seconde ligne jusqu'au tiret** (ici `DoctrineMigrations\Version20261103152436`), sur papier ou dans un fichier sur le Mac : c'est la version du code et la version de la base qui fonctionnent aujourd'hui.
+Résultat attendu : un code de 7 caractères, par exemple `0c34dd7`, puis une ligne comme `DoctrineMigrations\Version20261110140502 - Révisions des commandes et du menu par événement`. **Notez le code, et la seconde ligne jusqu'au tiret** (ici `DoctrineMigrations\Version20261110140502`), sur papier ou dans un fichier sur le Mac : c'est la version du code et la version de la base qui fonctionnent aujourd'hui.
 
 ### 3.3 Sauvegarder la base de données
 
 ```
-sudo -u www-data php bin/console app:backup
+php8.4 bin/console app:backup
+ls -l var/backups/ | tail -n 3
 ```
 
-Résultat attendu : `[OK] Base sauvegardée dans …/var/backups/comptoir-<date>.sql (… Ko).` Copiez-la dans votre dossier personnel du serveur, hors du projet :
+Résultat attendu : `[OK] Base sauvegardée dans …/var/backups/comptoir-<date>.sql (… Ko).`, puis le fichier du jour dans la liste (par exemple `comptoir-2026-11-20_143005.sql`), avec une taille supérieure à 0. Sans ce fichier, **ne continuez pas**.
+
+**Rapatrier une copie sur le Mac** : si le serveur tombait en panne, la sauvegarde restée sur le serveur serait perdue avec lui. Laissez la connexion au serveur ouverte. Dans Terminal, ouvrez **une nouvelle fenêtre** (menu Shell, Nouvelle fenêtre) : ses commandes s'exécutent sur le Mac. Tapez-y :
 
 ```
-cp var/backups/comptoir-*.sql ~/
-ls -l ~/comptoir-*.sql
+mkdir -p ~/Documents/comptoir-sauvegardes
+scp '<utilisateur>@<adresse du serveur>:/var/www/clients/client5/web54/web/var/backups/comptoir-*.sql' ~/Documents/comptoir-sauvegardes/
+ls -l ~/Documents/comptoir-sauvegardes/
 ```
 
-Résultat attendu : le fichier du jour apparaît, avec une taille supérieure à 0. Si `cp` répond « Permission denied », relancez-la précédée de `sudo ` : `sudo cp var/backups/comptoir-*.sql ~/`.
+- `<utilisateur>@<adresse du serveur>` : les mêmes valeurs que pour `ssh` (section 1).
+- Gardez les apostrophes autour de la première partie : elles demandent au serveur de chercher lui-même les fichiers `comptoir-*.sql`.
+
+Résultat attendu : une ligne par fichier copié, avec `100%`, puis la liste du dossier, où apparaît le fichier du jour avec la même taille que sur le serveur.
+
+Le dossier `Documents/comptoir-sauvegardes` est **hors du dépôt Git** : ne rangez jamais une sauvegarde dans le dossier du projet sur le Mac. Elle contient les données réelles de l'association (commandes, empreintes des mots de passe et des jetons) et ne doit pas finir sur GitHub. Ne la partagez pas.
+
+Revenez ensuite à la fenêtre connectée au serveur pour la suite.
 
 ### 3.4 Récupérer la nouvelle version
 
@@ -92,38 +147,37 @@ git pull
 
 Résultat attendu : une liste de fichiers modifiés, ou `Already up to date.` si rien n'a changé (dans ce cas, la suite est sans effet, vous pouvez vous arrêter).
 
-À partir d'ici et jusqu'à l'étape 3.6, le site peut afficher une erreur pendant une ou deux minutes : c'est normal, le nouveau code n'est pas encore prêt.
+À partir d'ici et jusqu'à la fin de l'étape 3.6, le site peut afficher une erreur pendant une ou deux minutes : c'est normal, le nouveau code n'est pas encore prêt.
 
 ### 3.5 Installer les dépendances
 
 ```
-composer install --no-dev --optimize-autoloader --classmap-authoritative --no-scripts
+php8.4 /usr/local/bin/composer install --no-dev --optimize-autoloader --classmap-authoritative --no-scripts
 ```
-
-Si le serveur répond `composer: command not found`, remplacez `composer` par `php composer.phar`.
 
 Résultat attendu : des lignes `Installing …`, `Upgrading …` ou `Removing …` (ou `Nothing to install, update or remove`), puis `Generating optimized autoload files`, sans ligne contenant `Error` ni `Problem`.
 
-`--no-scripts` : le cache est reconstruit à l'étape suivante, au nom du serveur web.
+`--no-scripts` : le cache est reconstruit à l'étape suivante.
 
-### 3.6 Reconstruire le cache
+### 3.6 Reconstruire le cache : obligatoire après chaque `git pull`
+
+> **Ne sautez jamais cette étape**, même pour une toute petite mise à jour. En production, Symfony réutilise son ancien cache **sans vérifier** qu'il correspond encore au code. Si on l'oublie, des pages tombent en erreur (erreur 500) et le journal (étape 3.8) montre une ligne `ArgumentCountError` ou `Too few arguments`. C'est arrivé sur la page Tablettes en novembre 2026 : ces deux commandes ont suffi à réparer.
 
 ```
-sudo rm -rf var/cache/prod
-sudo -u www-data php bin/console cache:warmup
-sudo chown -R www-data:www-data var
-sudo systemctl reload apache2
+rm -rf var/cache/prod
+php8.4 bin/console cache:warmup
 ```
 
-Résultat attendu : `[OK] Cache for the "prod" environment (debug=false) was successfully warmed.` Les autres commandes n'affichent rien.
+Résultat attendu : la première commande n'affiche rien, la seconde `[OK] Cache for the "prod" environment (debug=false) was successfully warmed.`
 
-- On efface l'ancien cache plutôt que de le « vider » : en production, Symfony réutilise l'ancien cache sans vérifier s'il correspond encore au code, et la commande de vidage elle-même peut échouer après une grosse mise à jour.
-- `reload` relit le code sans couper les connexions en cours : il garantit qu'Apache ne garde pas en mémoire d'ancienne version des fichiers PHP.
+On efface l'ancien cache plutôt que de le « vider » : la commande de vidage elle-même peut échouer après une grosse mise à jour.
+
+Pas de rechargement d'Apache à faire : PHP relit tout seul les fichiers modifiés. Si, cinq minutes après la mise à jour, le site montre encore clairement l'ancienne version, demandez à l'administrateur du serveur de recharger PHP 8.4 (PHP-FPM).
 
 ### 3.7 Mettre à jour la structure de la base
 
 ```
-sudo -u www-data php bin/console doctrine:migrations:migrate --no-interaction
+php8.4 bin/console doctrine:migrations:migrate --no-interaction
 ```
 
 Résultat attendu : `[OK] Already at the latest version (…)` (aucune modification de structure) ou `[OK] Successfully migrated to version …`. Notez lequel des deux s'affiche.
@@ -137,28 +191,28 @@ Résultat attendu : `[OK] Already at the latest version (…)` (aucune modificat
    curl -s https://<adresse du site>/api/menu
    ```
 
-   Résultat attendu : `HTTP/1.1 200 OK` (ou `HTTP/2 200`), puis `{"error":"Cette tablette n\u0027est pas appair\u00e9e. Appairez-la depuis l\u0027administration."}` (les `\u0027` et `\u00e9` sont l'apostrophe et le « é », écrits à la façon du JSON). Ce message prouve que l'API répond : une requête sans tablette est refusée, comme il se doit.
+   Résultat attendu : `HTTP/1.1 200 OK` (ou `HTTP/2 200`), puis `{"error":"Cette tablette n'est pas appairée. Appairez-la depuis l'administration."}` (les `'` et `é` sont l'apostrophe et le « é », écrits à la façon du JSON). Ce message prouve que l'API répond : une requête sans tablette est refusée, comme il se doit.
 
-2. Dans Chrome, sur le Mac : ouvrez l'adresse du site, connectez-vous à l'administration, ouvrez **Menu** puis **Carnet de bord**. Les pages s'affichent normalement.
+2. Dans Chrome, sur le Mac : ouvrez l'adresse du site, connectez-vous à l'administration, ouvrez **Menu**, **Tablettes** puis **Carnet de bord**. Les pages s'affichent normalement.
 
-3. Sur chaque tablette : un bandeau « Nouvelle version de l'application » apparaît, touchez « Recharger ». S'il n'apparaît pas au bout d'une minute, fermez l'application et rouvrez-la.
+3. Sur chaque tablette : un bandeau « Nouvelle version de l'application » apparaît en haut de l'écran, touchez « Recharger ». S'il n'apparaît pas au bout d'une minute, fermez l'application et rouvrez-la.
 
-4. Si une page affiche une erreur, regardez les dernières erreurs d'Apache :
+4. Si une page affiche une erreur, regardez les dernières erreurs du site :
 
    ```
-   sudo tail -n 30 /var/log/apache2/error.log
+   tail -n 30 /var/www/clients/client5/web54/log/error.log
    ```
 
-   Notez ce qui s'affiche, puis passez à « Revenir en arrière ».
+   Une ligne `ArgumentCountError` ou `Too few arguments` : l'étape 3.6 a été sautée ou a échoué ; refaites-la, puis vérifiez à nouveau. Sinon, notez ce qui s'affiche et passez à « Revenir en arrière ».
 
 ### 3.9 Revenir en arrière
 
 À faire seulement si la vérification échoue. Dans l'ordre, **sans en sauter** :
 
-1. **La base, d'abord**, seulement si l'étape 3.7 avait affiché `Successfully migrated`. C'est le nouveau code qui sait défaire sa migration : cette commande se lance donc **avant** de remettre l'ancien code. Remplacez `<version de la base notée>` par la version notée à l'étape 3.2 (sans la description après le tiret), en gardant les apostrophes, par exemple `'DoctrineMigrations\Version20261103152436'` :
+1. **La base, d'abord**, seulement si l'étape 3.7 avait affiché `Successfully migrated`. C'est le nouveau code qui sait défaire sa migration : cette commande se lance donc **avant** de remettre l'ancien code. Remplacez `<version de la base notée>` par la version notée à l'étape 3.2 (sans la description après le tiret), en gardant les apostrophes, par exemple `'DoctrineMigrations\Version20261110140502'` :
 
    ```
-   sudo -u www-data php bin/console doctrine:migrations:migrate '<version de la base notée>' --no-interaction
+   php8.4 bin/console doctrine:migrations:migrate '<version de la base notée>' --no-interaction
    ```
 
    Résultat attendu : `[OK] Successfully migrated to version: …` avec la version notée. Les commandes enregistrées depuis la mise à jour sont gardées.
@@ -169,14 +223,12 @@ Résultat attendu : `[OK] Already at the latest version (…)` (aucune modificat
 
    ```
    git reset --hard <version du code notée>
-   composer install --no-dev --optimize-autoloader --classmap-authoritative --no-scripts
-   sudo rm -rf var/cache/prod
-   sudo -u www-data php bin/console cache:warmup
-   sudo chown -R www-data:www-data var
-   sudo systemctl reload apache2
+   php8.4 /usr/local/bin/composer install --no-dev --optimize-autoloader --classmap-authoritative --no-scripts
+   rm -rf var/cache/prod
+   php8.4 bin/console cache:warmup
    ```
 
-   `git reset --hard` remet le code exactement dans l'état noté. Il ne touche ni à `.env.local` ni à `var/` (ignorés par Git).
+   `git reset --hard` remet le code exactement dans l'état noté. Il ne touche ni à `.env.local` ni à `var/` (ignorés par Git). Les deux dernières commandes sont celles de l'étape 3.6 : obligatoires ici aussi.
 
 3. Vérifiez à nouveau (étape 3.8). La prochaine mise à jour se fera normalement avec `git pull`.
 
@@ -184,355 +236,108 @@ Résultat attendu : `[OK] Already at the latest version (…)` (aucune modificat
 
 Seulement si l'étape 1 de 3.9 a échoué. La base revient exactement à son état de l'étape 3.3 : **les commandes enregistrées depuis seraient perdues**, c'est pourquoi on ne met jamais à jour pendant un événement.
 
-Retrouvez l'utilisateur, le mot de passe et le nom de la base :
+Retrouvez l'utilisateur, le mot de passe et le nom de la base (ne recopiez cette ligne nulle part) :
 
 ```
 grep DATABASE_URL .env.local
 ```
 
-La ligne a la forme `DATABASE_URL="mysql://<utilisateur>:<mot de passe>@127.0.0.1:3306/<base>?…"`. Puis, avec le fichier copié à l'étape 3.3 :
+La ligne a la forme `DATABASE_URL="mysql://<utilisateur de la base>:<mot de passe>@<hôte>:3306/<base>?…"`. Puis, avec le fichier de l'étape 3.3 (son nom exact est affiché par `ls -l var/backups/`) :
 
 ```
-mysql --default-character-set=utf8mb4 -u <utilisateur> -p <base> < ~/comptoir-<date>.sql
+mysql --default-character-set=utf8mb4 -u <utilisateur de la base> -p <base> < var/backups/comptoir-<date>.sql
 ```
 
 Tapez le mot de passe quand il est demandé (rien ne s'affiche, c'est normal). Résultat attendu : rien ne s'affiche, l'invite revient. Reprenez à l'étape 2 de 3.9.
 
-## 4. Mise à jour de sécurité Symfony 7.4.23 (novembre 2026)
+## 4. Réglages d'Apache pour les tablettes (facultatif)
 
-Symfony a publié le 4 novembre 2026 une série de correctifs de sécurité (version 7.4.23). La pull request `securite/symfony-7.4.23` les apporte. Elle ne change que des dépendances `symfony/*` : aucune modification de la base, aucun réglage à changer dans l'application.
-
-### 4.1 Appliquer
-
-Cette mise à jour fait partie de la grande mise à jour de novembre 2026 : suivez la **section 5**. Si vous l'appliquez seule, suivez la section 3 en entier. Points particuliers :
-
-- Étape 3.5 : des lignes `Upgrading symfony/… (v7.4.21 => v7.4.23)` s'affichent.
-- Étape 3.7 : le résultat attendu est `[OK] Already at the latest version`.
-
-### 4.2 Vérifier la version installée
-
-```
-composer show symfony/http-foundation | grep versions
-```
-
-Résultat attendu : `versions : * v7.4.23`.
-
-```
-composer audit --no-dev
-```
-
-Résultat attendu : `No security vulnerability advisories found.`
-
-### 4.3 Vérifier le réglage des proxies de confiance
-
-Une des alertes concerne le raccourci `private_ranges` (ou `PRIVATE_SUBNETS`) dans les proxies de confiance. Le dépôt ne l'utilise pas ; reste à vérifier le `.env.local` du serveur :
-
-```
-grep -n TRUSTED .env.local
-```
-
-Résultat attendu : **rien ne s'affiche**. Notre serveur assure lui-même le HTTPS (Let's Encrypt, sans proxy devant Apache) : la variable `SYMFONY_TRUSTED_PROXIES` n'a pas lieu d'être.
-
-Si une ligne `SYMFONY_TRUSTED_PROXIES=…` s'affiche, ne la modifiez pas vous-même : notez-la et demandez de l'aide. Elle n'est utile que si un autre serveur (proxy) est placé devant le nôtre.
-
-### 4.4 Revenir en arrière
-
-Section 3.9, sans l'étape 1 (aucune migration dans cette mise à jour). Revenir en arrière remet les failles corrigées : ne le faites que si l'application ne fonctionne plus.
-
-## 5. Grande mise à jour de novembre 2026
-
-Une seule mise à jour apporte quatre changements fusionnés sur `main` :
-
-- le correctif de sécurité Symfony 7.4.23 (section 4) ;
-- le retrait de Mercure : l'application n'en dépend plus, rien à installer ni à régler ;
-- Apache et PHP 8.4 en développement, comme ici : le code exige désormais **PHP 8.4** ;
-- des interrogations plus économes et plus rapides : les tablettes voient une commande en 3 secondes au plus. Cette partie ajoute **une migration** (deux colonnes dans la table `event`).
-
-Comptez trente minutes, un jour sans événement, avec le Mac et une tablette (ou un téléphone avec Chrome) à portée de main. Vérifiez d'abord sur GitHub que la pull request « Interrogations économes et précises » est fusionnée sur `main`, avec la coche verte.
-
-Connectez-vous au serveur et allez dans le dossier du projet (sections 1 et 2). Toutes les commandes ci-dessous se tapent dans ce dossier.
-
-### 5.1 Vérifier que le serveur est prêt
-
-```
-git status
-```
-
-Résultat attendu : `nothing to commit, working tree clean`. Sinon, **arrêtez-vous** (voir 3.1).
-
-```
-php -v
-```
-
-Résultat attendu : la première ligne commence par `PHP 8.4`. Si elle affiche `PHP 8.3` ou moins, **arrêtez-vous** : rien n'a été modifié, la version en place continue de fonctionner. Demandez de l'aide pour installer PHP 8.4.
-
-```
-ls /etc/apache2/mods-enabled/ /etc/apache2/conf-enabled/ | grep php
-```
-
-Résultat attendu : des lignes contenant `php8.4` (par exemple `php8.4.load` ou `php8.4-fpm.conf`), et aucun autre numéro de version. Sinon, **arrêtez-vous** et demandez de l'aide : Apache utiliserait une autre version de PHP que la ligne de commande.
-
-### 5.2 Noter les versions actuelles
-
-```
-git rev-parse --short HEAD
-sudo -u www-data php bin/console doctrine:migrations:current
-```
-
-Résultat attendu : un code de 7 caractères, puis très probablement `DoctrineMigrations\Version20261103152436 - Catégories vendues et vente directe des caisses`. **Notez le code, et la seconde ligne jusqu'au tiret** (`DoctrineMigrations\Version20261103152436`) : ils servent à revenir en arrière.
-
-### 5.3 Sauvegarder la base, avant toute modification
-
-```
-sudo -u www-data php bin/console app:backup
-cp var/backups/comptoir-*.sql ~/
-ls -l ~/comptoir-*.sql
-```
-
-Résultat attendu : `[OK] Base sauvegardée dans …`, puis le fichier du jour dans la liste, avec une taille supérieure à 0. Sans ce fichier, **ne continuez pas**.
-
-Rapatriez ensuite une copie sur le Mac : si le serveur tombait en panne, la sauvegarde restée sur le serveur serait perdue avec lui. Laissez la connexion au serveur ouverte. Dans Terminal, ouvrez **une nouvelle fenêtre** (menu Shell, Nouvelle fenêtre) : ses commandes s'exécutent sur le Mac. Tapez-y :
-
-```
-mkdir -p ~/Documents/comptoir-sauvegardes
-scp '<utilisateur>@<adresse du serveur>:comptoir-*.sql' ~/Documents/comptoir-sauvegardes/
-ls -l ~/Documents/comptoir-sauvegardes/
-```
-
-- `<utilisateur>@<adresse du serveur>` : les mêmes valeurs que pour `ssh` (section 1). Si un mot de passe est demandé, c'est celui de la connexion `ssh`.
-- Gardez les apostrophes autour de la première partie : elles demandent au serveur de chercher lui-même les fichiers `comptoir-*.sql`, rangés dans votre dossier personnel du serveur.
-
-Résultat attendu : une ligne par fichier copié, avec `100%`, puis la liste du dossier, où apparaît le fichier du jour (par exemple `comptoir-2026-11-20_143005.sql`) avec la même taille que sur le serveur.
-
-Le dossier `Documents/comptoir-sauvegardes` est **hors du dépôt Git** : ne rangez jamais une sauvegarde dans le dossier du projet sur le Mac. Elle contient les données réelles de l'association (commandes, empreintes des mots de passe et des jetons) et ne doit pas finir sur GitHub. Ne la partagez pas.
-
-Revenez ensuite à la fenêtre connectée au serveur pour la suite.
-
-### 5.4 Récupérer la nouvelle version
-
-```
-git pull
-```
-
-Résultat attendu : une longue liste de fichiers, dont `migrations/Version20261110140502.php` (créé) et `src/Realtime/…` (supprimés). Le site peut afficher une erreur jusqu'à la fin de l'étape 5.6 : c'est normal.
-
-### 5.5 Installer les dépendances
-
-```
-composer install --no-dev --optimize-autoloader --classmap-authoritative --no-scripts
-```
-
-Résultat attendu :
-
-- des lignes `Removing symfony/mercure-bundle`, `Removing symfony/mercure`, `Removing lcobucci/jwt`… (Mercure s'en va) ;
-- des lignes `Upgrading symfony/… (v7.4.… => v7.4.23)` (correctif de sécurité) ;
-- puis `Generating optimized autoload files`, sans ligne contenant `Error` ni `Problem`.
-
-Si un message parle de `php` et de `8.4` (`Your requirements could not be resolved…`), PHP est trop ancien : passez à 5.9, étape 2 seulement (la base n'a pas encore changé).
-
-### 5.6 Reconstruire le cache
-
-```
-sudo rm -rf var/cache/prod
-sudo -u www-data php bin/console cache:warmup
-sudo chown -R www-data:www-data var
-sudo systemctl reload apache2
-```
-
-Résultat attendu : `[OK] Cache for the "prod" environment (debug=false) was successfully warmed.` Les autres commandes n'affichent rien.
-
-Indispensable cette fois : l'ancien cache mentionne encore Mercure, et Symfony le réutiliserait tel quel.
-
-### 5.7 Mettre à jour la structure de la base
-
-```
-sudo -u www-data php bin/console doctrine:migrations:migrate --no-interaction
-sudo -u www-data php bin/console doctrine:migrations:current
-```
-
-Résultat attendu : `[OK] Successfully migrated to version: DoctrineMigrations\Version20261110140502`, puis `DoctrineMigrations\Version20261110140502 - Révisions des commandes et du menu par événement`. L'opération est instantanée et ne touche à aucune donnée existante.
-
-### 5.8 Vérifier
-
-1. **Versions et sécurité** :
-
-   ```
-   composer show symfony/http-foundation | grep versions
-   composer audit --no-dev
-   composer show | grep -i mercure
-   ```
-
-   Résultat attendu : `versions : * v7.4.23`, puis `No security vulnerability advisories found.`, puis rien du tout (plus aucun paquet Mercure).
-
-2. **Proxies de confiance** : faites la vérification 4.3.
-
-3. **Le site et l'API**, depuis le serveur (`<adresse du site>` sans `https://`) :
-
-   ```
-   curl -sI https://<adresse du site>/ | head -n 1
-   curl -sI https://<adresse du site>/login | head -n 1
-   curl -s https://<adresse du site>/api/menu
-   ```
-
-   Résultat attendu : `HTTP/1.1 200 OK` (ou `HTTP/2 200`) deux fois, puis `{"error":"Cette tablette n\u0027est pas appair\u00e9e. Appairez-la depuis l\u0027administration."}` (voir 3.8).
-
-4. **L'administration**, dans Chrome sur le Mac : ouvrez le site, connectez-vous. En haut de chaque page, l'événement actif s'affiche (« Événement actif : … », nouveauté de cette mise à jour). Ouvrez **Menu**, **Tablettes**, **Carnet de bord** : les pages s'affichent normalement.
-
-5. **Une tablette** :
-
-   - **Une tablette déjà appairée** : allumez-la, ouvrez l'application. Un bandeau « Nouvelle version de l'application » apparaît : touchez « Recharger ». À faire sur **chaque** tablette : tant qu'elle n'a pas rechargé, une tablette cuisine afficherait des temps d'attente faux. L'écran s'affiche normalement (menu sur une caisse, liste des commandes sur la cuisine, numéros sur l'écran Arrivées).
-   - **Aucune tablette appairée** : dans l'administration, **Tablettes**, ajoutez une tablette « Essai mise à jour », rôle **Arrivées** si l'événement actif a une cuisine, **Caisse** sinon. Sur un téléphone ou une tablette, ouvrez `https://<adresse du site>/appairer` dans Chrome et tapez le code affiché. L'écran de la tablette s'affiche. Sur une caisse, **n'encaissez rien** : ce serait une vraie vente de l'événement. Révoquez ensuite cette tablette dans l'administration.
-   - **Si une caisse et une cuisine sont appairées** sur un événement d'essai : encaissez une commande, elle doit apparaître en cuisine en 3 secondes au plus, avec « 0 min » d'attente. Annulez-la ensuite depuis le Carnet de bord.
-
-6. Si quelque chose ne va pas, regardez les dernières erreurs d'Apache, notez-les, puis passez à 5.9 :
-
-   ```
-   sudo tail -n 30 /var/log/apache2/error.log
-   ```
-
-Le fichier `.env.local` contient peut-être encore des lignes `MERCURE_…` : elles ne servent plus et ne gênent pas. Laissez-les : on ne modifie pas `.env.local` le jour d'une mise à jour.
-
-### 5.9 Revenir en arrière
-
-Seulement si la vérification échoue. Dans l'ordre, sans en sauter :
-
-1. **La base**, avec le **nouveau** code encore en place (c'est lui qui sait défaire sa migration). Remplacez `<version de la base notée>` par la version notée à l'étape 5.2 (sans la description après le tiret), en gardant les apostrophes, par exemple `'DoctrineMigrations\Version20261103152436'` :
-
-   ```
-   sudo -u www-data php bin/console doctrine:migrations:migrate '<version de la base notée>' --no-interaction
-   sudo -u www-data php bin/console doctrine:migrations:current
-   ```
-
-   Résultat attendu : `[OK] Successfully migrated to version: …` avec la version notée, puis la même version suivie de sa description. Les deux colonnes ajoutées sont retirées ; les commandes enregistrées depuis la mise à jour sont gardées.
-
-   Si la première commande échoue (par exemple parce que l'étape 5.6 n'a pas abouti), restaurez la sauvegarde avec l'étape 3.10, puis continuez.
-
-2. **Le code**, avec le code de 7 caractères noté à l'étape 5.2 :
-
-   ```
-   git reset --hard <version du code notée>
-   composer install --no-dev --optimize-autoloader --classmap-authoritative --no-scripts
-   sudo rm -rf var/cache/prod
-   sudo -u www-data php bin/console cache:warmup
-   sudo chown -R www-data:www-data var
-   sudo systemctl reload apache2
-   ```
-
-   Résultat attendu : `composer install` remet les anciennes versions (`Downgrading …`, `Installing symfony/mercure…`), puis `[OK] Cache … successfully warmed.`
-
-3. **Vérifiez** comme à l'étape 5.8, points 3 et 4 (sans la mention de l'événement actif en haut des pages, qui n'existait pas encore). Sur les tablettes, touchez « Recharger » si le bandeau apparaît.
-
-Revenir en arrière remet aussi les failles corrigées par Symfony 7.4.23 : ne le faites que si l'application ne fonctionne plus, et demandez de l'aide pour retenter la mise à jour.
-
-## 6. Réglages d'Apache pour les tablettes
-
-À faire **une seule fois**, après la mise à jour de la section 5, un jour sans événement et au moins une semaine avant le suivant, pour avoir le temps de revenir en arrière. Comptez dix minutes. Ces réglages ne touchent ni au code ni à la base : ils allègent les échanges avec les tablettes sur le réseau 4G. L'application fonctionne aussi sans eux.
+**Facultatif** : l'application fonctionne sans ces réglages ; chaque interrogation des tablettes coûte seulement un peu plus de réseau. À faire **avant le 4 décembre 2026, ou après le Loto**, jamais entre les deux, un jour sans événement.
 
 - **Connexions gardées ouvertes 15 secondes** (`KeepAliveTimeout 15`, au lieu de 5 par défaut). Une tablette interroge le serveur toutes les 3 secondes (suivi de la caisse : 10 s) : elle garde la même connexion, sans refaire la négociation HTTPS, lente en 4G.
 - **Jusqu'à 1000 requêtes par connexion** (`MaxKeepAliveRequests 1000`, au lieu de 100) : sinon, la connexion d'une tablette cuisine serait coupée toutes les 5 minutes.
-- **Compression des réponses JSON** de l'API (`application/json`) et du manifeste de l'application. Les pages, feuilles de style et scripts sont déjà compressés par la configuration d'Apache.
+- **Compression des réponses JSON** de l'API (`application/json`) et du manifeste de l'application.
 
 Ce sont les réglages du fichier `docker/apache.conf` utilisé en développement.
 
-### 6.1 Vérifier les modules
+### 4.1 Regarder les réglages actuels (ne modifie rien)
+
+Ces deux commandes ne font que lire : elles peuvent se lancer à tout moment, même la veille d'un événement. Remplacez `<adresse du site>` comme à l'étape 3.8.
 
 ```
-apache2ctl -M 2>/dev/null | grep -E "deflate|filter"
+curl -s -D - -o /dev/null -H 'Accept-Encoding: gzip' https://<adresse du site>/manifest.webmanifest | grep -i '^content-encoding'
+curl -sI --http1.1 https://<adresse du site>/login | grep -i '^keep-alive'
 ```
 
-Résultat attendu : deux lignes, `deflate_module (shared)` et `filter_module (shared)`. Si l'une manque :
+Résultats possibles :
 
-```
-sudo a2enmod deflate
-```
+- Première commande : `Content-Encoding: gzip` (la compression est déjà active) ou rien (pas de compression).
+- Seconde commande : `Keep-Alive: timeout=15, max=1000` (réglages déjà en place), `Keep-Alive: timeout=5, max=100` (réglages par défaut d'Apache), ou rien.
 
-Résultat attendu : `Enabling module deflate.` (et `filter` s'il le faut), ou `Module deflate already enabled`.
+Si vous obtenez déjà `gzip` et `timeout=15, max=1000`, il n'y a rien à faire.
 
-### 6.2 Écrire le fichier de réglages
+### 4.2 Qui peut appliquer les réglages
 
-La commande suivante crée le fichier `/etc/apache2/conf-available/comptoir.conf`. Copiez-la **en entier**, de `sudo tee` jusqu'à la ligne `FIN` comprise :
+Votre compte SSH ne peut pas modifier la configuration d'Apache. Deux cas :
 
-```
-sudo tee /etc/apache2/conf-available/comptoir.conf > /dev/null <<'FIN'
-# Le Comptoir des étoiles : connexions des tablettes (voir docs/hebergement.md, section 6)
-KeepAlive On
-MaxKeepAliveRequests 1000
-KeepAliveTimeout 15
+- **Vous avez accès au panneau ISPConfig** (une adresse du type `https://<adresse du serveur>:8080`, avec un identifiant et un mot de passe) : suivez 4.3.
+- **Vous n'y avez pas accès** : c'est à faire **par la personne qui administre le serveur, après le Loto**. Donnez-lui cette section 4 ; ne cherchez pas à contourner.
 
-<IfModule mod_deflate.c>
-    AddOutputFilterByType DEFLATE application/json application/manifest+json image/svg+xml
-</IfModule>
-FIN
-```
+### 4.3 Dans ISPConfig : directives à coller
 
-Résultat attendu : rien ne s'affiche. Vérifiez le contenu :
-
-```
-cat /etc/apache2/conf-available/comptoir.conf
-```
-
-Résultat attendu : les lignes ci-dessus, de `# Le Comptoir des étoiles` à `</IfModule>`.
-
-### 6.3 Activer et contrôler avant de recharger
-
-```
-sudo a2enconf comptoir
-sudo apache2ctl configtest
-```
-
-Résultat attendu : `Enabling conf comptoir.` suivi d'un rappel de recharger Apache (c'est l'étape suivante), puis `Syntax OK`. Un avertissement `AH00558: Could not reliably determine the server's fully qualified domain name` peut s'afficher avant : il est sans conséquence.
-
-Si `Syntax OK` n'apparaît pas, **ne rechargez pas Apache** : désactivez le fichier (`sudo a2disconf comptoir`), puis relancez `sudo apache2ctl configtest` pour retrouver `Syntax OK`. Le site n'a pas été touché.
-
-```
-sudo systemctl reload apache2
-```
-
-Résultat attendu : rien ne s'affiche. `reload` applique les réglages sans couper les connexions en cours.
-
-### 6.4 Vérifier
-
-Remplacez `<adresse du site>` comme à l'étape 3.8.
-
-1. La compression :
+1. Notez d'abord les résultats de 4.1 : ils serviront de point de comparaison.
+2. Dans ISPConfig : **Sites**, cliquez sur le site, onglet **Options**, champ **Apache Directives**. Si l'onglet ou le champ n'apparaît pas, votre compte ISPConfig n'y a pas droit : arrêtez-vous, c'est à faire par l'administrateur du serveur, après le Loto. S'il contient déjà du texte, **ne l'effacez pas** : ajoutez ce qui suit à la fin, après une ligne vide, et copiez le texte déjà présent dans un fichier sur le Mac pour pouvoir le remettre.
+3. Collez exactement :
 
    ```
-   curl -s -D - -o /dev/null -H 'Accept-Encoding: gzip' https://<adresse du site>/manifest.webmanifest | grep -i '^content-encoding'
+   # Le Comptoir des étoiles : connexions des tablettes (voir docs/hebergement.md, section 4)
+   KeepAlive On
+   MaxKeepAliveRequests 1000
+   KeepAliveTimeout 15
+   <IfModule mod_filter.c>
+       <IfModule mod_deflate.c>
+           AddOutputFilterByType DEFLATE application/json application/manifest+json image/svg+xml
+       </IfModule>
+   </IfModule>
    ```
 
-   Résultat attendu : `Content-Encoding: gzip` (ou `content-encoding: gzip`). Les réponses JSON de l'API sont compressées par la même ligne de réglage.
+   - La compression a besoin de deux modules d'Apache (`deflate` et `filter`) : elle est entourée de `<IfModule …>`, si bien qu'un module absent fait simplement ignorer la ligne, sans jamais empêcher Apache de démarrer.
+   - Les trois lignes `KeepAlive…` sont des réglages de base d'Apache, présents dans toutes les installations : il n'existe pas de module dont elles dépendent, donc pas de `<IfModule>` possible ni nécessaire.
 
-2. Les connexions gardées ouvertes :
+4. Cliquez sur **Enregistrer**. ISPConfig applique la modification en une à deux minutes (une icône de tâche en cours peut s'afficher en haut du panneau).
+
+5. **Juste après**, vérifiez que le site répond toujours, depuis le serveur :
 
    ```
-   curl -sv https://<adresse du site>/login https://<adresse du site>/login -o /dev/null -o /dev/null 2>&1 | grep -i 're-us'
+   curl -sI https://<adresse du site>/login | head -n 1
    ```
 
-   Résultat attendu : une ligne `Re-using existing connection…` : la seconde requête a réutilisé la connexion de la première.
+   Résultat attendu : `HTTP/1.1 200 OK` ou `HTTP/2 200`. Relancez la même commande deux minutes plus tard : même résultat. Si elle ne répond plus, ou affiche autre chose qu'un `200`, revenez en arrière **tout de suite** (4.5).
 
-3. Le site : ouvrez-le dans Chrome, connectez-vous à l'administration, puis ouvrez l'écran d'une tablette appairée. Tout s'affiche normalement.
+### 4.4 Vérifier les réglages
 
-### 6.5 Revenir en arrière
+Deux minutes après l'enregistrement, relancez les deux commandes de 4.1.
 
-Si quelque chose ne va pas après le rechargement :
+Résultat attendu : `Content-Encoding: gzip`, puis `Keep-Alive: timeout=15, max=1000`.
 
-```
-sudo a2disconf comptoir
-sudo apache2ctl configtest
-sudo systemctl reload apache2
-```
+- Pas de `gzip` : un des deux modules n'est pas activé sur le serveur ; la ligne est ignorée, sans danger. C'est à faire activer par l'administrateur du serveur, après le Loto.
+- Toujours `timeout=5, max=100` : sur un serveur qui héberge plusieurs sites, Apache ne prend la durée des connexions que dans la configuration du premier site ; le réglage de notre site est alors ignoré, sans danger. Il devra être fait pour tout le serveur, par son administrateur, après le Loto.
 
-Résultat attendu : `Conf comptoir disabled.` suivi du même rappel, puis `Syntax OK`. Apache reprend ses réglages d'origine ; le fichier reste dans `conf-available` pour un nouvel essai (`sudo a2enconf comptoir`).
+Enfin, dans Chrome : ouvrez le site, connectez-vous à l'administration, puis ouvrez l'écran d'une tablette appairée. Tout s'affiche normalement.
 
-## 7. Vérifications avant un événement
+### 4.5 Revenir en arrière
 
-Deux passages : **une semaine avant** (7.1 à 7.8), pour avoir le temps de corriger, et **la veille** (7.9 et 7.10), rapide, sans rien modifier. Les réglages de l'événement dans l'administration (date, menu, tablettes, case « Avec cuisine ») sont dans la fiche [Jour J](procedures/jour-j.md).
+Dans ISPConfig, même champ **Apache Directives** : supprimez le bloc collé, de `# Le Comptoir des étoiles` à la dernière ligne `</IfModule>` comprise (ou remettez le texte d'origine copié à l'étape 2), puis **Enregistrer**. Deux minutes plus tard, vérifiez comme à l'étape 5 de 4.3 que le site répond `200`.
 
-**Gel des modifications** : dans les **trois jours** qui précèdent un événement, ne lancez ni mise à jour de l'application (section 3), ni `sudo apt upgrade`, ni changement de réglage d'Apache. Si une vérification échoue pendant ces trois jours, demandez de l'aide avant de toucher à quoi que ce soit.
+## 5. Vérifications avant un événement
+
+Deux passages : **une semaine avant** (5.1 à 5.8), pour avoir le temps de corriger, et **la veille** (5.9 et 5.10), rapide, sans rien modifier. Les réglages de l'événement dans l'administration (date, menu, tablettes, case « Avec cuisine ») sont dans la fiche [Jour J](procedures/jour-j.md).
+
+**Gel des modifications** : dans les **trois jours** qui précèdent un événement, ne lancez ni mise à jour de l'application (section 3), ni changement dans ISPConfig (section 4). Si une vérification échoue pendant ces trois jours, demandez de l'aide avant de toucher à quoi que ce soit.
 
 Connectez-vous au serveur et allez dans le dossier du projet (sections 1 et 2).
 
-### 7.1 Le code est à jour
+### 5.1 Le code est à jour
 
 ```
 git status
@@ -543,33 +348,33 @@ git status
 Résultat attendu : `nothing to commit, working tree clean` la première fois, puis, après `git fetch`, `Your branch is up to date with 'origin/main'.`
 
 - `Your branch is behind 'origin/main'` : une version plus récente existe sur GitHub. À plus de trois jours de l'événement, et si elle doit servir à l'événement, mettez à jour (section 3). Sinon, gardez la version en place : elle fonctionne.
-- Des fichiers listés la première fois : arrêtez-vous (voir 3.1).
+- Des fichiers listés la première fois (autres que `stats/`) : arrêtez-vous (voir 3.1).
 
-### 7.2 La base est à jour
+### 5.2 La base est à jour
 
 ```
-sudo -u www-data php bin/console doctrine:migrations:up-to-date
+php8.4 bin/console doctrine:migrations:up-to-date
 ```
 
 Résultat attendu : `[OK] Up-to-date! No migrations to execute.` Sinon, une mise à jour s'est arrêtée en route : demandez de l'aide.
 
-### 7.3 L'application est en mode production
+### 5.3 L'application est en mode production
 
 ```
-sudo -u www-data php bin/console about | grep -E "Environment|Debug"
+php8.4 bin/console about | grep -E "Environment|Debug"
 ```
 
 Résultat attendu : `Environment   prod`, puis `Debug   false` (les espaces varient). Sinon, le fichier `.env.local` est à revoir : les erreurs afficheraient des détails techniques aux visiteurs. Demandez de l'aide.
 
-### 7.4 Apache et MySQL tournent
+### 5.4 Apache et MySQL tournent
 
 ```
 systemctl is-active apache2 mysql
 ```
 
-Résultat attendu : `active` deux fois.
+Résultat attendu : `active` deux fois. Cette commande ne fait que lire : elle fonctionne sans droit d'administrateur.
 
-### 7.5 Le certificat HTTPS est valable
+### 5.5 Le certificat HTTPS est valable
 
 Remplacez `<adresse du site>` (sans `https://`) aux deux endroits :
 
@@ -579,7 +384,7 @@ echo | openssl s_client -connect <adresse du site>:443 -servername <adresse du s
 
 Résultat attendu : une ligne `notAfter=…` avec une date **au moins deux semaines après l'événement**. Let's Encrypt renouvelle le certificat tout seul un mois avant son expiration : une date plus proche signale un renouvellement qui échoue. Sans certificat valable, les tablettes ne peuvent plus joindre le site : demandez de l'aide sans attendre.
 
-### 7.6 L'heure du serveur est juste
+### 5.6 L'heure du serveur est juste
 
 Les temps d'attente de la cuisine et la fin de validité des tablettes se calculent sur l'heure du serveur.
 
@@ -589,7 +394,7 @@ timedatectl
 
 Résultat attendu : une ligne `System clock synchronized: yes`, et une heure (`Universal time`) qui correspond à l'heure actuelle en temps universel (une heure de moins que l'heure de Paris en hiver).
 
-### 7.7 Il reste de la place sur le disque
+### 5.7 Il reste de la place sur le disque
 
 ```
 df -h /
@@ -597,17 +402,17 @@ df -h /
 
 Résultat attendu : dans la colonne `Use%`, une valeur **inférieure à 80 %**. Au-delà, les sauvegardes et les commandes pourraient ne plus s'enregistrer : demandez de l'aide.
 
-### 7.8 Pas de panne récente
+### 5.8 Pas de panne récente
 
-L'application écrit ses erreurs dans le journal d'Apache. Les pannes y sont marquées `[critical]` :
+L'application écrit ses erreurs dans le journal du site. Les pannes y sont marquées `[critical]` :
 
 ```
-sudo grep -E "\[critical\]|PHP Fatal" /var/log/apache2/error.log | tail -n 5
+grep -E "\[critical\]|PHP Fatal" /var/www/clients/client5/web54/log/error.log | tail -n 5
 ```
 
-Résultat attendu : **rien ne s'affiche**. Des lignes `[error]` « No route found » existent sans doute dans le journal : ce sont des robots qui cherchent des pages inexistantes, c'est sans conséquence. Si des lignes `[critical]` s'affichent, notez-les (date et message) et demandez de l'aide.
+Résultat attendu : **rien ne s'affiche**. Des lignes `[error]` « No route found » existent sans doute dans le journal : ce sont des robots qui cherchent des pages inexistantes (`robots.txt`, `.env.local`, `composer.json`…), c'est sans conséquence. Si des lignes `[critical]` s'affichent, notez-les (date et message) et demandez de l'aide.
 
-### 7.9 La veille : le site répond
+### 5.9 La veille : le site répond
 
 ```
 curl -sI https://<adresse du site>/login | head -n 1
@@ -619,6 +424,6 @@ Résultat attendu : comme à l'étape 3.8 (`HTTP/1.1 200 OK` ou `HTTP/2 200`, pu
 
 Dans Chrome, connectez-vous à l'administration : en haut de la page, l'événement du jour est indiqué comme actif.
 
-### 7.10 La veille : sauvegarde rapatriée sur le Mac
+### 5.10 La veille : sauvegarde rapatriée sur le Mac
 
-Suivez l'étape 5.3 : `app:backup` sur le serveur, copie dans votre dossier personnel du serveur, puis `scp` vers `~/Documents/comptoir-sauvegardes` sur le Mac. Refaites-le le lendemain de l'événement, après l'export du Carnet de bord (fiche [Clôture](procedures/cloture.md)).
+Suivez l'étape 3.3 en entier : `app:backup` sur le serveur, puis `scp` vers `~/Documents/comptoir-sauvegardes` sur le Mac. Refaites-le le lendemain de l'événement, après l'export du Carnet de bord (fiche [Clôture](procedures/cloture.md)).

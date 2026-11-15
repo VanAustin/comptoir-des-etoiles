@@ -11,6 +11,6 @@ Fiches à imprimer pour l'équipe, une par situation. Elles décrivent l'applica
 | [Clôture](cloture.md) | Responsable de l'événement, trésorier ou trésorière | Fin du service |
 | [Incidents](incidents.md) | Responsable de l'événement | Tablette en panne ou perdue, mot de passe oublié… |
 
-Les commandes du serveur (`php bin/console …`) se lancent en SSH sur l'hébergement, dans le dossier du projet (pas à pas pour notre serveur : `docs/hebergement.md`, dont la section 7, « Vérifications avant un événement »).
+Les commandes du serveur (`php8.4 bin/console …`, sans `sudo`) se lancent en SSH sur l'hébergement, dans le dossier du projet (pas à pas pour notre serveur : `docs/hebergement.md`, dont la section 5, « Vérifications avant un événement »).
 
 À tester pendant la répétition générale : toute la fiche « Jour J », et l'exercice de la fiche « Coupure réseau ».

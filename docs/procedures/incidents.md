@@ -2,11 +2,13 @@
 
 ## Mot de passe administrateur oublié
 
-Sur le serveur :
+Sur le serveur, dans le dossier du projet (`docs/hebergement.md`, sections 1 et 2) :
 
 ```
-php bin/console app:admin:password
+php8.4 bin/console app:admin:password
 ```
+
+Toujours `php8.4`, jamais `php` seul : sur notre serveur, `php` lance une ancienne version avec laquelle la commande échoue.
 
 La commande rappelle l'identifiant de l'administrateur et demande deux fois le nouveau mot de passe (12 caractères minimum). Les sessions ouvertes avec l'ancien sont fermées.
 

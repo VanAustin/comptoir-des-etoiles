@@ -22,17 +22,19 @@ Dans **Carnet de bord**, « Exporter pour Excel » : téléchargez les quatre fi
 
 ## 4. Sauvegarder
 
-Sur le serveur, sauvegarde puis copie sur votre ordinateur, comme à l'étape 5.3 de `docs/hebergement.md` :
+Sur le serveur, dans le dossier du projet (`docs/hebergement.md`, sections 1 et 2), sauvegarde puis copie sur votre ordinateur, comme à l'étape 3.3 de `docs/hebergement.md` :
 
 ```
-sudo -u www-data php bin/console app:backup
-cp var/backups/comptoir-*.sql ~/
+php8.4 bin/console app:backup
+ls -l var/backups/ | tail -n 3
 ```
+
+Résultat attendu : `[OK] Base sauvegardée dans …`, puis le fichier du jour dans la liste. Toujours `php8.4`, jamais `php` seul (ancienne version de PHP sur notre serveur).
 
 Puis, sur le Mac, dans une autre fenêtre de Terminal :
 
 ```
-scp '<utilisateur>@<adresse du serveur>:comptoir-*.sql' ~/Documents/comptoir-sauvegardes/
+scp '<utilisateur>@<adresse du serveur>:/var/www/clients/client5/web54/web/var/backups/comptoir-*.sql' ~/Documents/comptoir-sauvegardes/
 ```
 
 Gardez cette copie avec les fichiers Excel, jamais dans le dossier du projet.

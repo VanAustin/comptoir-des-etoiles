@@ -59,11 +59,13 @@ PHP, Composer et Symfony ne sont **pas** installés sur le Mac : tout tourne dan
 
 Une seule installation, déjà en ligne. Détail des opérations : `docs/hebergement.md`.
 
-- Serveur privé virtuel (VPS) chez OVHcloud : Apache, HTTPS (Let's Encrypt), PHP 8.4, MySQL 8.4. Pas de Docker.
+- Serveur privé virtuel (VPS) chez OVHcloud, géré avec **ISPConfig** : Apache, PHP-FPM 8.4, HTTPS (Let's Encrypt), MySQL 8.4. Pas de Docker. Dossier du projet : `/var/www/clients/client5/web54/web` ; journal du site : `/var/www/clients/client5/web54/log/error.log`.
+- L'utilisateur SSH est celui du site (`web54`) : **jamais de `sudo`**, ni `chown`, ni `systemctl reload` (pas de droit d'administrateur). La commande `php` du serveur est PHP 7.3 : toujours `php8.4 bin/console …` et `php8.4 /usr/local/bin/composer …`, en toutes lettres dans toute procédure.
 - Le site pointe sur `public/` ; `public/.htaccess` redirige vers le HTTPS et transmet l'en-tête `Authorization`.
 - L'adresse du site n'est écrite ni dans le dépôt ni dans le code : elle est dans `DEFAULT_URI`, dans le `.env.local` du serveur.
-- Réglages d'Apache pour les tablettes (`docs/hebergement.md`, section 6, comme `docker/apache.conf`) : `KeepAliveTimeout 15`, `MaxKeepAliveRequests 1000`, compression `DEFLATE` de `application/json`, dans `/etc/apache2/conf-available/comptoir.conf`.
-- Mise à jour en SSH, dans le dossier du projet (`docs/hebergement.md`, section 3) : noter le commit et la version de migration, `app:backup`, `git pull`, `composer install --no-dev --optimize-autoloader --classmap-authoritative --no-scripts`, cache effacé puis reconstruit (`rm -rf var/cache/prod`, `cache:warmup` : en production, Symfony réutilise l'ancien cache sans vérifier), `doctrine:migrations:migrate`, `systemctl reload apache2`. Commandes qui écrivent dans `var/` lancées en `sudo -u www-data`. Retour arrière : migration défaite avec le nouveau code, **puis** `git reset --hard`. Jamais pendant un événement.
+- Réglages d'Apache pour les tablettes (`docs/hebergement.md`, section 4, comme `docker/apache.conf`) : `KeepAliveTimeout 15`, `MaxKeepAliveRequests 1000`, compression `DEFLATE` de `application/json`. **Facultatifs** : dans le champ « Apache Directives » d'ISPConfig (compression entourée de `<IfModule>`), avant le 4 décembre ou après le Loto, sinon par l'administrateur du serveur après le Loto. Vérification sans rien modifier par `curl` (section 4.1).
+- Mise à jour en SSH, dans le dossier du projet (`docs/hebergement.md`, section 3) : noter le commit et la version de migration, `app:backup` (puis `scp` sur le Mac), `git pull`, `php8.4 /usr/local/bin/composer install --no-dev --optimize-autoloader --classmap-authoritative --no-scripts`, **cache effacé puis reconstruit, obligatoire après chaque `git pull`** (`rm -rf var/cache/prod`, `php8.4 bin/console cache:warmup` : en production, Symfony réutilise l'ancien cache sans vérifier ; oublié, il donne une 500 `ArgumentCountError`), `doctrine:migrations:migrate`. Pas de rechargement d'Apache. Retour arrière : migration défaite avec le nouveau code, **puis** `git reset --hard`. Jamais pendant un événement ni pendant le gel des trois jours qui le précèdent.
+- `/stats/` (statistiques d'ISPConfig dans le dossier du site) est ignoré par Git.
 - Avant d'exiger une version plus récente de PHP ou de MySQL (`composer.json`, CI, Docker), vérifier celle du serveur.
 
 ## Architecture
@@ -318,12 +320,14 @@ Fait au 3 novembre : Caisse, Menu, Cuisine, Arrivées, hors ligne (service worke
 
 Fait au 10 novembre : réglage « Avec cuisine », en-tête `X-Robots-Tag`, Symfony 7.4.23 (sécurité), Mercure retiré, développement sous Docker identique à la production (Apache, PHP 8.4, MySQL 8.4), interrogations par révisions (304 sans relire les commandes), `docs/hebergement.md` (mise à jour de novembre, réglages d'Apache).
 
-Fait au 10 novembre, documentation : fiche bénévoles (`docs/procedures/benevoles.md`), vérifications avant un événement (`docs/hebergement.md`, section 7).
+Fait au 10 novembre, documentation : fiche bénévoles (`docs/procedures/benevoles.md`), vérifications avant un événement (`docs/hebergement.md`, section 5).
+
+Fait au 15 novembre : PR A à D, E (tablettes et événements, chiffre d'affaires par catégorie) et F (caisse sur téléphone) ; production mise à jour ; `docs/hebergement.md` réécrit pour ISPConfig (sans `sudo`, `php8.4`), sections terminées de novembre retirées.
 
 Nouvelles évolutions, à mettre en production avant le 4 décembre, une PR chacune, dans cet ordre : A connexion à l'administration (« Rester connectée », « Afficher » le mot de passe), B QR code d'appairage, C service à table (Loto), D chevalets de table (facultative, seulement si prête avant le 27 novembre).
 
-1. Semaine du 9 novembre : mettre la production à jour (`docs/hebergement.md`, section 5), puis réglages d'Apache (section 6).
-2. D'ici le 20 novembre : vérifier que la production est à jour et fonctionne avec le réglage « Avec cuisine » (`docs/hebergement.md`, section 7).
+1. Semaine du 9 novembre : mettre la production à jour (fait). Réglages d'Apache (`docs/hebergement.md`, section 4) : facultatifs, avant le 4 décembre ou après le Loto.
+2. D'ici le 20 novembre : vérifier que la production est à jour et fonctionne avec le réglage « Avec cuisine » (`docs/hebergement.md`, section 5).
 3. Début décembre : essai seule à la maison (une tablette en caisse, un appareil en cuisine, partage de connexion du téléphone, coupure du réseau), puis corrections. Pas de répétition avec des bénévoles : le stand de Noël sert de répétition générale.
 4. **Stand de Noël vers le 11 décembre** (sans cuisine).
 5. Semaine du 14 décembre : retours du stand, corrections, marge de sécurité. **Loto le 18 décembre** (avec cuisine).
