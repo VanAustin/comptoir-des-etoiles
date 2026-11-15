@@ -335,6 +335,20 @@ class EventControllerTest extends WebTestCase
         return $event;
     }
 
+    public function testLockedEventWithKitchenDoesNotWarnAboutUnchecking(): void
+    {
+        // Déjà des commandes : « Avec cuisine » ne peut plus être décochée, l'annonce n'a pas lieu d'être
+        $event = $this->createEvent('Loto', '2026-12-18');
+        $this->createDevice($event, 'Cuisine 1', DeviceRole::Kitchen);
+        $this->entityManager->persist(new Order('4d8c3b2a-5e6f-4a7b-8c9d-0e1f2a3b4c5d', $this->entityManager->find(Event::class, $event->getId()), 'A', 1, PaymentMethod::Cash));
+        $this->entityManager->flush();
+
+        $crawler = $this->client->request('GET', '/admin/evenements/'.$event->getId().'/modifier');
+
+        self::assertCount(0, $crawler->filterXPath('//*[@id="kitchen-devices"]'));
+        self::assertSame('kitchen-help', $crawler->filterXPath('//input[@name="with_kitchen"]')->attr('aria-describedby'));
+    }
+
     public function testLockedEventWithoutKitchenOnlySuggestsRevokingDevices(): void
     {
         $event = $this->createEvent('Stand de Noël', '2026-12-11')->setWithKitchen(false);

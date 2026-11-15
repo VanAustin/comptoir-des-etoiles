@@ -42,7 +42,7 @@
             </div>
             <div class="field">
                 <label class="check"><input type="checkbox" name="with_kitchen" value="1" id="with-kitchen" {{ values.kitchen ? 'checked' }}
-                       {{ kitchen_locked ? 'disabled' }} aria-describedby="kitchen-help{{ kitchen_devices is not empty ? ' kitchen-devices' }}"> Avec cuisine</label>
+                       {{ kitchen_locked ? 'disabled' }} aria-describedby="kitchen-help{{ kitchen_devices is not empty and not (kitchen_locked and event.hasKitchen) ? ' kitchen-devices' }}"> Avec cuisine</label>
                 {% if kitchen_locked %}
                     {# Bien visible : une case grisée sans explication passe pour une panne #}
                     <p class="alert alert-warning" id="kitchen-help">
@@ -54,7 +54,9 @@
                         Décochez pour un stand sans préparation : chaque commande est servie directement au comptoir, et seules les tablettes caisse fonctionnent.
                     </p>
                 {% endif %}
-                {% if kitchen_devices is not empty %}
+                {# Avec cuisine et déjà des commandes : la case ne peut plus être décochée, rien à annoncer #}
+                {% set kitchen_devices_notice = kitchen_devices is not empty and not (kitchen_locked and event.hasKitchen) %}
+                {% if kitchen_devices_notice %}
                     <p class="alert alert-warning" id="kitchen-devices">
                         {% if event.hasKitchen %}
                             Si vous décochez « Avec cuisine », {{ kitchen_devices_text }} ne {{ kitchen_devices|length > 1 ? 'fonctionneront' : 'fonctionnera' }} plus.
