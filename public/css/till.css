@@ -41,6 +41,7 @@ main.till { padding-block: 20px; }
 /* Commande en cours */
 .cart {
   position: sticky; top: 16px; display: flex; flex-direction: column; gap: 14px; padding: clamp(14px, 2vw, 20px);
+  container-type: inline-size;
   background: var(--papier); border: 1px solid var(--kraft); border-radius: var(--rayon);
 }
 .cart-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
@@ -60,6 +61,12 @@ main.till { padding-block: 20px; }
 }
 .line .q b { min-width: 28px; text-align: center; }
 .line .q.auto { justify-content: center; min-width: 48px; }
+/* Panier étroit (téléphone, petite tablette en paysage) : le nom au-dessus, quantité et prix dessous.
+   Selon la largeur du panier lui-même, pas de l'écran : rien ne dépasse, quel que soit l'appareil. */
+@container (max-width: 339px) {
+  .line { grid-template-columns: 1fr auto; row-gap: 4px; }
+  .line > span:first-child { grid-column: 1 / -1; font-weight: 700; }
+}
 .lines .empty { text-align: center; padding: 24px 8px; margin: 0; }
 .cart .alert { margin: 0; }
 .note-field { margin: 0; }
@@ -101,7 +108,7 @@ main.till { padding-block: 20px; }
   border-radius: var(--rayon-bouton); background: var(--sauge-fond); color: var(--sauge-texte); font-weight: 700;
 }
 .change.short { background: var(--erreur-fond); color: var(--erreur); }
-.change-label { font-size: 18px; }
+.change-label { font-size: 18px; white-space: nowrap; }
 .change-amount { font: 800 40px/1 var(--f-chiffres); }
 .change-breakdown { grid-column: 1 / -1; font-size: 16px; }
 .change-breakdown:empty { display: none; }
@@ -114,27 +121,50 @@ main.till { padding-block: 20px; }
 /* Rappel de la commande : seulement sur téléphone */
 .cart-mini { display: none; }
 
-/* Tablette en portrait : la commande reste à côté de la grille, chaque ligne sur deux rangées */
+/* Tablette en portrait : la commande reste à côté de la grille */
 @media (max-width: 860px) {
   .grid { grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: 10px; }
   .item { min-height: 116px; padding: 12px; }
-  .line { grid-template-columns: 1fr auto; row-gap: 4px; }
-  .line > span:first-child { grid-column: 1 / -1; font-weight: 700; }
 }
 /* Téléphone : la grille au-dessus, la commande toujours visible en bas de l'écran */
 @media (max-width: 640px) {
-  .pos { grid-template-columns: 1fr; }
+  /* minmax(0, …) : la ligne des catégories défile au lieu d'élargir la colonne */
+  .pos { grid-template-columns: minmax(0, 1fr); }
+  .pos > * { min-width: 0; }
   .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .cart { position: static; scroll-margin-top: 16px; }
-  .line { grid-template-columns: 1fr auto auto; }
-  .line > span:first-child { grid-column: auto; }
   .lines { max-height: none; }
   .cart-mini:not([hidden]) {
     position: sticky; bottom: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px;
     margin-inline: calc(var(--gouttiere) * -1); padding: 10px var(--gouttiere);
     background: var(--papier); border-top: 2px solid var(--renard); font-weight: 700; font-size: 16px;
   }
-  .cart-mini > * { white-space: nowrap; }
+  /* Le récapitulatif passe à la ligne s'il le faut ; le bouton reste entier */
+  .cart-mini > span { flex: 1 1 0; min-width: 0; }
+  .cart-mini > .btn { flex: none; white-space: nowrap; }
+
+  /* En-tête compact : sans le nom du site, les boutons sur une seule ligne (le suivi se raccourcit) */
+  body:has(main.till) .site-header .brand { display: none; }
+  body:has(main.till) .site-header .bar { padding-block: 6px; }
+  body:has(main.till) .site-header nav > .btn { flex: none; }
+  body:has(main.till) .site-header nav > .track-summary,
+  body:has(main.till) .site-header nav > .outbox-badge { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Catégories sur une seule ligne, qui défile au doigt */
+  .cats {
+    flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
+    margin-inline: calc(var(--gouttiere) * -1); padding-inline: var(--gouttiere); margin-bottom: 12px;
+  }
+  .cats button { flex: none; }
+
+  /* Écran du numéro : la monnaie à rendre juste sous le numéro, avant la table et les consignes */
+  .ordernum { gap: 12px; }
+  .ordernum .n { font-size: 72px; margin: 0; }
+  .ordernum .change { order: 1; }
+  .ordernum .done-table { order: 2; font-size: 21px; margin: 0; }
+  .ordernum #done-help, .ordernum #done-queue { order: 3; }
+  .ordernum #done-next { order: 4; }
+
   .cash { grid-template-columns: repeat(2, 1fr); }
   .cash.coins { grid-template-columns: repeat(2, 1fr); }
 }
