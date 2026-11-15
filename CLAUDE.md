@@ -38,12 +38,14 @@ PHP, Composer et Symfony ne sont **pas** installés sur le Mac : tout tourne dan
 - `docker/apache.conf` : racine `/app/public` (le projet est monté dans `/app`), `AllowOverride All` pour le même `public/.htaccess` qu'en production, modules `rewrite`, `headers` et `deflate` (compression du JSON), `KeepAlive` (15 s). `Define COMPTOIR_DEV` désactive la redirection vers le HTTPS de `.htaccess`. **Pas** de `symfony/apache-pack`.
 - Apache ne transmet pas les variables d'environnement du conteneur à PHP : la configuration passe par les fichiers `.env`, comme en production.
 - Le site est servi sur **`http://localhost:8080`**. Pas de HTTPS en développement : Chrome autorise le service worker sur `localhost`, ce qui suffit pour développer et tester le mode hors ligne sur le Mac.
-- Fichiers attendus, et rien de plus : `Dockerfile`, `compose.yaml`, `docker/apache.conf` et `docker/mysql/init.sql`. Pas de Redis.
+- Fichiers attendus, et rien de plus : `Dockerfile`, `compose.yaml`, `docker/apache.conf` et `docker/mysql/init.sql` (plus le script `bin/bruno`). Pas de Redis.
 - Services en plus de `php` :
   - **`database`** : image officielle `mysql` (version fixée), base `comptoir`, utilisateur et mot de passe `comptoir` (développement uniquement). Données dans le volume nommé `database_data` : elles survivent au redémarrage des conteneurs (`docker compose down -v` les efface). `docker/mysql/init.sql` crée la base des tests `comptoir_test`.
   - **phpMyAdmin** (image officielle `phpmyadmin`, version fixée), connexion automatique, sur `http://localhost:8082`. Développement uniquement, lié à `127.0.0.1`. Rien dans l'application n'en dépend.
   - **`jstest`** (image officielle `node`, LTS, version fixée, la même qu'en CI), profil `tests` : ne démarre pas avec `docker compose up`. `docker compose run --rm jstest` lance `node --test` sur `tests/js/`.
+  - **`bruno`** (même image `node`, profil `tests`) : Bruno CLI, lancé par `bin/bruno` uniquement.
 - Tablettes d'essai : `bin/console app:dev:test-devices` (refuse hors `APP_ENV=dev`) affiche l'événement actif, demande confirmation (« oui » ; `--yes` pour un script), crée pour cet événement une caisse, une cuisine et un écran Arrivées (la caisse seule sans cuisine), et affiche pour chacune l'adresse `/appairer#code=…` à ouvrir dans Chrome. Aucun jeton créé ni affiché. Audit au nom de « commande app:dev:test-devices ».
+- Essais de l'API : `bin/bruno` lance toute la collection Bruno sur une base à part, `comptoir_bruno` (créée par `docker/mysql/init.sql`, et par le script sur un volume plus ancien), servie par un second site Apache sur `http://localhost:8081` (`docker/apache.conf` : `SetEnv DATABASE_URL` et `APP_CACHE_DIR=/app/var/bruno/cache`, que Symfony garde plutôt que les fichiers `.env`). Base vidée et remise à jour à chaque lancement, données préparées par `app:dev:bruno-fixtures` (refuse hors `APP_ENV=dev` et sur toute autre base), tablettes appairées par le script, jetons gardés dans ses variables seulement. Bruno CLI (`@usebruno/cli`, version fixée) tourne dans le service **`bruno`** (même image `node` que `jstest`, profil `tests`, cache npm dans le volume `bruno_npm`) : aucun Node à installer. La base de développement n'est jamais touchée par les essais.
 - Tests : `tests/bootstrap.php` recrée le schéma de `comptoir_test` une fois par lancement ; `ResetDatabaseTrait` vide les tables avant chaque test.
 - **Toutes** les commandes PHP passent par le conteneur, jamais par le PHP du Mac :
   - `docker compose exec php composer …`
@@ -307,6 +309,7 @@ Règles :
 - MySQL : ne jamais nommer une colonne avec un mot réservé (`before`, `order`, `key`…) ; Doctrine ne les met pas entre guillemets à l'enregistrement. Ne pas compter sur l'ordre des lignes sans `ORDER BY`, ni sur l'ordre des clés d'une colonne JSON (MySQL les réordonne).
 - Avant de terminer une étape : lancer les tests et vérifier l'écran concerné.
 - Chaque route de l'API (`/api/…`) a sa requête dans la collection Bruno (`bruno/`), avec des tests sur le code de réponse et le contenu, y compris les cas de refus. La collection ne contient jamais de jeton ni de secret.
+- Une requête Bruno ne dépend jamais de l'état de la base : ce dont elle a besoin est préparé par `app:dev:bruno-fixtures`, et sa place dans l'ordre de `bin/bruno`. Une nouvelle requête s'ajoute à la liste de `bin/bruno`. Avant de terminer une étape qui touche l'API : `bin/bruno`, tout vert.
 
 ## Planning
 

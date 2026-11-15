@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# Lance toute la collection Bruno (bruno/) sur une base à part, comptoir_bruno, servie sur
+# http://localhost:8081 : la base de développement (localhost:8080) n'est jamais touchée.
+#
+# Chaque lancement repart d'une base vide : mêmes résultats à chaque fois.
+# Tout tourne dans Docker (Bruno CLI dans l'image node du service jstest) : aucun Node à installer.
+# Les jetons des tablettes restent dans des variables de ce script, jamais dans un fichier.
+#
+# Usage : bin/bruno         (les conteneurs doivent tourner : docker compose up -d)
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+DATABASE_URL_BRUNO='mysql://comptoir:comptoir@database:3306/comptoir_bruno?serverVersion=8.4.6&charset=utf8mb4'
+CACHE_DIR_BRUNO=/app/var/bruno/cache
+SITE_IN_PHP=http://localhost:8081   # le site des essais, vu du conteneur php
+SITE_IN_BRUNO=http://php:8081       # le même, vu du conteneur bruno
+
+# Requêtes lancées, dans cet ordre : certaines s'enchaînent (« juste après 1. Menu », commande prête…).
+# La caisse est appairée par « Appairage / 1 » lui-même, avec son code. Toute requête de bruno/ doit
+# figurer ici, seule ou par son dossier (vérifié par tests/Frontend/BrunoScriptTest.php).
+WITH_KITCHEN="
+  appairage/1-echanger-le-code.bru appairage/2-qui-suis-je.bru appairage/3-code-deja-utilise.bru
+  caisse/1-menu.bru caisse/7-menu-inchange.bru
+  caisse/2-creer-une-commande.bru caisse/3-rejouer-la-commande.bru
+  cuisine/1-commandes-en-cours.bru cuisine/3-rien-de-neuf.bru
+  cuisine/2-faire-avancer.bru cuisine/2-faire-avancer.bru
+  caisse/4-suivi-des-commandes.bru caisse/5-remise-au-client.bru
+  caisse/6-commande-hors-ligne.bru caisse/8-commande-a-table.bru
+  arrivees
+  refus
+"
+# Événement actif dont la cuisine a été décochée après l'appairage de sa tablette cuisine
+WITHOUT_KITCHEN="sans-cuisine"
+
+step() { printf '\n== %s\n' "$1"; }
+fail() { printf '\nÉchec : %s\n' "$1" >&2; exit 1; }
+
+# Console Symfony sur la base et le cache des essais (variables prioritaires sur les fichiers .env)
+console() {
+  docker compose exec -T -e DATABASE_URL="$DATABASE_URL_BRUNO" -e APP_CACHE_DIR="$CACHE_DIR_BRUNO" php bin/console "$@"
+}
+
+# Code d'appairage → jeton, sans jamais l'afficher ni l'écrire
+pair() {
+  docker compose exec -T php curl -s -X POST -H 'Content-Type: application/json' \
+      -d "{\"code\":\"$1\"}" "$SITE_IN_PHP/api/pair" \
+    | docker compose exec -T php php -r '$r = json_decode(stream_get_contents(STDIN), true); echo is_array($r) ? ($r["token"] ?? "") : "";'
+}
+
+# Code de la tablette d'un rôle, dans la sortie de app:dev:bruno-fixtures (« rôle code » par ligne)
+code_for() { printf '%s\n' "$2" | awk -v role="$1" '$1 == role { print $2 }'; }
+
+bruno() {
+  docker compose --profile tests run --rm -T -e NPM_CONFIG_UPDATE_NOTIFIER=false bruno run "$@" \
+    --env Local --env-var "baseUrl=$SITE_IN_BRUNO"
+}
+
+step "Conteneurs"
+docker compose ps --status running --services | grep -qx php \
+  || fail "le conteneur php ne tourne pas. Lancez : docker compose up -d"
+status=$(docker compose exec -T php curl -s -o /dev/null -w '%{http_code}' "$SITE_IN_PHP/" || true)
+[ "$status" != "000" ] \
+  || fail "le site des essais (port 8081) ne répond pas. Reconstruisez l'image : docker compose up -d --build"
+
+step "Base comptoir_bruno, vidée puis remise à jour"
+# Pour un volume créé avant l'ajout de cette base dans docker/mysql/init.sql
+docker compose exec -T -e MYSQL_PWD=comptoir database mysql -uroot -e \
+  "CREATE DATABASE IF NOT EXISTS comptoir_bruno CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL PRIVILEGES ON comptoir_bruno.* TO 'comptoir'@'%';"
+console doctrine:schema:drop --full-database --force -q
+console doctrine:migrations:migrate --no-interaction -q
+console cache:pool:clear cache.rate_limiter -q
+
+step "Événement avec cuisine, menu d'exemple et tablettes"
+codes=$(console app:dev:bruno-fixtures preparer)
+token_cuisine=$(pair "$(code_for cuisine "$codes")")
+token_affichage=$(pair "$(code_for affichage "$codes")")
+[ -n "$token_cuisine" ] && [ -n "$token_affichage" ] || fail "appairage des tablettes cuisine et Arrivées impossible."
+
+step "Collection (événement avec cuisine)"
+# shellcheck disable=SC2086 # listes de requêtes, découpées volontairement
+bruno $WITH_KITCHEN \
+  --env-var "pairingCode=$(code_for caisse "$codes")" \
+  --env-var "token_cuisine=$token_cuisine" --env-var "token_affichage=$token_affichage"
+
+step "Événement sans cuisine"
+codes=$(console app:dev:bruno-fixtures sans-cuisine)
+token_cuisine=$(pair "$(code_for cuisine "$codes")")
+[ -n "$token_cuisine" ] || fail "appairage de la tablette cuisine impossible."
+console app:dev:bruno-fixtures couper-cuisine
+bruno $WITHOUT_KITCHEN --env-var "token_cuisine=$token_cuisine"
+
+printf '\nTout est passé. Base de développement non touchée.\n'

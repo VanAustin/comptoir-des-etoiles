@@ -4,6 +4,8 @@ services:
     build: .
     ports:
       - "8080:80"
+      # Site des essais Bruno (bin/bruno), base comptoir_bruno : depuis ce Mac uniquement
+      - "127.0.0.1:8081:8081"
     volumes:
       - .:/app
     depends_on:
@@ -53,5 +55,17 @@ services:
       - .:/app:ro
     command: ["node", "--test", "tests/js/**/*.test.js"]
 
+  # Collection Bruno de l'API, lancée par bin/bruno (jamais directement) : même image que jstest,
+  # Bruno CLI à version fixée, téléchargé une fois et gardé dans le volume bruno_npm. Profil tests.
+  bruno:
+    image: node:24.22.1-alpine
+    profiles: [tests]
+    working_dir: /app/bruno
+    volumes:
+      - .:/app:ro
+      - bruno_npm:/root/.npm
+    entrypoint: ["npx", "--yes", "@usebruno/cli@2.15.1"]
+
 volumes:
   database_data:
+  bruno_npm:
