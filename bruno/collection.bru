@@ -3,7 +3,13 @@ docs {
 
   Collection pour tester l'API sur http://localhost:8080 (environnement « Local »).
 
-  ## Déroulé
+  ## Toute la collection : `bin/bruno`
+
+  La façon normale de la lancer : `bin/bruno`, depuis le dossier du projet. Le script prépare une base à part (`comptoir_bruno`, site `http://localhost:8081`), vidée à chaque lancement, appaire les tablettes et lance les requêtes dans l'ordre où elles s'enchaînent, avec Bruno CLI dans Docker. La base de développement n'est jamais touchée. Une requête ne doit jamais dépendre de l'état de la base : tout ce dont elle a besoin est préparé par `bin/bruno` (commande `app:dev:bruno-fixtures`).
+
+  Le dossier « Sans cuisine » demande un événement actif dont la cuisine a été décochée après l'appairage d'une tablette cuisine : seul `bin/bruno` le prépare.
+
+  ## Déroulé à la main (logiciel Bruno, base de développement)
 
   1. Dans l'administration, activez un événement daté d'aujourd'hui ou plus tard, puis ajoutez une tablette dans « Tablettes ». Ou, en développement : `docker compose exec php bin/console app:dev:test-devices`, qui crée une caisse, une cuisine et un écran Arrivées et affiche leurs codes.
   2. Recopiez le code affiché dans la variable `pairingCode` de l'environnement « Local » (variable secrète : sa valeur reste sur votre ordinateur, hors des fichiers commités).

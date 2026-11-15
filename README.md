@@ -101,6 +101,17 @@ En développement, l'utilisateur et le mot de passe MySQL sont `comptoir` / `com
 
 Le dossier `bruno/` contient une collection pour [Bruno](https://www.usebruno.com/), un logiciel gratuit pour envoyer des requêtes à l'API et vérifier les réponses.
 
+### Toute la collection, en une commande
+
+```sh
+docker compose up -d --build   # la première fois, ou après une modification de docker/
+bin/bruno
+```
+
+`bin/bruno` vide puis remplit une base à part, `comptoir_bruno`, servie sur `http://localhost:8081`, appaire les tablettes, puis lance toutes les requêtes dans le bon ordre. Votre base de développement (`http://localhost:8080`) n'est jamais touchée, et chaque lancement donne le même résultat. Tout tourne dans Docker : rien à installer, pas même Node. Le résultat se termine par « Tout est passé » ; sinon, le nom de la requête en échec et le test qui a échoué sont affichés.
+
+### Requête par requête, dans le logiciel Bruno
+
 1. Installez Bruno (`brew install --cask bruno`, ou depuis le site).
 2. Dans Bruno : « Open Collection », puis choisissez le dossier `bruno/` du projet.
 3. En haut à droite, sélectionnez l'environnement « Local ».
@@ -108,7 +119,7 @@ Le dossier `bruno/` contient une collection pour [Bruno](https://www.usebruno.co
 
 Chaque requête contient ses tests ; « Run » sur un dossier les lance tous. Le jeton reçu reste en mémoire dans Bruno et n'est jamais écrit dans les fichiers.
 
-Si le port 8080 ou 8082 est déjà utilisé par un autre programme, arrêtez ce programme avant de lancer `docker compose up`.
+Si le port 8080, 8081 ou 8082 est déjà utilisé par un autre programme, arrêtez ce programme avant de lancer `docker compose up`.
 
 ## Installer sur un serveur
 

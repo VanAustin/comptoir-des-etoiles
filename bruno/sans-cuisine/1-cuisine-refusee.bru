@@ -1,7 +1,7 @@
 meta {
-  name: 12. Une cuisine est refusée sans cuisine
+  name: 1. Une cuisine est refusée sans cuisine
   type: http
-  seq: 12
+  seq: 1
 }
 
 get {
@@ -31,5 +31,5 @@ tests {
 docs {
   Lors d'un événement **sans cuisine** (case « Avec cuisine » décochée dans la fiche de l'événement), une tablette cuisine ou affichage n'a rien à afficher : l'API la refuse, avec un message clair. « Appairage / 2. Qui suis-je » lui reste accessible.
 
-  Nécessite une tablette **cuisine** appairée avant de décocher « Avec cuisine ». Avec cuisine, cette requête répond 200 : ce n'est pas une erreur.
+  Lancée par `bin/bruno` seulement, après avoir préparé dans la base des essais un événement actif dont la cuisine a été décochée après l'appairage de sa tablette cuisine (`app:dev:bruno-fixtures sans-cuisine` puis `couper-cuisine`). Avec cuisine, cette requête répondrait 200.
 }
