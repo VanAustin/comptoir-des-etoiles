@@ -16,6 +16,8 @@
 *.pem
 *.key
 *.crt
+# Statistiques de fréquentation créées par le panneau ISPConfig dans le dossier du site
+/stats/
 # Fichiers personnels des éditeurs et outils
 /.idea/
 /.claude/settings.local.json
