@@ -71,6 +71,7 @@ class LogbookController extends AbstractController
             'tills' => $summary['tills'],
             'shortfalls' => $summary['shortfalls'],
             'articles' => $summary['articles'],
+            'categories' => $summary['categories'],
             'history' => \array_slice($history, ($page - 1) * self::PER_PAGE, self::PER_PAGE),
             'history_count' => \count($history),
             'page' => $page,
@@ -82,7 +83,7 @@ class LogbookController extends AbstractController
     }
 
     /** Exports pour Excel : journal des commandes, détail des lignes, ou bilan par article. */
-    #[Route('/export/{kind<commandes|lignes|articles>}', name: 'admin_logbook_export', methods: ['GET'])]
+    #[Route('/export/{kind<commandes|lignes|articles|categories>}', name: 'admin_logbook_export', methods: ['GET'])]
     public function export(string $kind, Request $request, LogbookExport $export): Response
     {
         $event = $this->selectedEvent($request, $this->events->findAllByDateDesc());
@@ -93,6 +94,7 @@ class LogbookController extends AbstractController
         $response = new Response(match ($kind) {
             'commandes' => $export->orders($event),
             'lignes' => $export->lines($event),
+            'categories' => $export->categories($event),
             default => $export->articles($event),
         });
         $response->headers->set('Content-Type', 'text/csv; charset=UTF-8');

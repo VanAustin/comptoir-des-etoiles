@@ -13,12 +13,12 @@ Une caisse éteinte avec des commandes en attente les garde : elles partiront à
 1. Dans l'administration, **Carnet de bord** : bloc **Par caisse**, colonne **Espèces attendues**. Ce montant est *hors fond de caisse*, consignes comprises, monnaie rendue déduite.
 2. Comptez les espèces de chaque caisse, retirez le fond de caisse noté à l'installation, et comparez.
 3. La colonne **Écart** signale les commandes encaissées hors ligne avec un montant reçu inférieur au total (prix modifié pendant la coupure, ou erreur de saisie). Un écart inexpliqué se note dans le compte rendu.
-4. Les paiements par carte se rapprochent avec le relevé du terminal de paiement (le Carnet de bord donne le total carte).
+4. Les paiements par carte se rapprochent avec le relevé de chaque terminal de paiement : colonne **Carte** de la caisse qui l'utilise (au Loto, le terminal des cartons avec la caisse Cartons, celui de la buvette avec les caisses de la buvette). Le Carnet de bord donne aussi le total carte.
 5. Consignes : le Carnet de bord donne les consignes encaissées, rendues, et le solde (gobelets non rendus). Ce solde n'est pas du chiffre d'affaires.
 
 ## 3. Exporter le bilan
 
-Dans **Carnet de bord**, « Exporter pour Excel » : téléchargez les trois fichiers (commandes, détail des lignes, bilan par article). Les commandes annulées en sont exclues. Le bilan par article sert à ajuster les courses du prochain événement.
+Dans **Carnet de bord**, « Exporter pour Excel » : téléchargez les quatre fichiers (commandes, détail des lignes, bilan par article, bilan par catégorie). Les commandes annulées en sont exclues. Le bilan par article sert à ajuster les courses du prochain événement ; le bilan par catégorie sépare les activités dans les comptes (cartons, restauration…), hors consignes, et se somme au chiffre d'affaires.
 
 ## 4. Sauvegarder
 

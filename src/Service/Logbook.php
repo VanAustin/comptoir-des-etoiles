@@ -18,6 +18,9 @@ use App\Repository\ProductRepository;
  */
 final class Logbook
 {
+    /** Ventes d'un article qui n'existe plus en base. */
+    public const OTHER_CATEGORY = 'Autre';
+
     public function __construct(
         private readonly OrderRepository $orders,
         private readonly ProductRepository $products,
@@ -31,7 +34,8 @@ final class Logbook
      *     totals: array{orders: int, cancelled: int, revenue: int, basket: int|null, cashCount: int, cashAmount: int, cardCount: int, cardAmount: int, depositsIn: int, depositsOut: int, depositBalance: int, cupsNotReturned: int|null, tableOrders: int, tableRevenue: int},
      *     tills: array<string, array{orders: int, cashExpected: int, card: int, shortfall: int}>,
      *     shortfalls: list<array{order: Order, missing: int}>,
-     *     articles: list<array{name: string, archived: bool, formula: bool, sold: int, revenue: int, initial: int|null, remaining: int|null}>
+     *     articles: list<array{name: string, category: string, archived: bool, formula: bool, sold: int, revenue: int, initial: int|null, remaining: int|null}>,
+     *     categories: list<array{name: string, sold: int, revenue: int}>
      * }
      */
     public function summarize(Event $event): array
@@ -64,7 +68,7 @@ final class Logbook
                 if (LineKind::Article === $line->getKind()) {
                     $hasArticle = true;
                     $key = self::articleKey($line);
-                    $sold[$key] ??= ['quantity' => 0, 'revenue' => 0, 'label' => $line->getLabel()];
+                    $sold[$key] ??= ['quantity' => 0, 'revenue' => 0, 'label' => $line->getLabel(), 'category' => $line->getProduct()?->getCategory() ?? self::OTHER_CATEGORY];
                     $sold[$key]['quantity'] += $line->getQuantity();
                     $sold[$key]['revenue'] += $line->getTotalCents();
                     $articlesRevenue += $line->getTotalCents();
@@ -100,23 +104,46 @@ final class Logbook
         $deposit = $event->getDepositCents();
         $totals['cupsNotReturned'] = $deposit > 0 ? intdiv($totals['depositBalance'], $deposit) : null;
         ksort($tills);
+        $articles = $this->articles($event, $sold);
 
         return [
             'orders' => $orders,
             'totals' => $totals,
             'tills' => $tills,
             'shortfalls' => $shortfalls,
-            'articles' => $this->articles($event, $sold),
+            'articles' => $articles,
+            'categories' => self::categories($articles),
         ];
+    }
+
+    /**
+     * Chiffre d'affaires par catégorie (cartons, restauration…), pour séparer les activités dans les
+     * comptes. Catégorie actuelle de l'article (une formule compte dans sa propre catégorie), dans
+     * l'ordre du menu ; la somme des catégories est le chiffre d'affaires hors consignes.
+     *
+     * @param list<array{name: string, category: string, archived: bool, formula: bool, sold: int, revenue: int, initial: int|null, remaining: int|null}> $articles
+     *
+     * @return list<array{name: string, sold: int, revenue: int}>
+     */
+    private static function categories(array $articles): array
+    {
+        $categories = [];
+        foreach ($articles as $article) {
+            $categories[$article['category']] ??= ['name' => $article['category'], 'sold' => 0, 'revenue' => 0];
+            $categories[$article['category']]['sold'] += $article['sold'];
+            $categories[$article['category']]['revenue'] += $article['revenue'];
+        }
+
+        return array_values($categories);
     }
 
     /**
      * Tous les articles de l'événement, retirés compris, dans l'ordre du menu ; puis les
      * ventes d'articles qui n'existent plus en base (supprimés avant l'archivage).
      *
-     * @param array<string, array{quantity: int, revenue: int, label: string}> $sold
+     * @param array<string, array{quantity: int, revenue: int, label: string, category: string}> $sold
      *
-     * @return list<array{name: string, archived: bool, formula: bool, sold: int, revenue: int, initial: int|null, remaining: int|null}>
+     * @return list<array{name: string, category: string, archived: bool, formula: bool, sold: int, revenue: int, initial: int|null, remaining: int|null}>
      */
     private function articles(Event $event, array $sold): array
     {
@@ -128,6 +155,7 @@ final class Logbook
             $key = 'p'.$product->getId();
             $articles[] = [
                 'name' => $product->getName(),
+                'category' => $product->getCategory(),
                 'archived' => $product->isArchived(),
                 'formula' => $product->isFormula(),
                 'sold' => $sold[$key]['quantity'] ?? 0,
@@ -138,7 +166,7 @@ final class Logbook
             unset($sold[$key]);
         }
         foreach ($sold as $orphan) {
-            $articles[] = ['name' => $orphan['label'], 'archived' => true, 'formula' => false, 'sold' => $orphan['quantity'], 'revenue' => $orphan['revenue'], 'initial' => null, 'remaining' => null];
+            $articles[] = ['name' => $orphan['label'], 'category' => $orphan['category'], 'archived' => true, 'formula' => false, 'sold' => $orphan['quantity'], 'revenue' => $orphan['revenue'], 'initial' => null, 'remaining' => null];
         }
 
         return $articles;

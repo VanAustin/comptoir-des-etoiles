@@ -43,13 +43,17 @@
             <div class="field">
                 <label class="check"><input type="checkbox" name="with_kitchen" value="1" id="with-kitchen" {{ values.kitchen ? 'checked' }}
                        {{ kitchen_locked ? 'disabled' }} aria-describedby="kitchen-help{{ kitchen_devices is not empty ? ' kitchen-devices' }}"> Avec cuisine</label>
-                <p class="field-help" id="kitchen-help">
-                    {% if kitchen_locked %}
-                        Ne peut plus être modifié : l'événement a déjà des commandes.
-                    {% else %}
+                {% if kitchen_locked %}
+                    {# Bien visible : une case grisée sans explication passe pour une panne #}
+                    <p class="alert alert-warning" id="kitchen-help">
+                        Cet événement a déjà {{ order_count }} commande{{ order_count > 1 ? 's' }} : « Avec cuisine » ne peut plus être modifié, pour ne pas fausser les commandes déjà passées.
+                        Pour un autre réglage, créez un nouvel événement.
+                    </p>
+                {% else %}
+                    <p class="field-help" id="kitchen-help">
                         Décochez pour un stand sans préparation : chaque commande est servie directement au comptoir, et seules les tablettes caisse fonctionnent.
-                    {% endif %}
-                </p>
+                    </p>
+                {% endif %}
                 {% if kitchen_devices is not empty %}
                     <p class="alert alert-warning" id="kitchen-devices">
                         {% if event.hasKitchen %}
@@ -62,9 +66,17 @@
             </div>
             <div class="field">
                 <label class="check"><input type="checkbox" name="table_service" value="1" id="table-service" {{ values.table ? 'checked' }}
-                       {{ not values.kitchen ? 'disabled' }} aria-describedby="table-help"> Service à table</label>
+                       {{ not values.kitchen ? 'disabled' }} aria-describedby="table-help table-blocked"> Service à table</label>
                 <p class="field-help" id="table-help">
                     Le client commande et paie à la caisse, donne son numéro de table, et un bénévole lui apporte son plat. Les boissons sont toujours remises au comptoir. Seulement avec « Avec cuisine ».
+                </p>
+                {# Pourquoi la case est grisée ; admin-event.js le masque dès que « Avec cuisine » est cochée #}
+                <p class="field-help table-blocked" id="table-blocked" data-table-blocked{{ values.kitchen ? ' hidden' }}>
+                    {%- if kitchen_locked -%}
+                        Impossible : l'événement est sans cuisine et a déjà des commandes.
+                    {%- else -%}
+                        Cochez d'abord « Avec cuisine ».
+                    {%- endif -%}
                 </p>
             </div>
             <input type="hidden" name="_token" value="{{ csrf_token('event-form') }}">

@@ -33,8 +33,8 @@ class LogbookExportTest extends WebTestCase
         $this->event = self::createEvent('Loto de Noël', '2026-12-18');
         $this->event->setDepositCents(100);
         $em = self::entityManager();
-        $crepe = (new Product($this->event, 'Crêpe "maison"'))->setPriceCents(200)->setInitialStock(50)->setGoesToKitchen(true);
-        $soda = (new Product($this->event, 'Soda'))->setPriceCents(150)->setHasDeposit(true);
+        $crepe = (new Product($this->event, 'Crêpe "maison"'))->setCategory('Sucré')->setPriceCents(200)->setInitialStock(50)->setGoesToKitchen(true);
+        $soda = (new Product($this->event, 'Soda'))->setCategory('Boissons')->setPriceCents(150)->setHasDeposit(true);
         // Nom piégé : une formule Excel qui ouvrirait un lien
         $piege = (new Product($this->event, '=HYPERLINK("http://exemple.test")'))->setPriceCents(100);
         foreach ([$crepe, $soda, $piege] as $product) {
@@ -141,9 +141,26 @@ class LogbookExportTest extends WebTestCase
 
         self::assertSame('attachment; filename=carnet-loto-de-noel-2026-12-18-articles.csv', $this->client->getResponse()->headers->get('Content-Disposition'));
         $rows = $this->rows($csv);
-        self::assertSame(['Article', 'Formule', 'Retiré du menu', 'Vendus', 'Chiffre d\'affaires (€)', 'Stock de départ', 'Stock restant'], $rows[0]);
-        self::assertSame(['Crêpe "maison"', 'non', 'non', '3', '6,00', '50', '47'], $rows[1]);
-        self::assertSame(['Soda', 'non', 'non', '0', '0,00', '', ''], $rows[2]);
+        self::assertSame(['Article', 'Catégorie', 'Formule', 'Retiré du menu', 'Vendus', 'Chiffre d\'affaires (€)', 'Stock de départ', 'Stock restant'], $rows[0]);
+        self::assertSame(['Crêpe "maison"', 'Sucré', 'non', 'non', '3', '6,00', '50', '47'], $rows[1]);
+        self::assertSame(['Soda', 'Boissons', 'non', 'non', '0', '0,00', '', ''], $rows[2]);
+    }
+
+    public function testCategoriesExportAddsUpToTheRevenue(): void
+    {
+        $this->login();
+        $this->place(['Crêpe' => 3, 'Soda' => 2], cash: 2000);
+        $this->place(['Soda' => 1], cash: 500);
+
+        $csv = $this->download('/admin/carnet/export/categories');
+
+        self::assertSame('attachment; filename=carnet-loto-de-noel-2026-12-18-categories.csv', $this->client->getResponse()->headers->get('Content-Disposition'));
+        $rows = $this->rows($csv);
+        self::assertSame(['Catégorie', 'Articles vendus', 'Chiffre d\'affaires (€)'], $rows[0]);
+        self::assertSame(['Sucré', '3', '6,00'], $rows[1]);
+        self::assertSame(['Boissons', '3', '4,50'], $rows[2], 'consignes exclues');
+        // Même total que le chiffre d'affaires de l'export des commandes
+        self::assertSame($this->sum($this->rows($this->download('/admin/carnet/export/commandes')), 'Chiffre d\'affaires (€)'), $this->sum($rows, 'Chiffre d\'affaires (€)'));
     }
 
     public function testUnknownExportIsNotFound(): void

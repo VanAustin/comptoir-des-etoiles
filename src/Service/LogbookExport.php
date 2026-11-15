@@ -125,10 +125,11 @@ final class LogbookExport
     /** Synthèse par article : de quoi ajuster les courses du prochain événement. */
     public function articles(Event $event): string
     {
-        $rows = [['Article', 'Formule', 'Retiré du menu', 'Vendus', 'Chiffre d\'affaires (€)', 'Stock de départ', 'Stock restant']];
+        $rows = [['Article', 'Catégorie', 'Formule', 'Retiré du menu', 'Vendus', 'Chiffre d\'affaires (€)', 'Stock de départ', 'Stock restant']];
         foreach ($this->logbook->summarize($event)['articles'] as $article) {
             $rows[] = [
                 self::text($article['name']),
+                self::text($article['category']),
                 $article['formula'] ? 'oui' : 'non',
                 $article['archived'] ? 'oui' : 'non',
                 (string) $article['sold'],
@@ -136,6 +137,20 @@ final class LogbookExport
                 null === $article['initial'] ? '' : (string) $article['initial'],
                 null === $article['remaining'] ? '' : (string) $article['remaining'],
             ];
+        }
+
+        return self::csv($rows);
+    }
+
+    /**
+     * Chiffre d'affaires par catégorie, hors consignes : la colonne se somme au chiffre d'affaires
+     * de l'événement (pas de ligne de total, pour ne rien compter deux fois).
+     */
+    public function categories(Event $event): string
+    {
+        $rows = [['Catégorie', 'Articles vendus', 'Chiffre d\'affaires (€)']];
+        foreach ($this->logbook->summarize($event)['categories'] as $category) {
+            $rows[] = [self::text($category['name']), (string) $category['sold'], self::euros($category['revenue'])];
         }
 
         return self::csv($rows);

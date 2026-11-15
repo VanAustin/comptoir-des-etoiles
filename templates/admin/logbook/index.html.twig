@@ -33,6 +33,7 @@
         <a class="btn btn-small" href="{{ path('admin_logbook_export', {kind: 'commandes', evenement: event.id}) }}" download>Commandes</a>
         <a class="btn btn-small" href="{{ path('admin_logbook_export', {kind: 'lignes', evenement: event.id}) }}" download>Détail des lignes</a>
         <a class="btn btn-small" href="{{ path('admin_logbook_export', {kind: 'articles', evenement: event.id}) }}" download>Bilan par article</a>
+        <a class="btn btn-small" href="{{ path('admin_logbook_export', {kind: 'categories', evenement: event.id}) }}" download>Bilan par catégorie</a>
     </div>
 
     {% if shortfalls is not empty %}
@@ -58,6 +59,29 @@
             </div>
         {% endif %}
     </div>
+
+    <section class="logbook-section" aria-labelledby="categories-title">
+        <h2 id="categories-title">Par catégorie</h2>
+        <p class="lede">Chiffre d'affaires hors consignes, pour séparer les activités dans les comptes (cartons, restauration…). Une formule compte dans sa propre catégorie.</p>
+        {% if categories is empty %}
+            <p class="card empty">Le menu est vide.</p>
+        {% else %}
+            <div class="tablewrap">
+                <table class="stack-table">
+                    <thead><tr><th>Catégorie</th><th>Articles vendus</th><th>Chiffre d'affaires</th></tr></thead>
+                    <tbody>
+                        {% for category in categories %}
+                            <tr>
+                                <td class="stack-title">{{ category.name }}</td>
+                                <td class="num" data-label="Articles vendus">{{ category.sold }}</td>
+                                <td class="num" data-label="Chiffre d'affaires"><strong>{{ category.revenue|euros }}</strong></td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </section>
 
     <section class="logbook-section" aria-labelledby="tills-title">
         <h2 id="tills-title">Par caisse</h2>
