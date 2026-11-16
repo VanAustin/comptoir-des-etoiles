@@ -16,7 +16,7 @@ La commande rappelle l'identifiant de l'administrateur et demande deux fois le n
 
 1. **Si elle peut redémarrer**, redémarrez-la et rouvrez l'icône « Comptoir » : les commandes en attente sont toujours là et partiront au retour du réseau.
 2. **Sinon**, ajoutez une nouvelle tablette dans l'administration (**Tablettes**, **Ajouter une tablette**, rôle caisse) et appairez-la. Elle reçoit une **nouvelle lettre** : une lettre n'est jamais réattribuée pendant un événement, pour éviter deux commandes avec le même numéro.
-3. Les commandes encaissées hors ligne sur la tablette en panne et pas encore envoyées restent dans cette tablette. Elles partiront seulement si elle redémarre. Notez leurs numéros si vous les connaissez, et signalez-le au moment de la clôture.
+3. Les commandes encaissées hors ligne sur la tablette en panne et pas encore envoyées restent dans cette tablette. Elles partiront seulement si elle redémarre **avant 6 h le lendemain de l'événement** et **tant qu'aucun autre événement n'a été activé** (voir [Clôture](cloture.md), étape 1). Notez leurs numéros si vous les connaissez, et signalez-le au moment de la clôture.
 
 ## Tablette perdue ou volée
 
@@ -26,7 +26,7 @@ Dans l'administration, **Tablettes**, **Révoquer** sur sa ligne : elle ne peut 
 
 Elle a été révoquée, ou son jeton a expiré (lendemain de l'événement, 6 h), ou un autre événement a été activé. Une tablette déjà appairée ne peut pas recevoir de nouveau code : ajoutez-la à nouveau (**Tablettes**, **Ajouter une tablette**) et appairez-la. Une caisse reçoit alors une nouvelle lettre.
 
-Avant de le faire sur une caisse, vérifiez qu'elle n'a plus de commande « en attente d'envoi » : ces commandes ne partent qu'avec l'appairage d'origine.
+Avant de le faire sur une caisse, vérifiez qu'elle n'a plus de commande « en attente d'envoi » : ces commandes ne partent qu'avec l'appairage d'origine. Si un autre événement a été activé par erreur, réactivez d'abord le bon (**Événements**, **Activer**) : ses tablettes refonctionnent. Rechargez alors chaque caisse et touchez « Réessayer » sur les commandes « À vérifier ».
 
 ## Une commande n'apparaît pas en cuisine
 

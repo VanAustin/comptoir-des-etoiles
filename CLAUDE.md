@@ -53,7 +53,7 @@ PHP, Composer et Symfony ne sont **pas** installés sur le Mac : tout tourne dan
   - `docker compose exec php bin/phpunit`
 - Le nom du service dans `compose.yaml` est `php`.
 - En production (sans Docker), le même code tourne avec le PHP du serveur : ne rien faire qui dépende de Docker dans le code de l'application.
-- Apache ne transmet pas l'en-tête `Authorization` à PHP par défaut. Sur un serveur Apache (production et Docker), `public/.htaccess` le fait avec `SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1` (avec la redirection vers le HTTPS), sinon aucune tablette ne peut s'authentifier. Exemple Nginx : `docs/deploiement/nginx.conf`. Installation décrite dans `README.md`.
+- Apache ne transmet pas l'en-tête `Authorization` à PHP par défaut. Sur un serveur Apache (production et Docker), `public/.htaccess` le fait avec `RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]` (avec la redirection vers le HTTPS ; `SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1` seulement si `mod_rewrite` est absent), sinon aucune tablette ne peut s'authentifier. Exemple Nginx : `docs/deploiement/nginx.conf`. Installation décrite dans `README.md`.
 
 ## Production
 
@@ -326,9 +326,11 @@ Fait au 15 novembre : PR A à D, E (tablettes et événements, chiffre d'affaire
 
 Nouvelles évolutions, à mettre en production avant le 4 décembre, une PR chacune, dans cet ordre : A connexion à l'administration (« Rester connectée », « Afficher » le mot de passe), B QR code d'appairage, C service à table (Loto), D chevalets de table (facultative, seulement si prête avant le 27 novembre).
 
+Suites de l'audit du 16 novembre, avant le 4 décembre, une PR chacune : documentation (règle « aucune commande en attente avant d'activer un autre événement » en tête de la Clôture, page d'erreur dans Coupure réseau, taille de la sauvegarde, fiche [Essai maison](docs/procedures/essai-maison.md)), puis confirmation dans la page avant d'activer un événement.
+
 1. Semaine du 9 novembre : mettre la production à jour (fait). Réglages d'Apache (`docs/hebergement.md`, section 4) : facultatifs, avant le 4 décembre ou après le Loto.
 2. D'ici le 20 novembre : vérifier que la production est à jour et fonctionne avec le réglage « Avec cuisine » (`docs/hebergement.md`, section 5).
-3. Début décembre : essai seule à la maison (une tablette en caisse, un appareil en cuisine, partage de connexion du téléphone, coupure du réseau), puis corrections. Pas de répétition avec des bénévoles : le stand de Noël sert de répétition générale.
+3. Début décembre : essai seule à la maison, en suivant la fiche [Essai maison](docs/procedures/essai-maison.md) (une tablette en caisse, un appareil en cuisine, partage de connexion du téléphone, coupure du réseau), puis corrections. Pas de répétition avec des bénévoles : le stand de Noël sert de répétition générale.
 4. **Stand de Noël vers le 11 décembre** (sans cuisine).
 5. Semaine du 14 décembre : retours du stand, corrections, marge de sécurité. **Loto le 18 décembre** (avec cuisine).
 
@@ -345,3 +347,13 @@ Pistes, rien à faire avant le 18 décembre :
 - Rôle « Suivi » sur téléphone (suivre les commandes sans encaisser, sans lettre), si le besoin se confirme.
 - Passe de style et responsive de toute l'application, administration comprise.
 - Production : `public/robots.txt` qui interdit tout ; pages introuvables (404) journalisées à un niveau plus bas que `error`, pour repérer les vraies pannes dans le journal.
+
+Suites de l'audit du 16 novembre 2026 (rapport gardé hors du dépôt), après le Loto, une PR chacune, dans cet ordre :
+
+1. Service worker : pour une page, servir la copie gardée quand le serveur répond par une erreur 500 ou plus (aujourd'hui, la page d'erreur s'affiche et la caisse rechargée ne peut plus encaisser).
+2. `app:backup` : vérifier chaque `fopen` et `fwrite`, écrire une ligne de fin et la contrôler, échouer sinon (disque plein : sauvegarde tronquée annoncée comme réussie).
+3. Écran d'appairage : relire le code à l'événement `hashchange`, masquer la section « Remplacer » quand le code n'est plus en mémoire (message trompeur « n'a pas pu être enregistré sur la tablette »).
+4. Passe de style et d'accessibilité : contour de focus et bordures des champs à 3:1 au moins en thème clair (Or sur Nuage : 1,75:1 ; Kraft : 1,58:1), zones tactiles de l'administration à 48 px (champs du Menu, historique du Carnet), `X-Content-Type-Options: nosniff` sur les fichiers statiques (`public/.htaccess`, `mod_headers` dans `<IfModule>`).
+5. `composer.json` : licence AGPL réelle (au lieu de `proprietary`), `name` et `description`.
+6. Dépendances : correctifs (`doctrine/orm` 3.8, PHPUnit, branche Dependabot `doctrine-bundle`) ; versions majeures et Symfony 8 en décision à part.
+7. Selon le temps : index `orders (event_id, status)` à la place de `(event_id, updated_at)`, inutilisé ; `denyUnlessCsrfValid` et motif d'UUID communs ; `public/js/till.js` découpé ; effacement des remarques pour la cuisine des événements passés (seule donnée personnelle possible).

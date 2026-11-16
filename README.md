@@ -219,6 +219,8 @@ Pour restaurer : dans phpMyAdmin, sélectionnez la base, onglet « Importer », 
 
 ### Mettre à jour
 
+> **Serveur de l'APE** : suivez [docs/hebergement.md](docs/hebergement.md), section 3, et non les commandes ci-dessous. Sur ce serveur, toujours `php8.4` (jamais `php` seul, qui lance PHP 7.3) et jamais `sudo`.
+
 Notez d'abord la version du code (`git rev-parse --short HEAD`) et celle de la base (`php bin/console doctrine:migrations:current`), pour pouvoir revenir en arrière. Puis, si le serveur web tourne sous l'utilisateur `www-data` :
 
 ```

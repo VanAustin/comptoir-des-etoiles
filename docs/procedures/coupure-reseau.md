@@ -24,6 +24,8 @@ Sans réseau, **les caisses continuent d'encaisser** : chaque commande est gard�
 
    Recharger la page ou fermer l'application ne fait rien perdre.
 
+5. Si une caisse affiche **une page d'erreur** au lieu de l'écran de caisse (le serveur répond, mais en panne), **ne rechargez pas les autres caisses** : elles risqueraient d'afficher la même page et de ne plus pouvoir encaisser. Les commandes déjà gardées dans la tablette ne sont pas perdues. Prévenez le ou la responsable.
+
 ### Cuisine
 
 1. Travaillez à partir des **tickets papier**, dans l'ordre d'arrivée.

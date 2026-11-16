@@ -10,6 +10,7 @@ Fiches à imprimer pour l'équipe, une par situation. Elles décrivent l'applica
 | [Coupure réseau](coupure-reseau.md) | Caisses, cuisine, comptoir | Dès que le réseau tombe |
 | [Clôture](cloture.md) | Responsable de l'événement, trésorier ou trésorière | Fin du service |
 | [Incidents](incidents.md) | Responsable de l'événement | Tablette en panne ou perdue, mot de passe oublié… |
+| [Essai maison](essai-maison.md) | Responsable de l'application | Avant le premier événement : coupures réseau et commandes hors ligne, à cocher |
 
 Les commandes du serveur (`php8.4 bin/console …`, sans `sudo`) se lancent en SSH sur l'hébergement, dans le dossier du projet (pas à pas pour notre serveur : `docs/hebergement.md`, dont la section 5, « Vérifications avant un événement »).
 
