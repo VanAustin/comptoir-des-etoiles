@@ -309,21 +309,126 @@ class EventControllerTest extends WebTestCase
         self::assertFalse($this->findEvent('Loto de Noël')?->isActive());
     }
 
-    public function testActivateRefusesGet(): void
+    public function testActivateLinkOnlyAsksForConfirmation(): void
     {
-        $event = $this->createEvent('Loto de Noël', '2026-12-18');
+        $this->createEvent('Loto de Noël', '2026-12-18');
 
-        $this->client->request('GET', '/admin/evenements/'.$event->getId().'/activer');
+        $crawler = $this->client->request('GET', '/admin/evenements');
+        $row = $crawler->filterXPath('//tr[td[1][normalize-space()="Loto de Noël"]]');
+        $this->client->click($row->selectLink('Activer')->link());
 
-        self::assertResponseStatusCodeSame(405);
+        self::assertResponseIsSuccessful();
+        self::assertSame('Activer « Loto de Noël » ?', $this->text('//h1'));
+        $this->entityManager->clear();
+        self::assertFalse($this->findEvent('Loto de Noël')?->isActive());
+        self::assertSame(0, $this->auditCount('event.activate'));
     }
 
+    public function testConfirmationShowsActiveEventTabletsOrdersAndWarning(): void
+    {
+        $stand = $this->createEvent('Stand de Noël', '2026-12-11');
+        $this->activateFromList('Stand de Noël');
+        $stand = $this->entityManager->find(Event::class, $stand->getId());
+        // Comptées : appairées, en service
+        $this->createPairedDevice($stand, 'Caisse buvette', DeviceRole::Till, 'A');
+        $this->createPairedDevice($stand, 'Caisse cartons', DeviceRole::Till, 'B');
+        // Pas comptées : révoquée, expirée, jamais appairée
+        $this->createPairedDevice($stand, 'Caisse retirée', DeviceRole::Till, 'C')->setRevokedAt(new \DateTimeImmutable('-1 hour'));
+        $this->createPairedDevice($stand, 'Caisse expirée', DeviceRole::Till, 'D')->setExpiresAt(new \DateTimeImmutable('-1 hour'));
+        $this->createDevice($stand, 'Caisse en attente', DeviceRole::Till);
+        $this->entityManager->persist(new Order('4d8c3b2a-5e6f-4a7b-8c9d-0e1f2a3b4c5d', $stand, 'A', 1, PaymentMethod::Cash));
+        $this->entityManager->persist(new Order('5e9d4c3b-6f7a-4b8c-9d0e-1f2a3b4c5d6e', $stand, 'A', 2, PaymentMethod::Card));
+        $this->entityManager->persist(new Order('6f0e5d4c-7a8b-4c9d-8e1f-2a3b4c5d6e7f', $stand, 'B', 1, PaymentMethod::Cash));
+        $this->entityManager->flush();
+        $loto = $this->createEvent('Loto de Noël', '2026-12-18');
+
+        $crawler = $this->client->request('GET', '/admin/evenements/'.$loto->getId().'/activer');
+
+        self::assertResponseIsSuccessful();
+        $summary = $crawler->filterXPath('//dl[contains(@class, "device-info")]');
+        self::assertStringContainsString('« Stand de Noël », du 11/12/2026', $summary->text());
+        self::assertSame('2', $summary->filterXPath('//dt[normalize-space()="Tablettes appairées"]/following-sibling::dd[1]')->text());
+        self::assertSame('3', $summary->filterXPath('//dt[normalize-space()="Commandes"]/following-sibling::dd[1]')->text());
+        self::assertSame('Toutes les tablettes de cet événement cesseront de fonctionner. Vérifiez d\'abord qu\'aucune caisse n\'a de commande en attente.', $this->text('//p[contains(@class, "alert-warning")]'));
+        self::assertSame('Garder « Stand de Noël » actif', $this->text('//section[contains(@class, "form-card")]//form//a[contains(@class, "btn")]'));
+        self::assertSame('Activer « Loto de Noël »', $this->text('//section[contains(@class, "form-card")]//form//button[@type="submit"]'));
+    }
+
+    public function testConfirmationWithoutActiveEventHasNoWarning(): void
+    {
+        $loto = $this->createEvent('Loto de Noël', '2026-12-18');
+
+        $this->client->request('GET', '/admin/evenements/'.$loto->getId().'/activer');
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('Aucun événement n\'est actif pour l\'instant : aucune tablette ne sera arrêtée.', $this->text('//section[contains(@class, "form-card")]'));
+        self::assertCount(0, $this->client->getCrawler()->filterXPath('//p[contains(@class, "alert-warning")]'));
+        self::assertCount(0, $this->client->getCrawler()->filterXPath('//dl'));
+        self::assertSame('Revenir aux événements', $this->text('//section[contains(@class, "form-card")]//form//a[contains(@class, "btn")]'));
+    }
+
+    public function testFlashAfterActivationNamesStoppedEvent(): void
+    {
+        $this->createEvent('Stand de Noël', '2026-12-11');
+        $this->createEvent('Loto de Noël', '2026-12-18');
+
+        $this->activateFromList('Stand de Noël');
+        $this->client->followRedirect();
+        self::assertSame('« Stand de Noël » est maintenant l\'événement actif : seules ses tablettes fonctionnent (rubrique Tablettes).', $this->text('//*[contains(@class, "alert-info")]'));
+
+        $this->activateFromList('Loto de Noël');
+        $this->client->followRedirect();
+        self::assertSame('« Loto de Noël » est maintenant l\'événement actif : seules ses tablettes fonctionnent. Celles de « Stand de Noël » sont arrêtées.', $this->text('//*[contains(@class, "alert-info")]'));
+        self::assertStringNotContainsString('Les tablettes l\'utiliseront', (string) $this->client->getResponse()->getContent());
+    }
+
+    public function testActiveEventIsNotActivatedAgain(): void
+    {
+        $this->createEvent('Loto de Noël', '2026-12-18');
+        $this->activateFromList('Loto de Noël');
+        $loto = $this->findEvent('Loto de Noël');
+        self::assertNotNull($loto);
+
+        $crawler = $this->client->request('GET', '/admin/evenements');
+        $row = $crawler->filterXPath('//tr[td[1][normalize-space()="Loto de Noël"]]');
+        self::assertCount(0, $row->selectLink('Activer'));
+
+        $this->client->request('GET', '/admin/evenements/'.$loto->getId().'/activer');
+        self::assertResponseRedirects('/admin/evenements');
+        $this->client->followRedirect();
+        self::assertSame('« Loto de Noël » est déjà l\'événement actif.', $this->text('//*[contains(@class, "alert-info")]'));
+        self::assertSame(1, $this->auditCount('event.activate'));
+    }
+
+    /** Texte d'un élément unique de la dernière page reçue. */
+    private function text(string $xpath): string
+    {
+        $nodes = $this->client->getCrawler()->filterXPath($xpath);
+        self::assertCount(1, $nodes, $xpath);
+
+        return $nodes->text();
+    }
+
+    /** Lien « Activer » de la liste, puis confirmation dans la page. */
     private function activateFromList(string $name): void
     {
         $crawler = $this->client->request('GET', '/admin/evenements');
         $row = $crawler->filterXPath(\sprintf('//tr[td[1][normalize-space()="%s"]]', $name));
-        $this->client->submit($row->selectButton('Activer')->form());
+        $crawler = $this->client->click($row->selectLink('Activer')->link());
+        $this->client->submit($crawler->selectButton(\sprintf('Activer « %s »', $name))->form());
         self::assertResponseRedirects('/admin/evenements');
+    }
+
+    private function createPairedDevice(Event $event, string $name, DeviceRole $role, ?string $tillLetter = null): Device
+    {
+        $device = new Device($event, $name, $role);
+        $device->setTillLetter($tillLetter);
+        $device->setTokenHash(hash('sha256', $name));
+        $device->setExpiresAt(new \DateTimeImmutable('+1 day'));
+        $this->entityManager->persist($device);
+        $this->entityManager->flush();
+
+        return $device;
     }
 
     private function createEvent(string $name, string $date): Event

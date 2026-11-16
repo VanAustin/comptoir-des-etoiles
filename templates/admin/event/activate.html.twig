@@ -1,0 +1,36 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Activer l'événement {{ event.name }} · Administration{% endblock %}
+
+{% block body %}
+    <p><a href="{{ path('admin_event_index') }}">← Retour aux événements</a></p>
+
+    <section class="card form-card">
+        <h1>Activer « {{ event.name }} » ?</h1>
+        <p>Événement du {{ event.date|date('d/m/Y') }}. Un seul événement est actif à la fois : c'est lui qu'utilisent les tablettes.</p>
+
+        {% if previous %}
+            <h2>Événement actif actuellement</h2>
+            <dl class="device-info">
+                <dt>Événement</dt>
+                <dd>« {{ previous.name }} », du {{ previous.date|date('d/m/Y') }}</dd>
+                <dt>Tablettes appairées</dt>
+                <dd class="num">{{ paired_devices }}</dd>
+                <dt>Commandes</dt>
+                <dd class="num">{{ order_count }}</dd>
+            </dl>
+            <p class="alert alert-warning" role="alert">Toutes les tablettes de cet événement cesseront de fonctionner. Vérifiez d'abord qu'aucune caisse n'a de commande en attente.</p>
+            <p>Sur chaque caisse de « {{ previous.name }} », l'en-tête ne doit afficher ni « en attente d'envoi » ni « À vérifier » : après l'activation, ces commandes ne pourraient plus partir (fiche Clôture, étape 1).</p>
+        {% else %}
+            <p>Aucun événement n'est actif pour l'instant : aucune tablette ne sera arrêtée.</p>
+        {% endif %}
+
+        <form method="post">
+            <input type="hidden" name="_token" value="{{ csrf_token('event-activate-' ~ event.id) }}">
+            <div class="row">
+                <a class="btn" href="{{ path('admin_event_index') }}">{{ previous ? 'Garder « ' ~ previous.name ~ ' » actif' : 'Revenir aux événements' }}</a>
+                <button type="submit" class="btn btn-primary">Activer « {{ event.name }} »</button>
+            </div>
+        </form>
+    </section>
+{% endblock %}

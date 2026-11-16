@@ -128,12 +128,31 @@ class EventController extends AbstractController
         ], new Response(status: $errors ? 422 : 200));
     }
 
-    #[Route('/{id<\d+>}/activer', name: 'admin_event_activate', methods: ['POST'])]
+    /**
+     * Activation, confirmée dans la page : activer un autre événement arrête toutes les tablettes
+     * de l'événement actif, et ses commandes encore gardées dans une caisse ne pourraient plus partir.
+     */
+    #[Route('/{id<\d+>}/activer', name: 'admin_event_activate', methods: ['GET', 'POST'])]
     public function activate(Event $event, Request $request): Response
     {
-        $this->denyUnlessCsrfValid($request, 'event-activate-'.$event->getId());
+        if ($event->isActive()) {
+            $this->addFlash('info', \sprintf('« %s » est déjà l\'événement actif.', $event->getName()));
+
+            return $this->redirectToRoute('admin_event_index');
+        }
 
         $previous = $this->events->findActive();
+
+        if (!$request->isMethod('POST')) {
+            return $this->render('admin/event/activate.html.twig', [
+                'event' => $event,
+                'previous' => $previous,
+                'paired_devices' => null !== $previous ? $this->pairedDeviceCount($previous) : 0,
+                'order_count' => null !== $previous ? $this->orders->countForEvent($previous) : 0,
+            ]);
+        }
+
+        $this->denyUnlessCsrfValid($request, 'event-activate-'.$event->getId());
         $this->entityManager->wrapInTransaction(function () use ($event, $previous): void {
             $this->events->activate($event);
             $this->auditLogger->log(
@@ -144,9 +163,22 @@ class EventController extends AbstractController
             );
         });
 
-        $this->addFlash('info', \sprintf('« %s » est maintenant l\'événement actif. Les tablettes l\'utiliseront.', $event->getName()));
+        $this->addFlash('info', null !== $previous
+            ? \sprintf('« %s » est maintenant l\'événement actif : seules ses tablettes fonctionnent. Celles de « %s » sont arrêtées.', $event->getName(), $previous->getName())
+            : \sprintf('« %s » est maintenant l\'événement actif : seules ses tablettes fonctionnent (rubrique Tablettes).', $event->getName()));
 
         return $this->redirectToRoute('admin_event_index');
+    }
+
+    /** Tablettes qui fonctionnent en ce moment : appairées, ni révoquées ni expirées. */
+    private function pairedDeviceCount(Event $event): int
+    {
+        $now = new \DateTimeImmutable();
+
+        return \count(array_filter(
+            $this->devices->findForEvent($event),
+            static fn (Device $device): bool => Device::STATE_PAIRED === $device->getState($now),
+        ));
     }
 
     private function denyUnlessCsrfValid(Request $request, string $tokenId): void
