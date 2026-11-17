@@ -44,6 +44,17 @@ tests {
     });
   });
 
+  test("zone du livreur : seulement pour une commande à table avec rangée", function () {
+    res.body.orders.forEach(function (o) {
+      expect(o).to.have.property("zone");
+      if (o.tableNumber === null || o.tableNumber < 100) {
+        expect(o.zone).to.equal(null);
+      } else {
+        expect(o.zone).to.be.a("number").and.to.be.at.least(1);
+      }
+    });
+  });
+
   test("une empreinte permet de répondre « rien de neuf », jamais gardée par un intermédiaire", function () {
     expect(res.headers.etag).to.match(/^"e\d+-o\d+-m\d+-v\d+(-gzip)?"$/);
     expect(res.headers["cache-control"]).to.equal("no-cache, private");

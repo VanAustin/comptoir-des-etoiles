@@ -125,8 +125,8 @@ class EventControllerTest extends WebTestCase
         $log = $this->entityManager->getRepository(AuditLog::class)->findOneBy(['action' => 'event.update']);
         self::assertSame('admin:camille', $log?->getActor());
         // assertEquals : MySQL ne garde pas l'ordre des clés d'une colonne JSON
-        self::assertEquals(['name' => 'Loto', 'date' => '2026-12-18', 'deposit_cents' => 0, 'with_kitchen' => true, 'table_service' => false], $log->getBefore());
-        self::assertEquals(['name' => 'Loto de Noël', 'date' => '2026-12-19', 'deposit_cents' => 150, 'with_kitchen' => true, 'table_service' => false], $log->getAfter());
+        self::assertEquals(['name' => 'Loto', 'date' => '2026-12-18', 'deposit_cents' => 0, 'with_kitchen' => true, 'table_service' => false, 'rows_per_zone' => 3], $log->getBefore());
+        self::assertEquals(['name' => 'Loto de Noël', 'date' => '2026-12-19', 'deposit_cents' => 150, 'with_kitchen' => true, 'table_service' => false, 'rows_per_zone' => 3], $log->getAfter());
     }
 
     public function testNewEventHasKitchenByDefault(): void
@@ -189,6 +189,42 @@ class EventControllerTest extends WebTestCase
         self::assertRevisionsMoved($before, 0, 1, $event->getId(), 'le bouton « Table » des caisses dépend du réglage');
         $this->entityManager->clear();
         self::assertTrue($this->findEvent('Loto')?->hasTableService());
+    }
+
+    public function testRowsPerZoneDefaultsToThreeAndIsTraced(): void
+    {
+        $crawler = $this->client->request('GET', '/admin/evenements/nouveau');
+        self::assertSame('3', $crawler->filterXPath('//input[@name="rows_per_zone"]')->attr('value'));
+        $this->client->submit($crawler->selectButton('Créer l\'événement')->form(['name' => 'Loto', 'date' => '2026-12-18']));
+        self::assertSame(3, $this->findEvent('Loto')?->getRowsPerZone());
+
+        $event = $this->findEvent('Loto');
+        $crawler = $this->client->request('GET', '/admin/evenements/'.$event->getId().'/modifier');
+        $before = self::revisionsOf($event->getId());
+        $this->client->submit($crawler->selectButton('Enregistrer l\'événement')->form(['rows_per_zone' => '2']));
+
+        self::assertResponseRedirects('/admin/evenements');
+        self::assertRevisionsMoved($before, 0, 1, $event->getId(), 'les tickets de la cuisine affichent la zone');
+        $this->entityManager->clear();
+        self::assertSame(2, $this->findEvent('Loto')?->getRowsPerZone());
+        $log = $this->entityManager->getRepository(AuditLog::class)->findOneBy(['action' => 'event.update']);
+        self::assertSame(['rows_per_zone' => 2], array_intersect_key($log->getAfter(), ['rows_per_zone' => true]));
+        self::assertSame(3, $log->getBefore()['rows_per_zone']);
+    }
+
+    public function testRowsPerZoneIsValidated(): void
+    {
+        $event = $this->createEvent('Loto', '2026-12-18');
+
+        foreach (['0', '10', 'trois', '-1', '2,5'] as $wrong) {
+            $crawler = $this->client->request('GET', '/admin/evenements/'.$event->getId().'/modifier');
+            $this->client->submit($crawler->selectButton('Enregistrer l\'événement')->form(['rows_per_zone' => $wrong]));
+
+            self::assertResponseStatusCodeSame(422, $wrong);
+            self::assertStringContainsString('Indiquez un nombre de rangées de 1 à 9', (string) $this->client->getResponse()->getContent());
+        }
+        $this->entityManager->clear();
+        self::assertSame(3, $this->findEvent('Loto')?->getRowsPerZone());
     }
 
     public function testCreateEventWithoutKitchen(): void

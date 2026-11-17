@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { counterTitle, eraseDigit, matchesTracking, parseTable, pressDigit, tableForOrder, tableMessage } from "../../public/js/table-rules.js";
+import { counterTitle, eraseDigit, handOverLabel, matchesTracking, parseTable, pressDigit, tableForOrder, tableMessage, zoneBadge } from "../../public/js/table-rules.js";
 
 const type = (keys) => [...keys].reduce((entry, key) => pressDigit(entry, key), "");
 
@@ -74,4 +74,24 @@ test("suivi : recherche par numéro de commande ou de table, filtre « À table 
   assert.ok(matchesTracking(atTable, { tableOnly: true }));
   assert.ok(!matchesTracking(counter, { tableOnly: true }));
   assert.ok(!matchesTracking(atTable, { tableOnly: true, search: "B" }));
+});
+
+test("remise : au client au comptoir, au livreur pour une commande à table", () => {
+  assert.equal(handOverLabel(null), "Remise au client");
+  assert.equal(handOverLabel(undefined), "Remise au client");
+  assert.equal(handOverLabel(304), "Remise au livreur");
+  assert.equal(handOverLabel(7), "Remise au livreur");
+});
+
+test("zone : libellé écrit et couleur, qui se répète au-delà de trois zones", () => {
+  assert.deepEqual(zoneBadge(1), { label: "Zone 1", className: "zone-1" });
+  assert.deepEqual(zoneBadge(3), { label: "Zone 3", className: "zone-3" });
+  assert.deepEqual(zoneBadge(4), { label: "Zone 4", className: "zone-1" });
+  assert.deepEqual(zoneBadge(9), { label: "Zone 9", className: "zone-3" });
+});
+
+test("zone : rien sans zone (table sans rangée, commande au comptoir)", () => {
+  for (const zone of [null, undefined, 0, -1, 1.5, "1"]) {
+    assert.equal(zoneBadge(zone), null, String(zone));
+  }
 });

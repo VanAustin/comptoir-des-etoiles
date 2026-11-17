@@ -1,6 +1,6 @@
 # Coupure réseau
 
-Sans réseau, **les caisses continuent d'encaisser** : chaque commande est gardée sur la tablette et part toute seule au retour du réseau. En revanche, **la cuisine et l'écran Arrivées ne reçoivent plus rien** : pendant la coupure, les commandes passent en cuisine sur papier et les numéros s'annoncent à voix haute.
+Sans réseau, **les caisses continuent d'encaisser** : chaque commande est gardée sur la tablette et part toute seule au retour du réseau. En revanche, **la cuisine et l'écran Arrivées ne reçoivent plus rien** : pendant la coupure, les commandes passent en cuisine sur papier et les numéros s'annoncent à voix haute. L'écran Arrivées est **optionnel** : sans lui, la cuisine appelle les numéros à voix haute à la passe.
 
 ## Comment la reconnaître
 
@@ -8,7 +8,7 @@ Sans réseau, **les caisses continuent d'encaisser** : chaque commande est gard�
 | --- | --- |
 | Caisse | Bande rouge « Pas de connexion au serveur… » ; en-tête « Hors ligne · N en attente d'envoi » |
 | Cuisine | « Connexion au serveur perdue depuis 20 h 14… » |
-| Arrivées | « Connexion perdue : les numéros ne sont peut-être plus à jour. » |
+| Arrivées (s'il y en a un) | « Connexion perdue : les numéros ne sont peut-être plus à jour. » |
 
 ## Pendant la coupure
 
@@ -29,10 +29,10 @@ Sans réseau, **les caisses continuent d'encaisser** : chaque commande est gard�
 ### Cuisine
 
 1. Travaillez à partir des **tickets papier**, dans l'ordre d'arrivée.
-2. Les boutons « Je prépare », « Prête », « Remise au client » ne partent pas : le message « Pas envoyé : la connexion au serveur a échoué » s'affiche. Ce n'est pas grave.
+2. Les boutons « Je prépare », « Prête », « Remise au client » (ou « Remise au livreur ») ne partent pas : le message « Pas envoyé : la connexion au serveur a échoué » s'affiche. Ce n'est pas grave.
 3. Commande prête : **annoncez le numéro à voix haute** (ou écrivez-le sur une ardoise près du comptoir).
 
-### Arrivées
+### Arrivées (s'il y en a un)
 
 L'écran n'est plus à jour : ne vous y fiez pas pendant la coupure. Les numéros s'annoncent à voix haute.
 
@@ -47,7 +47,7 @@ Pendant que le service continue, une personne s'en occupe :
 ## Au retour du réseau
 
 1. Les écrans cuisine et Arrivées se reconnectent tout seuls et relisent toutes les commandes en cours. Les caisses envoient toutes seules leurs commandes en attente, dans l'ordre. L'en-tête de chaque caisse ne doit plus afficher « en attente d'envoi » au bout d'une minute environ.
-2. Les commandes de la coupure **apparaissent en cuisine**, alors qu'elles ont déjà été préparées sur papier. Pour chacune, appuyez successivement sur « Je prépare », « Prête », puis « Remise au client » si le client a été servi. Jetez le ticket papier correspondant.
+2. Les commandes de la coupure **apparaissent en cuisine**, alors qu'elles ont déjà été préparées sur papier. Pour chacune, appuyez successivement sur « Je prépare », « Prête », puis « Remise au client » si le client a été servi (« Remise au livreur » si le plateau est parti). Jetez le ticket papier correspondant.
 3. Une commande **« À vérifier »** sur une caisse : le serveur l'a refusée. Elle n'est jamais effacée toute seule. Appelez le ou la responsable : elle garde tout son détail (articles, montant, paiement). Ressaisissez-la si besoin, puis touchez « Ressaisie faite : retirer » (deux appuis).
 4. Les commandes encaissées pendant la coupure dont le prix avait changé entre-temps apparaissent comme des **écarts** dans le Carnet de bord : voir [Clôture](cloture.md).
 

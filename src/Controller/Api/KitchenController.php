@@ -116,6 +116,8 @@ class KitchenController extends AbstractController
             // Texte brut : l'écran l'insère avec textContent, jamais comme du HTML
             'note' => $order->getNote(),
             'tableNumber' => $order->getTableNumber(),
+            // Zone du livreur (rangées par zone, réglage de l'événement), null sans table ou sans rangée
+            'zone' => null === $order->getTableNumber() ? null : $order->getEvent()->deliveryZone($order->getTableNumber()),
             'kitchenLines' => $kitchen,
             'counterLines' => $counter,
         ];

@@ -68,3 +68,22 @@ export function matchesTracking(order, { search = "", tableOnly = false } = {}) 
   }
   return !wanted || order.displayNumber.includes(wanted) || (order.tableNumber != null && String(order.tableNumber) === wanted);
 }
+
+/**
+ * Remise d'une commande prête : au client au comptoir, ou au livreur pour une commande à table
+ * (touchée quand le plateau part ; l'état reste « served », seul le libellé change).
+ */
+export function handOverLabel(tableNumber) {
+  return tableNumber === null || tableNumber === undefined ? "Remise au client" : "Remise au livreur";
+}
+
+/** Nombre de couleurs de zone (--zone-1 à --zone-3) : au-delà, elles se répètent, le libellé fait foi. */
+export const ZONE_COLORS = 3;
+
+/** Zone du livreur, calculée par le serveur : libellé écrit et classe de couleur, ou null sans zone. */
+export function zoneBadge(zone) {
+  if (!Number.isInteger(zone) || zone < 1) {
+    return null;
+  }
+  return { label: `Zone ${zone}`, className: `zone-${((zone - 1) % ZONE_COLORS) + 1}` };
+}

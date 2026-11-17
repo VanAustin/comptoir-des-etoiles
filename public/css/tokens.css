@@ -48,6 +48,11 @@
   --or-fond: #FBF0CF;        /* fond « en préparation » */
   --sauge-fond: #EEF3DF;     /* fond « prête » */
   --papier: #FFFDF8;         /* tickets, panier */
+  /* Zones des livreurs (service à table), sur le ticket de la cuisine : toujours avec le
+     libellé « Zone 1 ». Teintes éloignées d'Or et Sauge (états des commandes).
+     Texte --zone-encre : 6,85:1, 7,41:1 et 6,66:1 ; en sombre 8,36:1, 8,54:1 et 9,09:1. */
+  --zone-1: #2F5D8C;  --zone-2: #7B3F7A;  --zone-3: #0E6670;
+  --zone-encre: #FFFFFF;
   /* QR code d'appairage : noir sur blanc dans les deux thèmes (un QR inversé est mal lu
      par certains appareils photo). Volontairement absents des blocs du thème sombre. */
   --qr-encre: #000000;
@@ -82,6 +87,8 @@
     --or-fond: #3A2F12;
     --sauge-fond: #2A3319;
     --papier: #241F1A;
+    --zone-1: #8DB4E2;  --zone-2: #D6A2D3;  --zone-3: #6CC6CF;
+    --zone-encre: #1A1612;
     color-scheme: dark;
   }
 }
@@ -101,5 +108,7 @@
   --or-fond: #3A2F12;
   --sauge-fond: #2A3319;
   --papier: #241F1A;
+  --zone-1: #8DB4E2;  --zone-2: #D6A2D3;  --zone-3: #6CC6CF;
+  --zone-encre: #1A1612;
   color-scheme: dark;
 }
