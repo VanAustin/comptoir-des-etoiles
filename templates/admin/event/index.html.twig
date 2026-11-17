@@ -35,10 +35,7 @@
                             <td class="actions">
                                 <a class="btn btn-small" href="{{ path('admin_event_edit', {id: event.id}) }}">Modifier</a>
                                 {% if not event.active %}
-                                    <form class="inline-form" method="post" action="{{ path('admin_event_activate', {id: event.id}) }}">
-                                        <input type="hidden" name="_token" value="{{ csrf_token('event-activate-' ~ event.id) }}">
-                                        <button type="submit" class="btn btn-small">Activer</button>
-                                    </form>
+                                    <a class="btn btn-small" href="{{ path('admin_event_activate', {id: event.id}) }}">Activer</a>
                                 {% endif %}
                             </td>
                         </tr>
