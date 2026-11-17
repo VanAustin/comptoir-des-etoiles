@@ -1,12 +1,19 @@
 # Clôture de l'événement
 
+> **Règle à ne jamais oublier.** Avant d'activer un autre événement, aucune caisse de l'événement précédent ne doit garder de commande « en attente d'envoi » ni « À vérifier ». Dès qu'un autre événement est actif, ces commandes ne peuvent plus partir : elles manqueraient pour toujours au Carnet de bord.
+
 À faire dans l'ordre, avant de ranger les tablettes.
 
 ## 1. Plus aucune commande en attente
 
 Sur **chaque caisse**, l'en-tête ne doit plus afficher « en attente d'envoi » ni de commande « À vérifier ». Sinon, gardez la tablette allumée et connectée jusqu'à l'envoi, ou traitez les commandes « À vérifier » (voir [Coupure réseau](coupure-reseau.md)).
 
-Une caisse éteinte avec des commandes en attente les garde : elles partiront à la prochaine ouverture, avec le même appairage. Elles manqueraient d'ici là dans les chiffres.
+Une commande en attente ne part qu'avec l'appairage de la caisse qui l'a encaissée, et seulement :
+
+- **avant 6 h le lendemain de l'événement** : à cette heure-là, le jeton de la tablette expire ;
+- **tant que l'événement reste l'événement actif** : dès qu'un autre est activé, les tablettes de celui-ci sont refusées.
+
+Passé ce délai, ou après l'activation d'un autre événement, la commande passe « À vérifier » et ne peut plus être envoyée : un nouvel appairage donne une autre lettre, et ce serait de toute façon un autre événement. Une caisse éteinte avec des commandes en attente doit donc être rallumée et reconnectée **le soir même**, jusqu'à ce que son en-tête n'affiche plus rien en attente.
 
 ## 2. Compter les caisses
 
@@ -45,5 +52,5 @@ Les jetons des tablettes expirent tout seuls le lendemain de l'événement à 6 
 
 ## 6. Avant le prochain événement
 
-- Créez le prochain événement et activez-le le moment venu : les numéros repartent à 1 et les lettres de caisse à A.
+- Créez le prochain événement et activez-le le moment venu, une fois l'étape 1 faite sur toutes les caisses : les numéros repartent à 1 et les lettres de caisse à A. L'activation coupe toutes les tablettes de l'événement précédent.
 - Notez ce qui a manqué (articles en rupture, attente en cuisine, réseau…) pendant que c'est frais.

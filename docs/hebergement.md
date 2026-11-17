@@ -122,6 +122,8 @@ ls -l var/backups/ | tail -n 3
 
 Résultat attendu : `[OK] Base sauvegardée dans …/var/backups/comptoir-<date>.sql (… Ko).`, puis le fichier du jour dans la liste (par exemple `comptoir-2026-11-20_143005.sql`), avec une taille supérieure à 0. Sans ce fichier, **ne continuez pas**.
 
+**Comparez sa taille avec celle de la sauvegarde précédente**, juste au-dessus dans la liste : elle doit être au moins aussi grande (la base ne fait que grossir : commandes, journal). Un fichier nettement plus petit peut être une sauvegarde tronquée, par exemple sur un disque plein, même si la commande a affiché `[OK]` : vérifiez la place sur le disque (étape 5.7) et demandez de l'aide avant de continuer.
+
 **Rapatrier une copie sur le Mac** : si le serveur tombait en panne, la sauvegarde restée sur le serveur serait perdue avec lui. Laissez la connexion au serveur ouverte. Dans Terminal, ouvrez **une nouvelle fenêtre** (menu Shell, Nouvelle fenêtre) : ses commandes s'exécutent sur le Mac. Tapez-y :
 
 ```
