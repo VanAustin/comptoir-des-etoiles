@@ -9,17 +9,18 @@
 {% endblock %}
 
 {% block body %}
-    <p><a href="{{ path('admin_menu') }}">← Retour au menu</a></p>
+    <p><a href="{{ path('admin_menu', menu_params) }}">← Retour au menu</a></p>
 
     <section class="card form-card menu-form">
         <h1>{{ title }}</h1>
+        {% if not event.active %}<p class="lede">Menu de « {{ event.name }} », pas encore actif.</p>{% endif %}
         <p class="lede">Une formule regroupe plusieurs articles vendus ensemble à un prix donné. Vendre la formule décompte le stock de chacun de ses articles.</p>
         {% if errors is not empty %}
             <p class="alert alert-error" role="alert">La formule n'est pas enregistrée : corrigez les champs signalés.</p>
         {% endif %}
 
         {% if candidates_by_category is empty %}
-            <p class="card empty">Ajoutez d'abord des articles au menu : une formule se compose d'articles existants. <a href="{{ path('admin_menu_product_new') }}">Ajouter un article</a></p>
+            <p class="card empty">Ajoutez d'abord des articles au menu : une formule se compose d'articles existants. <a href="{{ path('admin_menu_product_new', menu_params) }}">Ajouter un article</a></p>
         {% else %}
         <form method="post" novalidate>
             <div class="field">
@@ -77,9 +78,9 @@
             <label class="check"><input type="checkbox" name="deposit" value="1" {{ values.deposit ? 'checked' }}> Avec consigne{% if event.depositCents %} ({{ event.depositCents|euros }}){% endif %}</label>
             <p class="field-help">Pour une formule, c'est cette case qui compte, pas celles de ses articles.</p>
 
-            <input type="hidden" name="_token" value="{{ csrf_token('menu-product-' ~ (product.id ?? 'new')) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('menu-product-' ~ (product.id ?? ('new-' ~ event.id))) }}">
             <div class="form-actions">
-                <a class="btn" href="{{ path('admin_menu') }}">Annuler</a>
+                <a class="btn" href="{{ path('admin_menu', menu_params) }}">Annuler</a>
                 <button type="submit" class="btn btn-primary">{{ is_new ? 'Créer la formule' : 'Enregistrer la formule' }}</button>
             </div>
         </form>

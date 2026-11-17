@@ -32,12 +32,12 @@ class MenuControllerTest extends WebTestCase
         $this->client->loginUser($admin);
     }
 
-    public function testWithoutActiveEvent(): void
+    public function testWithoutAnyEvent(): void
     {
         $this->client->request('GET', '/admin/menu');
 
         self::assertResponseIsSuccessful();
-        self::assertStringContainsString('Aucun événement n\'est actif', $this->content());
+        self::assertStringContainsString('créez d\'abord un événement', $this->content());
     }
 
     public function testLoadExampleMenuOnlyOnce(): void
@@ -319,11 +319,30 @@ class MenuControllerTest extends WebTestCase
         self::assertSame('Café', $this->findProduct('Café')->getName());
     }
 
-    public function testProductOfAnotherEventCannotBeEdited(): void
+    public function testProductOfAnInactiveEventIsEditedWithoutTouchingTheActiveOne(): void
     {
         $other = self::createEvent('Halloween', active: false);
         $bonbons = $this->createProduct('Bonbons', 100, event: $other);
         self::createEvent('Loto de Noël');
+        $active = self::revisionsOf();
+        $prepared = self::revisionsOf($other->getId());
+
+        $this->client->request('GET', '/admin/menu/'.$bonbons->getId().'/modifier');
+        self::assertStringContainsString('Menu de « Halloween », pas encore actif.', $this->content());
+        $this->client->submitForm('Enregistrer l\'article', ['price' => '1,20']);
+
+        self::assertResponseRedirects('/admin/menu?evenement='.$other->getId().'#produit-'.$bonbons->getId());
+        self::assertSame(120, $this->findProduct('Bonbons')->getPriceCents());
+        self::assertRevisionsMoved($active, 0, 0, message: 'les tablettes de l\'événement actif ne voient rien changer');
+        self::assertRevisionsMoved($prepared, 0, 1, $other->getId());
+        self::assertSame(1, $this->auditCount('product.update'));
+    }
+
+    public function testRemovedProductCannotBeEdited(): void
+    {
+        self::createEvent();
+        $bonbons = $this->createProduct('Bonbons', 100)->archive();
+        self::entityManager()->flush();
 
         $this->client->request('GET', '/admin/menu/'.$bonbons->getId().'/modifier');
 
@@ -436,14 +455,20 @@ class MenuControllerTest extends WebTestCase
         self::assertSame('1 × Soda', $this->findProductById($duo->getId())->describeComposition());
     }
 
-    public function testProductOfAnotherEventCannotBeRemoved(): void
+    public function testProductOfAnInactiveEventIsRemovedFromItsOwnMenu(): void
     {
         $other = self::createEvent('Halloween', active: false);
         $bonbons = $this->createProduct('Bonbons', 100, event: $other);
         self::createEvent('Loto de Noël');
 
-        $this->client->request('GET', '/admin/menu/'.$bonbons->getId().'/retirer');
+        $crawler = $this->client->request('GET', '/admin/menu/'.$bonbons->getId().'/retirer');
+        $this->client->submit($crawler->selectButton('Retirer l\'article')->form());
 
+        self::assertResponseRedirects('/admin/menu?evenement='.$other->getId());
+        self::assertTrue($this->findProduct('Bonbons')->isArchived());
+
+        // Déjà retiré : plus rien à faire
+        $this->client->request('GET', '/admin/menu/'.$bonbons->getId().'/retirer');
         self::assertResponseStatusCodeSame(404);
     }
 

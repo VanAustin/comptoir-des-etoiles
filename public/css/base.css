@@ -206,6 +206,19 @@ fieldset.field legend { font-size: 14px; font-weight: 700; color: var(--encre-do
 .input-short { max-width: 140px; }
 
 /* Menu */
+/* Événement dont on modifie le menu, et son état */
+.menu-event-picker { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin: 4px 0 8px; }
+.menu-event-picker label { font-weight: 700; }
+.menu-event-picker select { min-height: 48px; max-width: 100%; padding: 6px 10px; border: 1px solid var(--kraft); border-radius: 8px; background: var(--nuage); color: var(--encre); }
+.menu-state { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin: 0 0 8px; }
+/* Reprendre le menu d'un autre événement */
+.copy-step { margin-top: 20px; }
+.copy-step h2 { margin-bottom: 6px; }
+.copy-step fieldset { border: 0; padding: 0; margin: 0 0 8px; }
+.copy-step legend { padding: 0; }
+.copy-step select { min-height: 48px; max-width: 100%; padding: 6px 10px; border: 1px solid var(--kraft); border-radius: 8px; background: var(--nuage); color: var(--encre); }
+.copy-list { margin: 8px 0 16px; padding-left: 20px; }
+.copy-list li { margin: 4px 0; }
 .menu-section { margin-top: 36px; }
 .menu-section .section-head { margin-bottom: 12px; }
 .menu-table td { vertical-align: middle; }

@@ -37,12 +37,29 @@
     <div class="section-head">
         <div>
             <h1>Menu</h1>
+            <form method="get" action="{{ path('admin_menu') }}" class="menu-event-picker">
+                <label for="menu-event">Menu de :</label>
+                <select id="menu-event" name="evenement">
+                    {% for e in events %}
+                        <option value="{{ e.id }}"{{ e is same as(event) ? ' selected' }}>{{ e.name }} · {{ e.date|date('d/m/Y') }}{{ e.active ? ' · actif' }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn">Afficher</button>
+            </form>
+            {% if state == 'active' %}
+                <p class="menu-state"><span class="pill pill-active">Actif</span> Les tablettes voient les changements tout de suite.</p>
+            {% elseif state == 'preparing' %}
+                <p class="menu-state"><span class="pill pill-waiting">En préparation</span> Pas encore actif : les tablettes ne voient pas ce menu. <a href="{{ path('admin_event_activate', {id: event.id}) }}">Activer cet événement</a> le moment venu.</p>
+            {% else %}
+                <p class="menu-state"><span class="pill">Terminé</span> Événement passé, pas actif. Le Carnet de bord de cet événement suit les catégories modifiées ici.</p>
+            {% endif %}
             <p class="lede">
-                Articles de l'événement « {{ event.name }} ».
                 {% if event.depositCents %}Consigne : {{ event.depositCents|euros }} par article « avec consigne ».{% else %}Pas de consigne pour cet événement.{% endif %}
-                <a href="{{ path('admin_event_edit', {id: event.id}) }}">Modifier</a>
+                {% if not event.hasKitchen %}Sans cuisine.{% endif %}
+                <a href="{{ path('admin_event_edit', {id: event.id}) }}">Modifier l'événement</a>
             </p>
         </div>
+        <a class="btn" href="{{ path('admin_menu_copy', menu_params) }}">Reprendre le menu d'un autre événement</a>
     </div>
 
     {% if row_errors is not empty %}
@@ -56,7 +73,7 @@
                 <h2 id="articles-title">Articles</h2>
                 <p class="lede">Ce qui se vend à l'unité. Laissez le stock vide pour un article non compté (café, thé…). Décochez « Vendu seul » pour un article vendu seulement dans les formules : il n'apparaît plus sur les caisses, mais son stock est toujours décompté.</p>
             </div>
-            <a class="btn" href="{{ path('admin_menu_product_new') }}">Ajouter un article</a>
+            <a class="btn" href="{{ path('admin_menu_product_new', menu_params) }}">Ajouter un article</a>
         </div>
 
         {% if unsellable is not empty %}
@@ -69,8 +86,8 @@
         {% if articles is empty %}
             <div class="card empty">
                 <p>Aucun article pour l'instant. Ajoutez vos articles un par un, ou chargez le menu d'exemple du Loto pour tester.</p>
-                <form method="post" action="{{ path('admin_menu_example') }}">
-                    <input type="hidden" name="_token" value="{{ csrf_token('menu-example') }}">
+                <form method="post" action="{{ path('admin_menu_example', menu_params) }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('menu-example-' ~ event.id) }}">
                     <button type="submit" class="btn">Charger le menu d'exemple du Loto</button>
                 </form>
             </div>
@@ -107,7 +124,7 @@
                 <p class="lede">Plusieurs articles vendus ensemble à un prix donné. Leur stock se déduit de celui de leurs articles.</p>
             </div>
             {% if articles is not empty %}
-                <a class="btn" href="{{ path('admin_menu_formula_new') }}">Créer une formule</a>
+                <a class="btn" href="{{ path('admin_menu_formula_new', menu_params) }}">Créer une formule</a>
             {% endif %}
         </div>
 
@@ -140,8 +157,8 @@
 
     {% if articles is not empty %}
         {# Les champs du tableau sont rattachés à ce formulaire par leur attribut form #}
-        <form method="post" action="{{ path('admin_menu_save') }}" id="menu-save" class="menu-save" novalidate>
-            <input type="hidden" name="_token" value="{{ csrf_token('menu-save') }}">
+        <form method="post" action="{{ path('admin_menu_save', menu_params) }}" id="menu-save" class="menu-save" novalidate>
+            <input type="hidden" name="_token" value="{{ csrf_token('menu-save-' ~ event.id) }}">
             <button type="submit" class="btn btn-primary">Enregistrer le menu</button>
         </form>
     {% endif %}
