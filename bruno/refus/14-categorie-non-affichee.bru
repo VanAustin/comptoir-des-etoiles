@@ -1,0 +1,45 @@
+meta {
+  name: 14. Catégorie non affichée sur cette caisse
+  type: http
+  seq: 14
+}
+
+post {
+  url: {{baseUrl}}/api/orders
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_caisse_boissons}}
+}
+
+body:json {
+  {
+    "uuid": "{{otherCategoryUuid}}",
+    "number": 1,
+    "paymentMethod": "card",
+    "lines": [{ "productId": {{productId}}, "quantity": 1 }]
+  }
+}
+
+script:pre-request {
+  bru.setVar("otherCategoryUuid", "9c4d5e6f-7a8b-4c9d-8e0f-" + Date.now().toString(16).padStart(12, "0").slice(-12));
+}
+
+tests {
+  test("refusé (422)", function () {
+    expect(res.status).to.equal(422);
+  });
+
+  test("le message nomme l'article et dit quoi faire", function () {
+    expect(res.body.error).to.include("Cette caisse ne vend pas");
+    expect(res.body.error).to.include("Rechargez le menu");
+  });
+}
+
+docs {
+  La caisse « Caisse Boissons Bruno » (préparée par `app:dev:bruno-fixtures caisse-boissons`) n'affiche que la catégorie « Boissons ». Le serveur refuse un article d'une autre catégorie : la vérification ne se fait pas seulement dans l'écran. Le refus est noté dans le journal (`order.category_rejected`).
+
+  Lancez d'abord « Caisse / 1. Menu » (`productId` : premier article du menu d'exemple, catégorie « Salé »).
+}

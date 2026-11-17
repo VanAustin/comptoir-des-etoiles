@@ -32,7 +32,7 @@ final class Logbook
      * @return array{
      *     orders: list<Order>,
      *     totals: array{orders: int, cancelled: int, revenue: int, basket: int|null, cashCount: int, cashAmount: int, cardCount: int, cardAmount: int, depositsIn: int, depositsOut: int, depositBalance: int, cupsNotReturned: int|null, tableOrders: int, tableRevenue: int},
-     *     tills: array<string, array{orders: int, cashExpected: int, card: int, shortfall: int}>,
+     *     tills: array<string, array{name: string|null, orders: int, cashExpected: int, card: int, shortfall: int}>,
      *     shortfalls: list<array{order: Order, missing: int}>,
      *     articles: list<array{name: string, category: string, archived: bool, formula: bool, sold: int, revenue: int, initial: int|null, remaining: int|null}>,
      *     categories: list<array{name: string, sold: int, revenue: int}>
@@ -54,7 +54,8 @@ final class Logbook
             }
             ++$totals['orders'];
             $letter = $order->getTillLetter();
-            $tills[$letter] ??= ['orders' => 0, 'cashExpected' => 0, 'card' => 0, 'shortfall' => 0];
+            // Nom de la tablette (« Caisse Cartons ») : une lettre n'est jamais réattribuée pendant un événement
+            $tills[$letter] ??= ['name' => $order->getDevice()?->getName(), 'orders' => 0, 'cashExpected' => 0, 'card' => 0, 'shortfall' => 0];
             ++$tills[$letter]['orders'];
 
             $hasArticle = false;

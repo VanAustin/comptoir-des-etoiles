@@ -74,6 +74,19 @@ class DevBrunoFixturesCommandTest extends KernelTestCase
         self::assertSame(1, $this->entityManager()->getRepository(Event::class)->count([]));
     }
 
+    public function testDrinksTillShowsOnlyDrinks(): void
+    {
+        $tester = new CommandTester($this->command('comptoir_test'));
+        self::assertSame(Command::FAILURE, $tester->execute(['etape' => 'caisse-boissons']), 'après « preparer » seulement');
+        $tester->execute(['etape' => 'preparer']);
+
+        self::assertSame(Command::SUCCESS, $tester->execute(['etape' => 'caisse-boissons']));
+        self::assertMatchesRegularExpression('/^caisse [A-Z0-9]{4}-[A-Z0-9]{4}$/', trim($tester->getDisplay()));
+        $till = $this->entityManager()->getRepository(Device::class)->findOneBy(['name' => DevBrunoFixturesCommand::DRINKS_TILL]);
+        self::assertSame(['Boissons'], $till?->getCategories());
+        self::assertSame(Command::FAILURE, $tester->execute(['etape' => 'caisse-boissons']), 'une seule fois');
+    }
+
     public function testEventWithoutKitchenKitchenPairedBeforeTurningKitchenOff(): void
     {
         $tester = new CommandTester($this->command('comptoir_test'));

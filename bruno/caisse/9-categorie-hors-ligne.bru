@@ -1,0 +1,46 @@
+meta {
+  name: 9. Catégorie non affichée, encaissée hors ligne
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/api/orders
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_caisse_boissons}}
+}
+
+body:json {
+  {
+    "uuid": "{{offlineCategoryUuid}}",
+    "number": {{offlineCategoryNumber}},
+    "paymentMethod": "card",
+    "lines": [{ "productId": {{productId}}, "quantity": 1 }],
+    "offline": true
+  }
+}
+
+script:pre-request {
+  bru.setVar("offlineCategoryUuid", "5a6b7c8d-9e0f-4a1b-8c2d-" + Date.now().toString(16).padStart(12, "0").slice(-12));
+  bru.setVar("offlineCategoryNumber", 5000 + Math.floor(Math.random() * 4000));
+}
+
+tests {
+  test("acceptée (201) : l'argent est déjà dans la caisse", function () {
+    expect(res.status).to.equal(201);
+  });
+
+  test("la commande est bien enregistrée", function () {
+    expect(res.body.uuid).to.equal(bru.getVar("offlineCategoryUuid"));
+  });
+}
+
+docs {
+  Même article que « Refus / 14 », envoyé avec `"offline": true` : encaissé sans réseau, avant que la catégorie soit retirée de cette caisse. Aucune commande payée n'est perdue : elle est acceptée et notée dans le journal (`order.category_offline`).
+
+  Lancez d'abord « Caisse / 1. Menu ».
+}

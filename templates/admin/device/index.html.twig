@@ -53,7 +53,7 @@
             <div class="tablewrap">
                 <table class="stack-table">
                     <thead>
-                        <tr><th>Tablette</th><th>Rôle</th><th>Lettre</th><th>Vend</th><th>État</th><th><span class="visually-hidden">Actions</span></th></tr>
+                        <tr><th>Tablette</th><th>Rôle</th><th>Lettre</th><th>Catégories affichées</th><th>État</th><th><span class="visually-hidden">Actions</span></th></tr>
                     </thead>
                     <tbody>
                         {% for device in devices %}
@@ -62,7 +62,7 @@
                                 <td class="stack-title">{{ device.name }}</td>
                                 <td data-label="Rôle">{{ device.role.label }}</td>
                                 <td class="num" data-label="Lettre">{{ device.tillLetter ?? '—' }}</td>
-                                <td data-label="Vend">
+                                <td data-label="Catégories affichées">
                                     {% if device.role.value == 'caisse' %}
                                         {{ device.categories is empty ? 'Tout le menu' : device.categories|join(', ') }}
                                         {% if device.directSale %}<span class="seen">vente directe</span>{% endif %}
