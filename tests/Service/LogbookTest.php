@@ -110,8 +110,37 @@ class LogbookTest extends KernelTestCase
         $tills = $this->summary()['tills'];
 
         self::assertSame(['A', 'B'], array_keys($tills));
-        self::assertSame(['orders' => 4, 'cashExpected' => 350, 'card' => 200, 'shortfall' => 0], $tills['A']);
-        self::assertSame(['orders' => 1, 'cashExpected' => 900, 'card' => 0, 'shortfall' => 0], $tills['B']);
+        self::assertSame(['name' => 'Caisse A', 'orders' => 4, 'cashExpected' => 350, 'card' => 200, 'shortfall' => 0], $tills['A']);
+        self::assertSame(['name' => 'Caisse B', 'orders' => 1, 'cashExpected' => 900, 'card' => 0, 'shortfall' => 0], $tills['B']);
+    }
+
+    /** Loto : la caisse de l'entrée ne vend que les cartons, la buvette tout le reste. */
+    public function testCartonsTillAndRefreshmentTillAreReadApart(): void
+    {
+        $em = self::entityManager();
+        $carton = (new Product($em->find(Event::class, $this->event->getId()), 'Carton'))->setPriceCents(500)->setCategory('Cartons du loto');
+        $em->persist($carton);
+        $em->find(Product::class, $this->ids['Crêpe'])->setCategory('Restauration');
+        $em->find(Product::class, $this->ids['Soda'])->setCategory('Restauration');
+        $em->find(Product::class, $this->ids['Duo'])->setCategory('Restauration');
+        $this->tills['A']->setName('Caisse Cartons')->setCategories(['Cartons du loto'])->setDirectSale(true);
+        $this->tills['B']->setName('Caisse buvette')->setCategories(['Restauration']);
+        $em->flush();
+        $this->ids['Carton'] = $carton->getId();
+
+        $this->place('A', ['Carton' => 3], cash: 2000);     // 15,00
+        $this->place('A', ['Carton' => 2], card: true);     // 10,00
+        $this->place('B', ['Crêpe' => 2], card: true);      // 4,00
+        $this->place('B', ['Soda' => 1], cash: 300);        // 1,50 + 1,00 consigne
+
+        $summary = $this->summary();
+
+        self::assertSame(['name' => 'Caisse Cartons', 'orders' => 2, 'cashExpected' => 1500, 'card' => 1000, 'shortfall' => 0], $summary['tills']['A'], 'terminal des cartons : 10,00 €');
+        self::assertSame(['name' => 'Caisse buvette', 'orders' => 2, 'cashExpected' => 250, 'card' => 400, 'shortfall' => 0], $summary['tills']['B'], 'terminal de la buvette : 4,00 €');
+        $categories = array_column($summary['categories'], 'revenue', 'name');
+        self::assertSame(2500, $categories['Cartons du loto']);
+        self::assertSame(550, $categories['Restauration'], 'consigne exclue');
+        self::assertSame($summary['totals']['revenue'], array_sum($categories));
     }
 
     public function testOfflineShortfallIsReported(): void

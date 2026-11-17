@@ -95,7 +95,7 @@
                     <tbody>
                         {% for letter, till in tills %}
                             <tr>
-                                <td class="stack-title num">Caisse {{ letter }}</td>
+                                <td class="stack-title"><span class="num">Caisse {{ letter }}</span>{% if till.name %} · {{ till.name }}{% endif %}</td>
                                 <td class="num" data-label="Commandes">{{ till.orders }}</td>
                                 <td class="num" data-label="Espèces attendues"><strong>{{ till.cashExpected|euros }}</strong></td>
                                 <td class="num" data-label="Carte">{{ till.card|euros }}</td>

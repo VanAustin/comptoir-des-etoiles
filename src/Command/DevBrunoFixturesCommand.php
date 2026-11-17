@@ -25,6 +25,8 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  * Étapes, dans l'ordre :
  *  - preparer : un événement avec cuisine, actif, avec le menu d'exemple ; une cuisine et un écran
  *    Arrivées, puis une caisse (appairée par « Appairage / 1. Échanger le code ») ;
+ *  - caisse-boissons : une seconde caisse qui n'affiche que la catégorie « Boissons » (refus
+ *    d'un article d'une autre catégorie, acceptation hors ligne) ;
  *  - sans-cuisine : un second événement, activé, avec une tablette cuisine à appairer ;
  *  - couper-cuisine : « Avec cuisine » décoché sur ce second événement, tablette déjà appairée.
  *
@@ -38,7 +40,8 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 final class DevBrunoFixturesCommand extends Command
 {
     public const DATABASE = 'comptoir_bruno';
-    public const STEPS = ['preparer', 'sans-cuisine', 'couper-cuisine'];
+    public const STEPS = ['preparer', 'caisse-boissons', 'sans-cuisine', 'couper-cuisine'];
+    public const DRINKS_TILL = 'Caisse Boissons Bruno';
     public const EVENT_WITH_KITCHEN = 'Bruno avec cuisine';
     public const EVENT_WITHOUT_KITCHEN = 'Bruno sans cuisine';
 
@@ -80,6 +83,7 @@ final class DevBrunoFixturesCommand extends Command
         $step = (string) $input->getArgument('etape');
         $devices = match ($step) {
             'preparer' => $this->prepare(),
+            'caisse-boissons' => $this->drinksTill(),
             'sans-cuisine' => $this->eventWithoutKitchen(),
             'couper-cuisine' => $this->turnKitchenOff(),
             default => null,
@@ -115,6 +119,20 @@ final class DevBrunoFixturesCommand extends Command
             [DeviceRole::Display, 'Arrivées Bruno'],
             [DeviceRole::Till, 'Caisse Bruno'],
         ]);
+    }
+
+    /** @return list<array{Device, string}>|null */
+    private function drinksTill(): ?array
+    {
+        $event = $this->events->findOneBy(['name' => self::EVENT_WITH_KITCHEN, 'active' => true]);
+        if (null === $event || null !== $this->entityManager->getRepository(Device::class)->findOneBy(['name' => self::DRINKS_TILL])) {
+            return null;
+        }
+        $created = $this->createDevices($event, [[DeviceRole::Till, self::DRINKS_TILL]]);
+        $created[0][0]->setCategories(['Boissons']);
+        $this->entityManager->flush();
+
+        return $created;
     }
 
     /** @return list<array{Device, string}>|null */

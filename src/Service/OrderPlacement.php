@@ -110,14 +110,15 @@ class OrderPlacement
 
         $depositCount = 0;
         $kitchen = false;
+        /** @var list<Product> $notSoldHere articles d'une catégorie que cette caisse n'affiche pas */
+        $notSoldHere = [];
         foreach ($quantities as $productId => $quantity) {
             $product = $catalog[$productId] ?? null;
             if (!$product instanceof Product) {
                 throw new OrderRejectedException('Un article de la commande n\'est plus au menu. Rechargez le menu, puis encaissez à nouveau.');
             }
-            // Catégorie que cette caisse ne vend pas ; hors ligne, réglage changé après l'encaissement : acceptée
-            if (!$offline && !$device->sells($product)) {
-                throw new OrderRejectedException(\sprintf('Cette caisse ne vend pas « %s ». Rechargez le menu, puis encaissez à nouveau.', $product->getName()), Response::HTTP_UNPROCESSABLE_ENTITY);
+            if (!$device->sells($product)) {
+                $notSoldHere[] = $product;
             }
             OrderLine::article($order, $product, $quantity);
             // Événement sans cuisine : tout est servi au comptoir, quel que soit l'article
@@ -125,6 +126,10 @@ class OrderPlacement
             if ($product->hasDeposit()) {
                 $depositCount += $quantity;
             }
+        }
+
+        if ([] !== $notSoldHere) {
+            $this->checkCategories($order, $device, $notSoldHere, $offline);
         }
 
         $deposit = $event->getDepositCents();
@@ -171,6 +176,41 @@ class OrderPlacement
         }
 
         return [$order, true];
+    }
+
+    /**
+     * Article d'une catégorie que cette caisse n'affiche pas : la vérification ne se fait pas
+     * seulement dans l'écran.
+     *
+     * - En ligne : commande refusée (422), et la tentative tracée. Le journal est écrit tout de
+     *   suite, à part : la commande refusée n'est jamais enregistrée.
+     * - Hors ligne : l'argent est déjà dans la caisse (réglage changé après l'encaissement) :
+     *   commande acceptée, jamais perdue, et tracée pour la retrouver après coup.
+     *
+     * @param list<Product> $products
+     *
+     * @throws OrderRejectedException
+     */
+    private function checkCategories(Order $order, Device $device, array $products, bool $offline): void
+    {
+        $subject = 'order:'.$order->getUuid().' '.$order->getDisplayNumber();
+        $details = [
+            'articles' => array_map(static fn (Product $p): string => $p->getName(), $products),
+            'categories' => array_values(array_unique(array_map(static fn (Product $p): string => $p->getCategory(), $products))),
+            'allowed' => $device->getCategories(),
+        ];
+
+        if ($offline) {
+            $this->auditLogger->log('order.category_offline', $subject, after: $details, actor: $device);
+
+            return;
+        }
+
+        $this->auditLogger->log('order.category_rejected', $subject, after: $details, actor: $device);
+        // Seul le journal est géré ici : la commande et ses lignes ne sont pas persistées
+        $this->em->flush();
+
+        throw new OrderRejectedException(\sprintf('Cette caisse ne vend pas « %s ». Rechargez le menu, puis encaissez à nouveau.', $products[0]->getName()), Response::HTTP_UNPROCESSABLE_ENTITY);
     }
 
     /**

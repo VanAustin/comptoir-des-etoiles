@@ -27,6 +27,7 @@ WITH_KITCHEN="
   cuisine/2-faire-avancer.bru cuisine/2-faire-avancer.bru
   caisse/4-suivi-des-commandes.bru caisse/5-remise-au-client.bru
   caisse/6-commande-hors-ligne.bru caisse/8-commande-a-table.bru
+  caisse/9-categorie-hors-ligne.bru
   arrivees
   refus
 "
@@ -76,12 +77,16 @@ codes=$(console app:dev:bruno-fixtures preparer)
 token_cuisine=$(pair "$(code_for cuisine "$codes")")
 token_affichage=$(pair "$(code_for affichage "$codes")")
 [ -n "$token_cuisine" ] && [ -n "$token_affichage" ] || fail "appairage des tablettes cuisine et Arrivées impossible."
+# Seconde caisse, qui n'affiche que la catégorie « Boissons »
+token_caisse_boissons=$(pair "$(code_for caisse "$(console app:dev:bruno-fixtures caisse-boissons)")")
+[ -n "$token_caisse_boissons" ] || fail "appairage de la caisse Boissons impossible."
 
 step "Collection (événement avec cuisine)"
 # shellcheck disable=SC2086 # listes de requêtes, découpées volontairement
 bruno $WITH_KITCHEN \
   --env-var "pairingCode=$(code_for caisse "$codes")" \
-  --env-var "token_cuisine=$token_cuisine" --env-var "token_affichage=$token_affichage"
+  --env-var "token_cuisine=$token_cuisine" --env-var "token_affichage=$token_affichage" \
+  --env-var "token_caisse_boissons=$token_caisse_boissons"
 
 step "Événement sans cuisine"
 codes=$(console app:dev:bruno-fixtures sans-cuisine)

@@ -1,7 +1,7 @@
-{# Réglages d'une caisse : catégories vendues et vente directe #}
+{# Réglages d'une caisse : catégories affichées (et seules vendues) et vente directe #}
 <fieldset class="field"{% if errors.categories is defined %} aria-describedby="categories-error"{% endif %}>
-    <legend>Catégories vendues</legend>
-    <p class="field-help">La caisse n'affiche que ces catégories et le serveur refuse les autres. Toutes cochées : tout le menu, y compris les catégories ajoutées plus tard. Par exemple, « Loto » seul pour la caisse de l'entrée, tout sauf « Loto » pour la buvette.</p>
+    <legend>Catégories affichées sur cette caisse</legend>
+    <p class="field-help">La caisse n'affiche que ces catégories, et le serveur refuse une commande qui en contient une autre (refus noté dans le journal). Toutes cochées : tout le menu, y compris les catégories ajoutées plus tard. Par exemple, « Cartons du loto » seul pour la caisse de l'entrée, tout sauf « Cartons du loto » pour la buvette.</p>
     {% for category in categories %}
         <label class="check"><input type="checkbox" name="categories[]" value="{{ category }}" {{ category in values.categories ? 'checked' }}> {{ category }}</label>
     {% else %}

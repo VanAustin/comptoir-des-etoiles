@@ -2,6 +2,7 @@
 
 namespace App\Tests\Controller\Api;
 
+use App\Entity\AuditLog;
 use App\Entity\Device;
 use App\Entity\Event;
 use App\Entity\Order;
@@ -319,14 +320,39 @@ class TillApiTest extends WebTestCase
 
         $this->post($this->order(['Café' => 2], number: 1));
         self::assertResponseStatusCodeSame(201);
-        $this->post($this->order(['Soda' => 1], number: 2));
+        // Un article autorisé et un autre non : toute la commande est refusée, la tentative tracée
+        $refused = $this->order(['Café' => 1, 'Soda' => 1, 'Menu Loto' => 1], number: 2);
+        $this->post($refused);
         self::assertResponseStatusCodeSame(422);
         self::assertStringContainsString('Cette caisse ne vend pas « Soda »', $this->error());
         self::assertSame(1, $this->orderCount());
+        self::assertSame(0, (int) $em->getConnection()->fetchOne('SELECT COUNT(*) FROM order_line l JOIN orders o ON o.id = l.order_id WHERE o.uuid = ?', [$refused['uuid']]), 'aucune ligne gardée');
+        $audit = $em->getRepository(AuditLog::class);
+        $log = $audit->findOneBy(['action' => 'order.category_rejected']);
+        self::assertNotNull($log, 'refus noté dans le journal');
+        self::assertSame('order:'.$refused['uuid'].' A2', $log->getSubject());
+        self::assertStringEndsWith(' Caisse buvette', $log->getActor());
+        self::assertStringStartsWith('tablette:', $log->getActor());
+        self::assertEqualsCanonicalizing(['Soda', 'Menu Loto'], $log->getAfter()['articles']);
+        self::assertEqualsCanonicalizing(['Divers'], $log->getAfter()['categories']);
+        self::assertSame(['Loto'], $log->getAfter()['allowed']);
+        self::assertSame(0, $audit->count(['action' => 'order.category_offline']));
 
-        // Encaissée hors ligne avant le changement de réglage : l'argent est là, acceptée
-        $this->post($this->order(['Soda' => 1], number: 2) + ['offline' => true]);
+        // Encaissée hors ligne avant le changement de réglage : l'argent est là, gardée et tracée
+        $offline = $this->order(['Soda' => 1], number: 2) + ['offline' => true];
+        $this->post($offline);
         self::assertResponseStatusCodeSame(201);
+        self::assertSame(2, $this->orderCount());
+        self::assertSame(1, $audit->count(['action' => 'order.category_rejected']));
+        $log = $audit->findOneBy(['action' => 'order.category_offline']);
+        self::assertSame('order:'.$offline['uuid'].' A2', $log?->getSubject());
+        self::assertSame(['Soda'], $log->getAfter()['articles']);
+
+        // Renvoyée une seconde fois (réponse perdue) : rien de recréé, rien de retracé
+        $this->post($offline);
+        self::assertResponseIsSuccessful();
+        self::assertSame(2, $this->orderCount());
+        self::assertSame(1, $audit->count(['action' => 'order.category_offline']));
     }
 
     public function testTillWithoutCategoriesSellsTheWholeMenu(): void
