@@ -6,10 +6,12 @@ use App\Entity\Event;
 use App\Entity\Product;
 use App\Entity\ProductComponent;
 use App\Menu\IconCatalog;
+use App\Menu\ProductSnapshot;
 use App\Repository\EventRepository;
 use App\Repository\ProductRepository;
 use App\Service\AuditLogger;
 use App\Service\ExampleMenu;
+use App\Service\MenuCopier;
 use App\Service\Money;
 use App\Service\Revisions;
 use Doctrine\ORM\EntityManagerInterface;
@@ -20,7 +22,8 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
- * Menu de l'événement actif, en deux parties : les articles et les formules.
+ * Menu d'un événement choisi (l'actif par défaut), en deux parties : les articles et les formules.
+ * Un événement pas encore actif se prépare à l'avance : les tablettes ne voient que l'événement actif.
  *
  * - Le tableau de la page Menu modifie d'un coup ce qui change souvent
  *   (prix, stock, cuisine, consigne) et l'ordre d'affichage (boutons ↑ ↓).
@@ -49,9 +52,12 @@ class MenuController extends AbstractController
     }
 
     #[Route('', name: 'admin_menu', methods: ['GET'])]
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $event = $this->events->findActive();
+        // Sans choix : l'événement actif, sinon le plus récent
+        $event = $request->query->has('evenement')
+            ? $this->requireEvent($request)
+            : ($this->events->findActive() ?? $this->events->findAllByDateDesc()[0] ?? null);
         if (null === $event) {
             return $this->render('admin/menu/no_event.html.twig');
         }
@@ -66,8 +72,8 @@ class MenuController extends AbstractController
     #[Route('', name: 'admin_menu_save', methods: ['POST'])]
     public function save(Request $request): Response
     {
-        $this->denyUnlessCsrfValid($request, 'menu-save');
-        $event = $this->requireActiveEvent();
+        $event = $this->requireEvent($request);
+        $this->denyUnlessCsrfValid($request, 'menu-save-'.$event->getId());
 
         $submitted = $request->getPayload()->all('products');
         $rowValues = [];
@@ -94,7 +100,7 @@ class MenuController extends AbstractController
 
         $updated = 0;
         foreach ($changes as [$product, $clean]) {
-            $before = self::snapshot($product);
+            $before = ProductSnapshot::of($product);
             $product
                 ->setPriceCents($clean['priceCents'])
                 ->setInitialStock($clean['initialStock'])
@@ -120,13 +126,13 @@ class MenuController extends AbstractController
         }
 
         // Retour à la ligne déplacée, pour enchaîner les ↑ ↓ sans chercher
-        return $this->redirect($this->generateUrl('admin_menu').(null === $moved ? '' : '#produit-'.$moved));
+        return $this->redirect($this->menuUrl($event, null === $moved ? '' : '#produit-'.$moved));
     }
 
     #[Route('/article/nouveau', name: 'admin_menu_product_new', methods: ['GET', 'POST'])]
     public function newProduct(Request $request): Response
     {
-        $event = $this->requireActiveEvent();
+        $event = $this->requireEvent($request);
 
         return $this->editForm($request, $event, new Product($event, ''), isFormula: false);
     }
@@ -134,7 +140,7 @@ class MenuController extends AbstractController
     #[Route('/formule/nouvelle', name: 'admin_menu_formula_new', methods: ['GET', 'POST'])]
     public function newFormula(Request $request): Response
     {
-        $event = $this->requireActiveEvent();
+        $event = $this->requireEvent($request);
         $formula = (new Product($event, ''))->setCategory(self::FORMULA_CATEGORY)->setIcon('star');
 
         return $this->editForm($request, $event, $formula, isFormula: true);
@@ -143,8 +149,8 @@ class MenuController extends AbstractController
     #[Route('/{id<\d+>}/modifier', name: 'admin_menu_edit', methods: ['GET', 'POST'])]
     public function edit(Product $product, Request $request): Response
     {
-        $event = $this->requireActiveEvent();
-        $this->denyUnlessInEvent($product, $event);
+        $this->denyUnlessOnMenu($product);
+        $event = $product->getEvent();
 
         return $this->editForm($request, $event, $product, $product->isFormula());
     }
@@ -152,12 +158,12 @@ class MenuController extends AbstractController
     #[Route('/{id<\d+>}/retirer', name: 'admin_menu_remove', methods: ['GET', 'POST'])]
     public function remove(Product $product, Request $request): Response
     {
-        $event = $this->requireActiveEvent();
-        $this->denyUnlessInEvent($product, $event);
+        $this->denyUnlessOnMenu($product);
+        $event = $product->getEvent();
 
         if ($request->isMethod('POST')) {
             $this->denyUnlessCsrfValid($request, 'menu-remove-'.$product->getId());
-            $this->auditLogger->log('product.archive', 'product:'.$product->getId().' '.$product->getName(), before: self::snapshot($product));
+            $this->auditLogger->log('product.archive', 'product:'.$product->getId().' '.$product->getName(), before: ProductSnapshot::of($product));
             // Archivé, pas supprimé : ventes, historique et commandes encore en attente sur une tablette restent valables
             foreach ($this->products->findForEvent($event) as $formula) {
                 if ($formula->componentQuantity($product) > 0) {
@@ -168,10 +174,12 @@ class MenuController extends AbstractController
             $this->revisions->flushMenu($event);
             $this->addFlash('info', \sprintf('« %s » est retiré du menu.', $product->getName()));
 
-            return $this->redirectToRoute('admin_menu');
+            return $this->redirect($this->menuUrl($event));
         }
 
         return $this->render('admin/menu/remove.html.twig', [
+            'event' => $event,
+            'menu_params' => $this->menuParams($event),
             'product' => $product,
             'used_as_component' => $this->products->isUsedAsComponent($product),
         ]);
@@ -180,8 +188,8 @@ class MenuController extends AbstractController
     #[Route('/exemple', name: 'admin_menu_example', methods: ['POST'])]
     public function loadExample(Request $request, ExampleMenu $exampleMenu): Response
     {
-        $this->denyUnlessCsrfValid($request, 'menu-example');
-        $event = $this->requireActiveEvent();
+        $event = $this->requireEvent($request);
+        $this->denyUnlessCsrfValid($request, 'menu-example-'.$event->getId());
 
         if ($this->products->findForEvent($event)) {
             $this->addFlash('error', 'Le menu d\'exemple ne peut être chargé que dans un menu vide.');
@@ -190,7 +198,68 @@ class MenuController extends AbstractController
             $this->addFlash('info', \sprintf('Le menu d\'exemple du Loto est chargé : %d articles. Adaptez les prix et les stocks avant l\'événement.', $count));
         }
 
-        return $this->redirectToRoute('admin_menu');
+        return $this->redirect($this->menuUrl($event));
+    }
+
+    /**
+     * « Reprendre le menu d'un autre événement », en trois temps sur la même page :
+     * choisir l'événement d'origine, cocher les catégories, puis confirmer après avoir vu
+     * ce qui sera copié. Seule la confirmation (POST, avec jeton CSRF) modifie le menu.
+     */
+    #[Route('/reprendre', name: 'admin_menu_copy', methods: ['GET', 'POST'])]
+    public function copy(Request $request, MenuCopier $copier): Response
+    {
+        $target = $this->requireEvent($request);
+        $input = $request->isMethod('POST') ? $request->getPayload() : $request->query;
+
+        $sources = array_values(array_filter(
+            $this->events->findAllByDateDesc(),
+            fn (Event $e): bool => $e !== $target && [] !== $this->products->findForEvent($e),
+        ));
+        $source = null;
+        $sourceId = $input->getString('depuis');
+        foreach ($sources as $candidate) {
+            if ((string) $candidate->getId() === $sourceId) {
+                $source = $candidate;
+            }
+        }
+
+        $categories = null === $source ? [] : $copier->categories($source);
+        // Seules les catégories du menu d'origine comptent
+        $checked = array_values(array_filter(
+            $input->all('categories'),
+            static fn ($c): bool => \is_string($c) && isset($categories[$c]),
+        ));
+        $plan = null === $source || [] === $checked ? null : $copier->plan($source, $target, $checked);
+
+        if ($request->isMethod('POST')) {
+            $this->denyUnlessCsrfValid($request, 'menu-copy-'.$target->getId());
+            if (null === $plan || $plan->isEmpty()) {
+                $this->addFlash('error', 'Rien n\'a été copié : choisissez un événement et au moins une catégorie qui contient des articles à reprendre.');
+
+                return $this->redirectToRoute('admin_menu_copy', ['evenement' => $target->getId()]);
+            }
+            $count = $copier->copy($plan);
+            $this->addFlash('info', \sprintf(
+                1 === $count ? '%d article est repris du menu de « %s ».' : '%d articles sont repris du menu de « %s ».',
+                $count,
+                $plan->source->getName(),
+            ));
+
+            return $this->redirect($this->menuUrl($target));
+        }
+
+        return $this->render('admin/menu/copy.html.twig', [
+            'event' => $target,
+            'menu_params' => $this->menuParams($target),
+            'sources' => $sources,
+            'source' => $source,
+            'categories' => $categories,
+            'checked' => $checked,
+            // Catégories demandées, mais aucune cochée
+            'nothing_checked' => null !== $source && $input->has('voir') && [] === $checked,
+            'plan' => $plan,
+        ]);
     }
 
     /** Page d'un article ou d'une formule : création et modification. */
@@ -202,7 +271,7 @@ class MenuController extends AbstractController
         $errors = [];
 
         if ($request->isMethod('POST')) {
-            $this->denyUnlessCsrfValid($request, 'menu-product-'.($product->getId() ?? 'new'));
+            $this->denyUnlessCsrfValid($request, 'menu-product-'.($product->getId() ?? 'new-'.$event->getId()));
             $input = $request->getPayload()->all();
             [$values, $errors, $clean] = $this->validateDetails($input, $isFormula);
             [$values['components'], $componentErrors, $quantities] = $isFormula
@@ -211,7 +280,7 @@ class MenuController extends AbstractController
             $errors += $componentErrors;
 
             if (!$errors) {
-                $before = $isNew ? null : self::snapshot($product);
+                $before = $isNew ? null : ProductSnapshot::of($product);
                 $product
                     ->setName($clean['name'])
                     ->setIcon($clean['icon'])
@@ -232,7 +301,7 @@ class MenuController extends AbstractController
                         $this->entityManager->persist($product);
                         // Identifiant nécessaire au journal d'audit
                         $this->entityManager->flush();
-                        $this->auditLogger->log('product.create', 'product:'.$product->getId().' '.$product->getName(), after: self::snapshot($product));
+                        $this->auditLogger->log('product.create', 'product:'.$product->getId().' '.$product->getName(), after: ProductSnapshot::of($product));
                         $this->addFlash('info', \sprintf($isFormula ? 'La formule « %s » est ajoutée au menu.' : '« %s » est ajouté au menu.', $product->getName()));
                     } else {
                         $this->logChanges($product, $before);
@@ -240,12 +309,13 @@ class MenuController extends AbstractController
                     }
                 });
 
-                return $this->redirect($this->generateUrl('admin_menu').'#produit-'.$product->getId());
+                return $this->redirect($this->menuUrl($event, '#produit-'.$product->getId()));
             }
         }
 
         return $this->render($isFormula ? 'admin/menu/formula.html.twig' : 'admin/menu/product.html.twig', [
             'event' => $event,
+            'menu_params' => $this->menuParams($event),
             'product' => $product,
             'is_new' => $isNew,
             'values' => $values,
@@ -277,8 +347,17 @@ class MenuController extends AbstractController
             }
         }
 
+        $today = new \DateTimeImmutable('today');
+
         return $this->render('admin/menu/index.html.twig', [
             'event' => $event,
+            'events' => $this->events->findAllByDateDesc(),
+            'menu_params' => $this->menuParams($event),
+            'state' => match (true) {
+                $event->isActive() => 'active',
+                $event->getDate() < $today => 'past',
+                default => 'preparing',
+            },
             'articles' => $articles,
             'formulas' => $formulas,
             // Ni vendus seuls, ni dans une formule : invisibles sur les caisses
@@ -452,7 +531,7 @@ class MenuController extends AbstractController
     /** Trace dans le journal les champs réellement modifiés. */
     private function logChanges(Product $product, array $before): bool
     {
-        $after = self::snapshot($product);
+        $after = ProductSnapshot::of($product);
         $changed = array_keys(array_diff_assoc(array_map('serialize', $after), array_map('serialize', $before)));
         if (!$changed) {
             return false;
@@ -552,31 +631,41 @@ class MenuController extends AbstractController
         return $quantities;
     }
 
-    /** @return array<string, mixed> */
-    private static function snapshot(Product $product): array
+    /**
+     * Événement dont on modifie le menu : celui de l'adresse (?evenement=12), sinon l'actif.
+     * L'identifiant vient toujours de l'adresse du formulaire, jamais d'un champ caché.
+     */
+    private function requireEvent(Request $request): Event
     {
-        return [
-            'name' => $product->getName(),
-            'icon' => $product->getIcon(),
-            'category' => $product->getCategory(),
-            'price_cents' => $product->getPriceCents(),
-            'initial_stock' => $product->getInitialStock(),
-            'kitchen' => $product->goesToKitchen(),
-            'deposit' => $product->hasDeposit(),
-            'sold_alone' => $product->isSoldAlone(),
-            'composition' => $product->describeComposition(),
-        ];
+        if (!$request->query->has('evenement')) {
+            return $this->events->findActive() ?? throw $this->createNotFoundException('Aucun événement actif.');
+        }
+        $id = $request->query->getString('evenement');
+        $event = ctype_digit($id) ? $this->events->find((int) $id) : null;
+
+        return $event ?? throw $this->createNotFoundException('Événement introuvable.');
     }
 
-    private function requireActiveEvent(): Event
+    /**
+     * Paramètres d'adresse du menu de cet événement : aucun pour l'événement actif
+     * (adresses inchangées), « evenement » pour un autre.
+     *
+     * @return array<string, int>
+     */
+    private function menuParams(Event $event): array
     {
-        return $this->events->findActive() ?? throw $this->createNotFoundException('Aucun événement actif.');
+        return $event->isActive() ? [] : ['evenement' => (int) $event->getId()];
     }
 
-    private function denyUnlessInEvent(Product $product, Event $event): void
+    private function menuUrl(Event $event, string $fragment = ''): string
     {
-        if ($product->getEvent() !== $event || $product->isArchived()) {
-            throw $this->createNotFoundException('Article d\'un autre événement, ou retiré du menu.');
+        return $this->generateUrl('admin_menu', $this->menuParams($event)).$fragment;
+    }
+
+    private function denyUnlessOnMenu(Product $product): void
+    {
+        if ($product->isArchived()) {
+            throw $this->createNotFoundException('Article retiré du menu.');
         }
     }
 

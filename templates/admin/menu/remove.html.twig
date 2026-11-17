@@ -3,7 +3,7 @@
 {% block title %}Retirer « {{ product.name }} » · Administration{% endblock %}
 
 {% block body %}
-    <p><a href="{{ path('admin_menu') }}">← Retour au menu</a></p>
+    <p><a href="{{ path('admin_menu', menu_params) }}">← Retour au menu</a></p>
 
     <section class="card form-card">
         <h1>Retirer « {{ product.name }} » du menu ?</h1>
@@ -14,7 +14,7 @@
         <form method="post">
             <input type="hidden" name="_token" value="{{ csrf_token('menu-remove-' ~ product.id) }}">
             <div class="row">
-                <a class="btn" href="{{ path('admin_menu') }}">Garder l'article</a>
+                <a class="btn" href="{{ path('admin_menu', menu_params) }}">Garder l'article</a>
                 <button type="submit" class="btn btn-danger">Retirer l'article</button>
             </div>
         </form>

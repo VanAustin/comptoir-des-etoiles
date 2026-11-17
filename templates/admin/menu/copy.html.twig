@@ -1,0 +1,106 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Reprendre un menu · Administration{% endblock %}
+
+{# Événement de destination dans les formulaires de lecture (GET) : seulement s'il n'est pas l'actif #}
+{% macro target_field(menu_params) %}
+    {% if menu_params.evenement is defined %}<input type="hidden" name="evenement" value="{{ menu_params.evenement }}">{% endif %}
+{% endmacro %}
+
+{% block body %}
+    <p><a href="{{ path('admin_menu', menu_params) }}">← Retour au menu</a></p>
+
+    <section class="card form-card">
+        <h1>Reprendre le menu d'un autre événement</h1>
+        <p class="lede">
+            Les articles choisis s'ajoutent à la fin du menu de « {{ event.name }} »,
+            {{ event.active ? 'l\'événement actif : les caisses les verront tout de suite.' : 'pas encore actif : les tablettes ne le voient pas.' }}
+            Prix, stocks de départ, cuisine, consigne et formules sont repris ; les commandes, jamais.
+        </p>
+
+        {% if sources is empty %}
+            <p class="card empty">Aucun autre événement n'a d'articles au menu : il n'y a rien à reprendre.</p>
+        {% else %}
+            <form method="get" action="{{ path('admin_menu_copy') }}" class="copy-step">
+                {{ _self.target_field(menu_params) }}
+                <h2>1. Événement d'origine</h2>
+                <div class="field">
+                    <label for="depuis">Reprendre le menu de</label>
+                    <select id="depuis" name="depuis">
+                        {% for e in sources %}
+                            <option value="{{ e.id }}"{{ e is same as(source) ? ' selected' }}>{{ e.name }} · {{ e.date|date('d/m/Y') }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn">Choisir cet événement</button>
+            </form>
+
+            {% if source %}
+                <form method="get" action="{{ path('admin_menu_copy') }}" class="copy-step">
+                    {{ _self.target_field(menu_params) }}
+                    <input type="hidden" name="depuis" value="{{ source.id }}">
+                    <input type="hidden" name="voir" value="1">
+                    <fieldset>
+                        <legend><h2>2. Catégories à reprendre</h2></legend>
+                        {% for category, count in categories %}
+                            <label class="check">
+                                <input type="checkbox" name="categories[]" value="{{ category }}"{{ category in checked ? ' checked' }}>
+                                {{ category }} ({{ count }} article{{ count > 1 ? 's' }})
+                            </label>
+                        {% endfor %}
+                    </fieldset>
+                    {% if nothing_checked %}
+                        <p class="alert alert-error" role="alert">Cochez au moins une catégorie.</p>
+                    {% endif %}
+                    <button type="submit" class="btn">Voir ce qui sera copié</button>
+                </form>
+            {% endif %}
+
+            {% if plan %}
+                <div class="copy-step" id="confirmer">
+                    <h2>3. Vérifier, puis confirmer</h2>
+                    {% if plan.copied is empty %}
+                        <p class="alert alert-info">Rien à copier : tous ces articles existent déjà dans le menu de « {{ event.name }} ».</p>
+                    {% else %}
+                        <p>{{ plan.copied|length }} article{{ plan.copied|length > 1 ? 's seront ajoutés' : ' sera ajouté' }} au menu de « {{ event.name }} » :</p>
+                        <ul class="copy-list">
+                            {% for p in plan.copied %}
+                                <li>
+                                    <strong>{{ p.name }}</strong> · {{ p.category }} · <span class="num">{{ p.priceCents|euros }}</span>
+                                    {% if p.isFormula %} · formule : {{ p.describeComposition }}{% endif %}
+                                    {% if plan.isAddedComponent(p) %} <span class="pill pill-waiting">ajouté : contenu dans une formule</span>{% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+
+                    {% if plan.reused is not empty %}
+                        <p>Déjà dans ce menu sous le même nom, pas recopiés (une formule copiée qui les contient utilise l'article existant, avec son prix et son stock actuels) :</p>
+                        <ul class="copy-list">
+                            {% for r in plan.reused %}
+                                <li>{{ r.existing.name }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+
+                    {% if plan.copied is not empty %}
+                        {% if event.active %}
+                            <p class="alert alert-warning">Cet événement est actif : les caisses verront ces articles dès la copie.</p>
+                        {% endif %}
+                        <form method="post" action="{{ path('admin_menu_copy', menu_params) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('menu-copy-' ~ event.id) }}">
+                            <input type="hidden" name="depuis" value="{{ source.id }}">
+                            {% for category in plan.categories %}
+                                <input type="hidden" name="categories[]" value="{{ category }}">
+                            {% endfor %}
+                            <div class="row">
+                                <a class="btn" href="{{ path('admin_menu', menu_params) }}">Annuler</a>
+                                <button type="submit" class="btn btn-primary">Copier {{ plan.copied|length }} article{{ plan.copied|length > 1 ? 's' }}</button>
+                            </div>
+                        </form>
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% endif %}
+    </section>
+{% endblock %}

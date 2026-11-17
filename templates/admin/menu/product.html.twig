@@ -5,10 +5,11 @@
 {% block title %}{{ title }} · Administration{% endblock %}
 
 {% block body %}
-    <p><a href="{{ path('admin_menu') }}">← Retour au menu</a></p>
+    <p><a href="{{ path('admin_menu', menu_params) }}">← Retour au menu</a></p>
 
     <section class="card form-card menu-form">
         <h1>{{ title }}</h1>
+        {% if not event.active %}<p class="lede">Menu de « {{ event.name }} », pas encore actif.</p>{% endif %}
         {% if errors is not empty %}
             <p class="alert alert-error" role="alert">L'article n'est pas enregistré : corrigez les champs signalés.</p>
         {% endif %}
@@ -53,9 +54,9 @@
             <label class="check"><input type="checkbox" name="alone" value="1" {{ values.alone ? 'checked' }} aria-describedby="alone-help"> Vendu seul</label>
             <p class="field-help" id="alone-help">Décochez pour un article vendu seulement dans les formules (saucisse d'un menu…) : il n'apparaît plus sur les caisses, mais son stock est toujours décompté.</p>
 
-            <input type="hidden" name="_token" value="{{ csrf_token('menu-product-' ~ (product.id ?? 'new')) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('menu-product-' ~ (product.id ?? ('new-' ~ event.id))) }}">
             <div class="form-actions">
-                <a class="btn" href="{{ path('admin_menu') }}">Annuler</a>
+                <a class="btn" href="{{ path('admin_menu', menu_params) }}">Annuler</a>
                 <button type="submit" class="btn btn-primary">{{ is_new ? 'Ajouter l\'article' : 'Enregistrer l\'article' }}</button>
             </div>
         </form>
