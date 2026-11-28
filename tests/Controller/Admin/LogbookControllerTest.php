@@ -46,7 +46,7 @@ class LogbookControllerTest extends WebTestCase
         $this->login();
         $order = self::createOrder($this->event, [[$this->crepe, 2]], OrderStatus::Served, letter: 'B');
         $this->setTotal($order, 400, received: 500);
-        self::entityManager()->find(Product::class, $this->crepe->getId())->setInitialStock(30);
+        self::entityManager()->find(Product::class, $this->crepe->getId())->setInitialStock(30)->setPurchaseUnit('bol de pâte', 10);
         self::entityManager()->flush();
 
         $crawler = $this->client->request('GET', '/admin/carnet');
@@ -58,6 +58,8 @@ class LogbookControllerTest extends WebTestCase
         self::assertStringContainsString('2 × Crêpe sucre', $content);
         self::assertCount(1, $crawler->filterXPath('//a[@href="/admin/carnet/commande/'.$order->getId().'/annuler"]'));
         self::assertCount(1, $crawler->filterXPath('//meter'));
+        self::assertStringContainsString('= 3 bols de pâte', $content, 'stock de départ en unités d\'achat');
+        self::assertStringContainsString('≈ 2,8 bols de pâte', $content, '28 portions restantes');
     }
 
     public function testRevenueByCategoryWithCancelledOrdersExcluded(): void

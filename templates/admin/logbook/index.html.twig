@@ -120,7 +120,11 @@
                             <td class="stack-title">{{ a.name }}{% if a.archived %} <span class="pill">retiré du menu</span>{% endif %}</td>
                             <td class="num" data-label="Vendus">{{ a.sold }}</td>
                             <td class="num" data-label="Chiffre d'affaires">{{ a.revenue|euros }}</td>
-                            <td class="num" data-label="Stock de départ">{{ a.formula ? 'formule' : (a.initial is null ? 'non compté' : a.initial) }}</td>
+                            <td class="num" data-label="Stock de départ">
+                                {{ a.formula ? 'formule' : (a.initial is null ? 'non compté' : a.initial) }}
+                                {% set initial_units = in_units(a.initial, a.unit, a.portionsPerUnit) %}
+                                {% if initial_units %}<span class="seen">{{ initial_units }}</span>{% endif %}
+                            </td>
                             <td data-label="Stock restant">
                                 {% if a.remaining is null %}
                                     <span class="empty">—</span>
@@ -132,6 +136,8 @@
                                 {% else %}
                                     <span class="num">{{ a.remaining }}</span>
                                 {% endif %}
+                                {% set remaining_units = in_units(a.remaining, a.unit, a.portionsPerUnit) %}
+                                {% if remaining_units %}<span class="seen">{{ remaining_units }}</span>{% endif %}
                             </td>
                         </tr>
                     {% else %}

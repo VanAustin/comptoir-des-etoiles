@@ -38,6 +38,16 @@ class Product
     #[ORM\Column(nullable: true)]
     private ?int $initialStock = null;
 
+    /**
+     * Unité d'achat (« pot de Nutella ») et nombre de portions qu'elle donne (25), pour les courses.
+     * Le stock reste compté en portions ; les deux sont remplis ensemble, ou aucun.
+     */
+    #[ORM\Column(length: 40, nullable: true)]
+    private ?string $purchaseUnit = null;
+
+    #[ORM\Column(type: 'smallint', nullable: true)]
+    private ?int $portionsPerUnit = null;
+
     #[ORM\Column]
     private bool $goesToKitchen = false;
 
@@ -148,6 +158,28 @@ class Product
     public function setInitialStock(?int $initialStock): static
     {
         $this->initialStock = $initialStock;
+
+        return $this;
+    }
+
+    public function getPurchaseUnit(): ?string
+    {
+        return $this->purchaseUnit;
+    }
+
+    public function getPortionsPerUnit(): ?int
+    {
+        return $this->portionsPerUnit;
+    }
+
+    /** Les deux ensemble, ou aucun (null, null). */
+    public function setPurchaseUnit(?string $unit, ?int $portionsPerUnit): static
+    {
+        if (null === $unit || null === $portionsPerUnit) {
+            $unit = $portionsPerUnit = null;
+        }
+        $this->purchaseUnit = $unit;
+        $this->portionsPerUnit = $portionsPerUnit;
 
         return $this;
     }

@@ -7,6 +7,7 @@ use App\Entity\Order;
 use App\Enum\LineKind;
 use App\Enum\OrderStatus;
 use App\Enum\PaymentMethod;
+use App\Menu\PurchaseUnit;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
@@ -125,7 +126,7 @@ final class LogbookExport
     /** Synthèse par article : de quoi ajuster les courses du prochain événement. */
     public function articles(Event $event): string
     {
-        $rows = [['Article', 'Catégorie', 'Formule', 'Retiré du menu', 'Vendus', 'Chiffre d\'affaires (€)', 'Stock de départ', 'Stock restant']];
+        $rows = [['Article', 'Catégorie', 'Formule', 'Retiré du menu', 'Vendus', 'Chiffre d\'affaires (€)', 'Stock de départ', 'Stock restant', 'Unité d\'achat', 'Portions par unité', 'Stock de départ (unités)', 'Stock restant (unités)']];
         foreach ($this->logbook->summarize($event)['articles'] as $article) {
             $rows[] = [
                 self::text($article['name']),
@@ -136,6 +137,10 @@ final class LogbookExport
                 self::euros($article['revenue']),
                 null === $article['initial'] ? '' : (string) $article['initial'],
                 null === $article['remaining'] ? '' : (string) $article['remaining'],
+                self::text((string) $article['unit']),
+                null === $article['portionsPerUnit'] ? '' : (string) $article['portionsPerUnit'],
+                self::units($article['initial'], $article['portionsPerUnit']),
+                self::units($article['remaining'], $article['portionsPerUnit']),
             ];
         }
 
@@ -168,6 +173,12 @@ final class LogbookExport
     private static function euros(?int $cents): string
     {
         return null === $cents ? '' : Money::formatEuros($cents);
+    }
+
+    /** Stock en unités d'achat, au dixième, virgule décimale : 97 portions à 25 → « 3,9 ». */
+    private static function units(?int $portions, ?int $portionsPerUnit): string
+    {
+        return null === $portions || null === $portionsPerUnit ? '' : PurchaseUnit::number(PurchaseUnit::units($portions, $portionsPerUnit));
     }
 
     /** Texte saisi (noms, remarques) : neutralisé s'il pourrait être pris pour une formule. */

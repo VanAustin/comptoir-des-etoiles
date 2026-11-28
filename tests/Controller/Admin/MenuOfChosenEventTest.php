@@ -112,7 +112,7 @@ class MenuOfChosenEventTest extends WebTestCase
     {
         $halloween = self::createEvent('Halloween', '-20 days', active: false);
         $soda = $this->createProduct($halloween, 'Soda', 150, 'Boissons', stock: 96)->setHasDeposit(true);
-        $crepe = $this->createProduct($halloween, 'Crêpe sucre', 200, 'Crêpes', stock: 70, position: 2)->setGoesToKitchen(true)->setIcon('crepe');
+        $crepe = $this->createProduct($halloween, 'Crêpe sucre', 200, 'Crêpes', stock: 70, position: 2)->setGoesToKitchen(true)->setIcon('crepe')->setPurchaseUnit('bol de pâte', 20);
         $saucisse = $this->createProduct($halloween, 'Saucisse', 0, 'Crêpes', stock: 40, position: 3)->setSoldAlone(false);
         $this->createProduct($halloween, 'Ancienne crêpe', 100, 'Crêpes', position: 4)->archive();
         $gouter = $this->createProduct($halloween, 'Goûter', 400, 'Formules', position: 5)
@@ -154,6 +154,7 @@ class MenuOfChosenEventTest extends WebTestCase
         self::assertSame(['Café', 'soda', 'Crêpe sucre', 'Saucisse', 'Goûter'], array_map(static fn (Product $p) => $p->getName(), $menu), 'à la suite, dans l\'ordre d\'origine');
         [, , $newCrepe, $newSaucisse, $newGouter] = $menu;
         self::assertSame([200, 70, true, 'crepe', 'Crêpes', false], [$newCrepe->getPriceCents(), $newCrepe->getInitialStock(), $newCrepe->goesToKitchen(), $newCrepe->getIcon(), $newCrepe->getCategory(), $newCrepe->hasDeposit()]);
+        self::assertSame(['bol de pâte', 20], [$newCrepe->getPurchaseUnit(), $newCrepe->getPortionsPerUnit()], 'unité d\'achat reprise');
         self::assertFalse($newSaucisse->isSoldAlone());
         self::assertSame(400, $newGouter->getPriceCents());
         self::assertSame('1 × soda, 2 × Crêpe sucre, 1 × Saucisse', $newGouter->describeComposition(), 'dans l\'ordre du menu du Loto');

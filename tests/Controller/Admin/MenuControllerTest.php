@@ -115,6 +115,73 @@ class MenuControllerTest extends WebTestCase
         self::assertSame(0, $this->productRepository()->count());
     }
 
+    public function testPurchaseUnitIsSavedAndShownInUnits(): void
+    {
+        self::createEvent();
+        $crepe = $this->createProduct('Crêpe Nutella', 250, stock: 125);
+
+        $this->client->request('GET', '/admin/menu/'.$crepe->getId().'/modifier');
+        $this->client->submitForm('Enregistrer l\'article', ['unit' => ' pot de Nutella ', 'portions' => '25']);
+
+        self::assertResponseRedirects('/admin/menu#produit-'.$crepe->getId());
+        $crepe = $this->findProduct('Crêpe Nutella');
+        self::assertSame(['pot de Nutella', 25], [$crepe->getPurchaseUnit(), $crepe->getPortionsPerUnit()]);
+        self::assertSame(125, $crepe->getInitialStock(), 'le stock reste compté en portions');
+        $log = self::entityManager()->getRepository(AuditLog::class)->findOneBy(['action' => 'product.update']);
+        self::assertEquals(['purchase_unit' => 'pot de Nutella', 'portions_per_unit' => 25], $log->getAfter());
+
+        $this->client->request('GET', '/admin/menu');
+        self::assertStringContainsString('= 5 pots de Nutella', $this->content());
+        $this->client->request('GET', '/admin/menu/'.$crepe->getId().'/modifier');
+        self::assertStringContainsString('125 portions = 5 pots de Nutella', $this->content());
+
+        // Vider les deux champs retire l'unité
+        $this->client->submitForm('Enregistrer l\'article', ['unit' => '', 'portions' => '']);
+        self::assertNull($this->findProduct('Crêpe Nutella')->getPurchaseUnit());
+    }
+
+    public function testPurchaseUnitNeedsBothFields(): void
+    {
+        self::createEvent();
+        $crepe = $this->createProduct('Crêpe', 200, stock: 50);
+        $url = '/admin/menu/'.$crepe->getId().'/modifier';
+
+        foreach ([
+            [['unit' => 'pot', 'portions' => ''], 'Indiquez combien de portions'],
+            [['unit' => '', 'portions' => '25'], 'par exemple « pot de Nutella »'],
+            [['unit' => 'pot', 'portions' => '0'], 'Nombre entier de 1 à 999'],
+            [['unit' => 'pot', 'portions' => '1000'], 'Nombre entier de 1 à 999'],
+            [['unit' => 'pot', 'portions' => '2,5'], 'Nombre entier de 1 à 999'],
+            [['unit' => str_repeat('p', 41), 'portions' => '25'], '40 caractères au maximum'],
+        ] as [$fields, $message]) {
+            $this->client->request('GET', $url);
+            $this->client->submitForm('Enregistrer l\'article', $fields);
+            self::assertResponseStatusCodeSame(422, $message);
+            self::assertStringContainsString($message, $this->content());
+        }
+        self::assertNull($this->findProduct('Crêpe')->getPurchaseUnit());
+    }
+
+    public function testFormulaHasNoPurchaseUnit(): void
+    {
+        self::createEvent();
+        $crepe = $this->createProduct('Crêpe', 200, stock: 50);
+
+        $crawler = $this->client->request('GET', '/admin/menu/formule/nouvelle');
+        self::assertCount(0, $crawler->filterXPath('//input[@name="unit"]'));
+        $this->client->request('POST', '/admin/menu/formule/nouvelle', [
+            '_token' => $crawler->filterXPath('//form[not(@action)]//input[@name="_token"]')->attr('value'),
+            'name' => 'Duo',
+            'price' => '3',
+            'unit' => 'pot',
+            'portions' => '25',
+            'components' => [$crepe->getId() => '2'],
+        ]);
+
+        self::assertResponseRedirects();
+        self::assertNull($this->findProduct('Duo')->getPurchaseUnit());
+    }
+
     public function testIconMustComeFromTheCatalog(): void
     {
         self::createEvent();

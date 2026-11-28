@@ -114,6 +114,7 @@ final class MenuCopier
                     ->setCategory($source->getCategory())
                     ->setPriceCents($source->getPriceCents())
                     ->setInitialStock($source->getInitialStock())
+                    ->setPurchaseUnit($source->getPurchaseUnit(), $source->getPortionsPerUnit())
                     ->setGoesToKitchen($source->goesToKitchen())
                     ->setHasDeposit($source->hasDeposit())
                     ->setSoldAlone($source->isSoldAlone())
