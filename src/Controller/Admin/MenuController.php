@@ -7,6 +7,7 @@ use App\Entity\Product;
 use App\Entity\ProductComponent;
 use App\Menu\IconCatalog;
 use App\Menu\ProductSnapshot;
+use App\Menu\PurchaseUnit;
 use App\Repository\EventRepository;
 use App\Repository\ProductRepository;
 use App\Service\AuditLogger;
@@ -287,6 +288,7 @@ class MenuController extends AbstractController
                     ->setCategory($clean['category'])
                     ->setPriceCents($clean['priceCents'])
                     ->setInitialStock($clean['initialStock'])
+                    ->setPurchaseUnit($clean['unit'], $clean['portions'])
                     // Case masquée sans cuisine : la valeur de l'article est gardée
                     ->setGoesToKitchen($event->hasKitchen() ? $clean['kitchen'] : $product->goesToKitchen())
                     ->setHasDeposit($clean['deposit'])
@@ -405,6 +407,9 @@ class MenuController extends AbstractController
             'category' => self::text($input, 'category'),
             'price' => self::text($input, 'price'),
             'stock' => $isFormula ? '' : self::text($input, 'stock'),
+            // Une formule n'a pas d'unité d'achat : son stock se déduit de ses articles
+            'unit' => $isFormula ? '' : self::text($input, 'unit'),
+            'portions' => $isFormula ? '' : self::text($input, 'portions'),
             'kitchen' => isset($input['kitchen']),
             'deposit' => isset($input['deposit']),
             'alone' => isset($input['alone']),
@@ -431,8 +436,38 @@ class MenuController extends AbstractController
             $errors['category'] = \sprintf('%d caractères au maximum.', self::CATEGORY_MAX_LENGTH);
         }
         self::validatePriceAndStock($values, $isFormula, $errors, $clean);
+        self::validatePurchaseUnit($values, $errors, $clean);
 
         return [$values, $errors, $clean];
+    }
+
+    /**
+     * Unité d'achat et portions par unité : les deux, ou aucun.
+     *
+     * @param array<string, mixed>  $values
+     * @param array<string, string> $errors
+     * @param array<string, mixed>  $clean
+     */
+    private static function validatePurchaseUnit(array $values, array &$errors, array &$clean): void
+    {
+        $clean['unit'] = '' === $values['unit'] ? null : $values['unit'];
+        $clean['portions'] = null;
+
+        if (mb_strlen($values['unit']) > PurchaseUnit::NAME_MAX_LENGTH) {
+            $errors['unit'] = \sprintf('%d caractères au maximum.', PurchaseUnit::NAME_MAX_LENGTH);
+        } elseif (null === $clean['unit'] && '' !== $values['portions']) {
+            $errors['unit'] = 'Indiquez l\'unité d\'achat, par exemple « pot de Nutella », ou videz le nombre de portions.';
+        }
+
+        if ('' === $values['portions']) {
+            if (null !== $clean['unit']) {
+                $errors['portions'] = 'Indiquez combien de portions donne une unité, par exemple 25.';
+            }
+        } elseif (ctype_digit($values['portions']) && (int) $values['portions'] >= 1 && (int) $values['portions'] <= PurchaseUnit::PORTIONS_MAX) {
+            $clean['portions'] = (int) $values['portions'];
+        } else {
+            $errors['portions'] = \sprintf('Nombre entier de 1 à %d.', PurchaseUnit::PORTIONS_MAX);
+        }
     }
 
     /**
@@ -609,6 +644,8 @@ class MenuController extends AbstractController
             'category' => null === $product->getId() && self::DEFAULT_CATEGORY === $product->getCategory() ? '' : $product->getCategory(),
             'price' => null === $product->getId() ? '' : Money::formatEuros($product->getPriceCents()),
             'stock' => null === $product->getInitialStock() ? '' : (string) $product->getInitialStock(),
+            'unit' => (string) $product->getPurchaseUnit(),
+            'portions' => null === $product->getPortionsPerUnit() ? '' : (string) $product->getPortionsPerUnit(),
             'kitchen' => $product->goesToKitchen(),
             'deposit' => $product->hasDeposit(),
             'alone' => $product->isSoldAlone(),

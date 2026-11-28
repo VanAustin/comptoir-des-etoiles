@@ -135,15 +135,18 @@ class LogbookExportTest extends WebTestCase
     public function testArticlesExportSummarisesSalesAndStock(): void
     {
         $this->login();
+        self::entityManager()->find(Product::class, $this->ids['Crêpe'])->setPurchaseUnit('bol de pâte', 20);
+        self::entityManager()->flush();
         $this->place(['Crêpe' => 3], cash: 1000);
 
         $csv = $this->download('/admin/carnet/export/articles');
 
         self::assertSame('attachment; filename=carnet-loto-de-noel-2026-12-18-articles.csv', $this->client->getResponse()->headers->get('Content-Disposition'));
         $rows = $this->rows($csv);
-        self::assertSame(['Article', 'Catégorie', 'Formule', 'Retiré du menu', 'Vendus', 'Chiffre d\'affaires (€)', 'Stock de départ', 'Stock restant'], $rows[0]);
-        self::assertSame(['Crêpe "maison"', 'Sucré', 'non', 'non', '3', '6,00', '50', '47'], $rows[1]);
-        self::assertSame(['Soda', 'Boissons', 'non', 'non', '0', '0,00', '', ''], $rows[2]);
+        self::assertSame(['Article', 'Catégorie', 'Formule', 'Retiré du menu', 'Vendus', 'Chiffre d\'affaires (€)', 'Stock de départ', 'Stock restant', 'Unité d\'achat', 'Portions par unité', 'Stock de départ (unités)', 'Stock restant (unités)'], $rows[0]);
+        // 50 portions à 20 par bol : 2,5 bols ; 47 → 2,35, arrondi au dixième vers le haut : 2,4
+        self::assertSame(['Crêpe "maison"', 'Sucré', 'non', 'non', '3', '6,00', '50', '47', 'bol de pâte', '20', '2,5', '2,4'], $rows[1]);
+        self::assertSame(['Soda', 'Boissons', 'non', 'non', '0', '0,00', '', '', '', '', '', ''], $rows[2]);
     }
 
     public function testCategoriesExportAddsUpToTheRevenue(): void

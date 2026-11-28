@@ -18,6 +18,8 @@ final class ProductSnapshot
             'category' => $product->getCategory(),
             'price_cents' => $product->getPriceCents(),
             'initial_stock' => $product->getInitialStock(),
+            'purchase_unit' => $product->getPurchaseUnit(),
+            'portions_per_unit' => $product->getPortionsPerUnit(),
             'kitchen' => $product->goesToKitchen(),
             'deposit' => $product->hasDeposit(),
             'sold_alone' => $product->isSoldAlone(),

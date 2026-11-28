@@ -47,6 +47,24 @@
             </div>
             <p class="field-help" id="stock-help">Laissez le stock vide pour un article non compté (café, thé…). Le stock sert d'information : il ne bloque jamais une vente.</p>
 
+            <div class="field-row">
+                <div class="field">
+                    <label for="unit">Unité d'achat</label>
+                    <input type="text" id="unit" name="unit" value="{{ values.unit }}" maxlength="40" placeholder="pot de Nutella" aria-describedby="unit-help"{{ m.invalid(errors, 'unit') }}>
+                    {{ m.error(errors, 'unit') }}
+                </div>
+                <div class="field">
+                    <label for="portions">Portions par unité</label>
+                    <input type="text" id="portions" name="portions" value="{{ values.portions }}" inputmode="numeric" class="num" placeholder="25" aria-describedby="unit-help"{{ m.invalid(errors, 'portions') }}>
+                    {{ m.error(errors, 'portions') }}
+                </div>
+            </div>
+            <p class="field-help" id="unit-help">
+                Facultatif, pour préparer les courses : un pot de Nutella fait 25 crêpes. Le stock reste compté en portions ; le Carnet de bord indique aussi ce qui reste en unités d'achat.
+                {% set in_units_text = in_units(product.initialStock, product.purchaseUnit, product.portionsPerUnit) %}
+                {% if in_units_text %}<br>Stock de départ enregistré : {{ product.initialStock }} portions {{ in_units_text }}.{% endif %}
+            </p>
+
             {% if event.hasKitchen %}
                 <label class="check"><input type="checkbox" name="kitchen" value="1" {{ values.kitchen ? 'checked' }}> Passe en cuisine</label>
             {% endif %}

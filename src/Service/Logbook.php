@@ -34,7 +34,7 @@ final class Logbook
      *     totals: array{orders: int, cancelled: int, revenue: int, basket: int|null, cashCount: int, cashAmount: int, cardCount: int, cardAmount: int, depositsIn: int, depositsOut: int, depositBalance: int, cupsNotReturned: int|null, tableOrders: int, tableRevenue: int},
      *     tills: array<string, array{name: string|null, orders: int, cashExpected: int, card: int, shortfall: int}>,
      *     shortfalls: list<array{order: Order, missing: int}>,
-     *     articles: list<array{name: string, category: string, archived: bool, formula: bool, sold: int, revenue: int, initial: int|null, remaining: int|null}>,
+     *     articles: list<array{name: string, category: string, archived: bool, formula: bool, sold: int, revenue: int, initial: int|null, remaining: int|null, unit: string|null, portionsPerUnit: int|null}>,
      *     categories: list<array{name: string, sold: int, revenue: int}>
      * }
      */
@@ -122,7 +122,7 @@ final class Logbook
      * comptes. Catégorie actuelle de l'article (une formule compte dans sa propre catégorie), dans
      * l'ordre du menu ; la somme des catégories est le chiffre d'affaires hors consignes.
      *
-     * @param list<array{name: string, category: string, archived: bool, formula: bool, sold: int, revenue: int, initial: int|null, remaining: int|null}> $articles
+     * @param list<array{name: string, category: string, archived: bool, formula: bool, sold: int, revenue: int, initial: int|null, remaining: int|null, unit: string|null, portionsPerUnit: int|null}> $articles
      *
      * @return list<array{name: string, sold: int, revenue: int}>
      */
@@ -144,7 +144,7 @@ final class Logbook
      *
      * @param array<string, array{quantity: int, revenue: int, label: string, category: string}> $sold
      *
-     * @return list<array{name: string, category: string, archived: bool, formula: bool, sold: int, revenue: int, initial: int|null, remaining: int|null}>
+     * @return list<array{name: string, category: string, archived: bool, formula: bool, sold: int, revenue: int, initial: int|null, remaining: int|null, unit: string|null, portionsPerUnit: int|null}>
      */
     private function articles(Event $event, array $sold): array
     {
@@ -163,11 +163,14 @@ final class Logbook
                 'revenue' => $sold[$key]['revenue'] ?? 0,
                 'initial' => $product->isFormula() ? null : $product->getInitialStock(),
                 'remaining' => $remaining[$product->getId()] ?? null,
+                // Pour les courses : « ≈ 3,9 pots de Nutella »
+                'unit' => $product->isFormula() ? null : $product->getPurchaseUnit(),
+                'portionsPerUnit' => $product->isFormula() ? null : $product->getPortionsPerUnit(),
             ];
             unset($sold[$key]);
         }
         foreach ($sold as $orphan) {
-            $articles[] = ['name' => $orphan['label'], 'category' => $orphan['category'], 'archived' => true, 'formula' => false, 'sold' => $orphan['quantity'], 'revenue' => $orphan['revenue'], 'initial' => null, 'remaining' => null];
+            $articles[] = ['name' => $orphan['label'], 'category' => $orphan['category'], 'archived' => true, 'formula' => false, 'sold' => $orphan['quantity'], 'revenue' => $orphan['revenue'], 'initial' => null, 'remaining' => null, 'unit' => null, 'portionsPerUnit' => null];
         }
 
         return $articles;

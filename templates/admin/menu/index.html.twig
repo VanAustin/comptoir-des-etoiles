@@ -22,6 +22,8 @@
         <td data-label="Stock de départ">
             <input type="text" form="menu-save" inputmode="numeric" name="{{ prefix }}[stock]" value="{{ v.stock }}" placeholder="non compté" class="num input-price" aria-label="Stock de départ de {{ product.name }}"{{ m.invalid(e, 'stock') }}>
             {{ m.error(e, 'stock') }}
+            {% set in_units_text = in_units(product.initialStock, product.purchaseUnit, product.portionsPerUnit) %}
+            {% if in_units_text %}<span class="seen">{{ in_units_text }}</span>{% endif %}
         </td>
     {% endif %}
     {% if with_kitchen %}
