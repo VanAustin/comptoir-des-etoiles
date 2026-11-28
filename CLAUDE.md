@@ -325,6 +325,8 @@ Fait au 10 novembre, documentation : fiche bénévoles (`docs/procedures/benevol
 
 Fait au 15 novembre : PR A à D, E (tablettes et événements, chiffre d'affaires par catégorie) et F (caisse sur téléphone) ; production mise à jour ; `docs/hebergement.md` réécrit pour ISPConfig (sans `sudo`, `php8.4`), sections terminées de novembre retirées.
 
+Fait au 28 novembre : Symfony 7.4.24 et Twig 3.31.1 (failles publiées les 23 et 25 novembre), correctifs seulement, aucune version majeure.
+
 Nouvelles évolutions, à mettre en production avant le 4 décembre, une PR chacune, dans cet ordre : A connexion à l'administration (« Rester connectée », « Afficher » le mot de passe), B QR code d'appairage, C service à table (Loto), D chevalets de table (facultative, seulement si prête avant le 27 novembre).
 
 Suites de l'audit du 16 novembre, avant le 4 décembre, une PR chacune : documentation (règle « aucune commande en attente avant d'activer un autre événement » en tête de la Clôture, page d'erreur dans Coupure réseau, taille de la sauvegarde, fiche [Essai maison](docs/procedures/essai-maison.md)), puis confirmation dans la page avant d'activer un événement.
