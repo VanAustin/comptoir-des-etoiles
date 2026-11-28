@@ -8,6 +8,7 @@ use App\Entity\Order;
 use App\Entity\Product;
 use App\Enum\DeviceRole;
 use App\Enum\OrderStatus;
+use App\Service\Revisions;
 use App\Tests\FixturesTrait;
 use App\Tests\OrderFixturesTrait;
 use App\Tests\ResetDatabaseTrait;
@@ -160,7 +161,37 @@ class TableServiceTest extends WebTestCase
 
         $order = $this->json()['orders'][0];
         self::assertSame(304, $order['tableNumber']);
+        self::assertSame(1, $order['zone'], 'rangée 3, 3 rangées par zone');
         self::assertSame([['label' => 'Soda', 'quantity' => 1]], $order['counterLines']);
+    }
+
+    public function testKitchenSeesTheDeliveryZoneOfTheEvent(): void
+    {
+        [, $kitchen] = self::createPairedDevice($this->event, 'Cuisine', DeviceRole::Kitchen);
+        foreach ([101, 404, 808, 12] as $table) {
+            $this->placeOrder(['tableNumber' => $table, 'lines' => [['productId' => $this->hotdog->getId(), 'quantity' => 1]]]);
+        }
+        $this->placeOrder(['lines' => [['productId' => $this->hotdog->getId(), 'quantity' => 1]]]);
+
+        $this->request('GET', '/api/orders', $kitchen);
+        self::assertSame([101 => 1, 404 => 2, 808 => 3, 12 => null, '' => null], $this->zones());
+
+        // Deux rangées par zone : les tickets suivent le réglage
+        self::entityManager()->find(Event::class, $this->event->getId())->setRowsPerZone(2);
+        self::getContainer()->get(Revisions::class)->flushMenu($this->event);
+        $this->request('GET', '/api/orders', $kitchen);
+        self::assertSame([101 => 1, 404 => 2, 808 => 4, 12 => null, '' => null], $this->zones());
+    }
+
+    /** @return array<int|string, int|null> zone par numéro de table (« » : au comptoir) */
+    private function zones(): array
+    {
+        $zones = [];
+        foreach ($this->json()['orders'] as $order) {
+            $zones[$order['tableNumber'] ?? ''] = $order['zone'];
+        }
+
+        return $zones;
     }
 
     public function testArrivalsScreenNeverShowsTableOrders(): void

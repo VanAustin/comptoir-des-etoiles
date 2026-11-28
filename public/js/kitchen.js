@@ -1,24 +1,35 @@
 // Écran Cuisine : tickets des commandes en cours, mis à jour toutes les 3 secondes
 // (2 secondes pendant les 30 secondes qui suivent un changement).
-// Chaque appui (« Je prépare », « Prête », « Remise au client ») part après 5 secondes,
-// le temps de l'annuler en cas d'erreur.
+// Chaque appui (« Je prépare », « Prête », « Remise au client » ou « Remise au livreur » pour une
+// commande à table, touchée quand le plateau part) part après 5 secondes, le temps de l'annuler.
+// Commande à table : numéro de table en grand et zone du livreur (couleur et libellé écrit).
 
 import { apiFetch, ApiError } from "./api.js";
 import { getPairing } from "./device-store.js";
 import { el } from "./dom.js";
 import { Poller } from "./poller.js";
 import { keepScreenOn, Sound } from "./screen.js";
-import { counterTitle } from "./table-rules.js";
+import { counterTitle, handOverLabel, zoneBadge } from "./table-rules.js";
 
 const LATE_MINUTES = 10;
 const UNDO_SECONDS = 5;
 const NEXT = { new: "prep", prep: "ready", ready: "served" };
-const STATUS_LABELS = { new: "Nouvelle", prep: "En préparation", ready: "Prête", served: "Remise au client" };
+const STATUS_LABELS = { new: "Nouvelle", prep: "En préparation", ready: "Prête" };
 const ACTIONS = {
   new: { label: "Je prépare", class: "act-prep" },
   prep: { label: "Prête", class: "act-ready" },
-  ready: { label: "Remise au client", class: "act-served" },
+  ready: { class: "act-served" },
 };
+
+/** Libellé d'un état ; « served » : remise au client, ou au livreur pour une commande à table. */
+function statusLabel(status, order) {
+  return status === "served" ? handOverLabel(order.tableNumber) : STATUS_LABELS[status];
+}
+
+/** Libellé du bouton de l'état suivant. */
+function actionLabel(order) {
+  return order.status === "ready" ? handOverLabel(order.tableNumber) : ACTIONS[order.status].label;
+}
 
 const $ = (id) => document.getElementById(id);
 
@@ -243,7 +254,7 @@ function render() {
   $("kitchen-empty").hidden = firstLoad || toPrepare.length > 0;
   $("kitchen-tickets").replaceChildren(...toPrepare.map(ticket));
   $("kitchen-ready").hidden = ready.length === 0;
-  $("kitchen-ready-title").textContent = `Prêtes · en attente du client (${ready.length})`;
+  $("kitchen-ready-title").textContent = `Prêtes · en attente du client ou du livreur (${ready.length})`;
   $("kitchen-ready-tickets").replaceChildren(...ready.map(ticket));
 }
 
@@ -261,11 +272,11 @@ function ticket(order) {
   }, [
     el("div", { class: "tk-head" }, [
       el("span", { class: "n num", text: order.displayNumber }),
-      // Service à table : un bénévole apporte le plat à cette table
-      order.tableNumber != null ? el("span", { class: "tk-table num", text: `Table ${order.tableNumber}` }) : null,
       el("span", { class: "t num", text: `${minutes} min` }),
     ]),
-    el("span", { class: `pill ${status}`, text: STATUS_LABELS[status] + (late ? " · En retard" : "") }),
+    // Service à table : un livreur apporte les plats à cette table
+    order.tableNumber != null ? delivery(order) : null,
+    el("span", { class: `pill ${status}`, text: statusLabel(status, order) + (late ? " · En retard" : "") }),
     // Remarque du client : texte brut, inséré avec textContent
     order.note ? el("p", { class: "ticket-note", text: order.note, attrs: { "aria-label": `Remarque : ${order.note}` } }) : null,
     el("ul", { class: "kitchen-lines" }, order.kitchenLines.map(kitchenLine)),
@@ -274,6 +285,14 @@ function ticket(order) {
       : null,
     notice ? el("p", { class: "alert alert-error", attrs: { role: "status" }, text: notice }) : null,
     entry ? pendingActions(order, entry) : actionButton(order),
+  ]);
+}
+
+function delivery(order) {
+  const zone = zoneBadge(order.zone);
+  return el("div", { class: ["tk-delivery", zone ? zone.className : ""].filter(Boolean).join(" ") }, [
+    el("span", { class: "tk-table num", text: `Table ${order.tableNumber}` }),
+    zone ? el("span", { class: "tk-zone", text: zone.label }) : null,
   ]);
 }
 
@@ -289,25 +308,27 @@ function kitchenLine(line) {
 
 function actionButton(order) {
   const action = ACTIONS[order.status];
+  const label = actionLabel(order);
   return el("button", {
     class: `btn ${action.class}`,
-    text: action.label,
-    attrs: { type: "button", "aria-label": `${action.label} : commande ${order.displayNumber}` },
+    text: label,
+    attrs: { type: "button", "aria-label": `${label} : commande ${order.displayNumber}` },
     on: { click: () => press(order) },
   });
 }
 
-function countdownText(entry) {
+function countdownText(entry, order) {
   const seconds = Math.max(1, Math.ceil((entry.deadline - Date.now()) / 1000));
-  return `« ${STATUS_LABELS[entry.status]} » envoyé dans ${seconds} s`;
+  return `« ${statusLabel(entry.status, order)} » envoyé dans ${seconds} s`;
 }
 
 /** Décompte mis à jour sur place : redessiner le ticket ferait perdre un appui sur « Annuler ». */
 function updateCountdowns() {
   for (const element of document.querySelectorAll("[data-countdown]")) {
     const entry = pending.get(element.dataset.countdown);
-    if (entry) {
-      element.textContent = countdownText(entry);
+    const order = orders.find((o) => o.uuid === element.dataset.countdown);
+    if (entry && order) {
+      element.textContent = countdownText(entry, order);
     }
   }
 }
@@ -319,7 +340,7 @@ function pendingActions(order, entry) {
   } else if (entry.error) {
     message = entry.error;
   } else {
-    message = countdownText(entry);
+    message = countdownText(entry, order);
   }
 
   return el("div", { class: "pending-actions" }, [

@@ -27,7 +27,7 @@ Pour **couper le réseau** de la caisse : mode avion sur la tablette (ou partage
 ## Après l'essai
 
 - [ ] Sur la caisse, l'en-tête n'affiche plus rien en attente ni « À vérifier ».
-- [ ] Les commandes de l'essai sont passées en cuisine jusqu'à « Remise au client », ou annulées dans le Carnet de bord.
+- [ ] Les commandes de l'essai sont passées en cuisine jusqu'à « Remise au client » (« Remise au livreur » à table), ou annulées dans le Carnet de bord.
 - [ ] Avant d'activer l'événement du stand de Noël, la règle de la [Clôture](cloture.md) est respectée : aucune commande en attente sur aucune caisse.
 - [ ] Ce qui a coincé est noté ci-dessous, et signalé pour correction avant le stand de Noël.
 

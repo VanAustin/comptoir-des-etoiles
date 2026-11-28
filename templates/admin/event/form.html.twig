@@ -81,6 +81,15 @@
                     {%- endif -%}
                 </p>
             </div>
+            <div class="field">
+                <label for="rows-per-zone">Rangées par zone de livreur</label>
+                <input type="text" id="rows-per-zone" name="rows_per_zone" value="{{ values.zones }}" inputmode="numeric" maxlength="1" class="input-short num"
+                       aria-describedby="zones-help{{ errors.zones is defined ? ' zones-error' }}"{{ errors.zones is defined ? ' aria-invalid="true"' }}>
+                <p class="field-help" id="zones-help">
+                    Service à table : la rangée est le premier chiffre du numéro de table (304 : rangée 3). Avec 3, les rangées 1 à 3 forment la zone 1, 4 à 6 la zone 2, 7 à 9 la zone 3. La cuisine affiche la zone sur chaque ticket, pour le livreur. De 1 à 9.
+                </p>
+                {% if errors.zones is defined %}<p class="field-error" id="zones-error">{{ errors.zones }}</p>{% endif %}
+            </div>
             <input type="hidden" name="_token" value="{{ csrf_token('event-form') }}">
             <button type="submit" class="btn btn-primary">{{ event ? 'Enregistrer l\'événement' : 'Créer l\'événement' }}</button>
         </form>

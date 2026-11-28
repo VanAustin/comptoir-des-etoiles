@@ -9,6 +9,10 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity(repositoryClass: EventRepository::class)]
 class Event
 {
+    public const DEFAULT_ROWS_PER_ZONE = 3;
+    public const MIN_ROWS_PER_ZONE = 1;
+    public const MAX_ROWS_PER_ZONE = 9;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -40,6 +44,13 @@ class Event
      */
     #[ORM\Column(options: ['default' => false])]
     private bool $tableService = false;
+
+    /**
+     * Service à table : zones des livreurs. La rangée est le chiffre des centaines du numéro
+     * de table (304 : rangée 3) ; avec 3 rangées par zone, rangées 1 à 3 = zone 1, 4 à 6 = zone 2…
+     */
+    #[ORM\Column(type: Types::SMALLINT, options: ['default' => self::DEFAULT_ROWS_PER_ZONE, 'unsigned' => true])]
+    private int $rowsPerZone = self::DEFAULT_ROWS_PER_ZONE;
 
     /**
      * Numéros de révision, augmentés de 1 à chaque changement des commandes ou du menu, dans
@@ -135,6 +146,32 @@ class Event
         $this->tableService = $tableService;
 
         return $this;
+    }
+
+    public function getRowsPerZone(): int
+    {
+        return $this->rowsPerZone;
+    }
+
+    public function setRowsPerZone(int $rowsPerZone): static
+    {
+        if ($rowsPerZone < self::MIN_ROWS_PER_ZONE || $rowsPerZone > self::MAX_ROWS_PER_ZONE) {
+            throw new \InvalidArgumentException(\sprintf('Rangées par zone : de %d à %d.', self::MIN_ROWS_PER_ZONE, self::MAX_ROWS_PER_ZONE));
+        }
+        $this->rowsPerZone = $rowsPerZone;
+
+        return $this;
+    }
+
+    /**
+     * Zone du livreur pour une table (304 : rangée 3, zone 1 avec 3 rangées par zone),
+     * ou null pour un numéro sans rangée (1 à 99) : pas de zone, le numéro de table suffit.
+     */
+    public function deliveryZone(int $tableNumber): ?int
+    {
+        $row = intdiv($tableNumber, 100);
+
+        return $row < 1 ? null : intdiv($row - 1, $this->rowsPerZone) + 1;
     }
 
     /** Lecture seule : l'augmentation se fait en SQL, voir App\Service\Revisions. */

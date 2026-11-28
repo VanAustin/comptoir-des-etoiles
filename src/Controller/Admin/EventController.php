@@ -45,16 +45,16 @@ class EventController extends AbstractController
     #[Route('/nouveau', name: 'admin_event_new', methods: ['GET', 'POST'])]
     public function new(Request $request): Response
     {
-        $values = ['name' => '', 'date' => '', 'deposit' => '0,00', 'kitchen' => true, 'table' => false];
+        $values = ['name' => '', 'date' => '', 'deposit' => '0,00', 'kitchen' => true, 'table' => false, 'zones' => (string) Event::DEFAULT_ROWS_PER_ZONE];
         $errors = [];
 
         if ($request->isMethod('POST')) {
             $this->denyUnlessCsrfValid($request, 'event-form');
-            [$values, $errors, $name, $date, $depositCents] = $this->validate($request);
+            [$values, $errors, $name, $date, $depositCents, $rowsPerZone] = $this->validate($request);
             $values['table'] = self::tableService($values);
 
             if (!$errors) {
-                $event = (new Event($name, $date))->setDepositCents($depositCents)->setWithKitchen($values['kitchen'])->setTableService($values['table']);
+                $event = (new Event($name, $date))->setDepositCents($depositCents)->setWithKitchen($values['kitchen'])->setTableService($values['table'])->setRowsPerZone($rowsPerZone);
                 $this->entityManager->persist($event);
                 $this->auditLogger->log('event.create', 'event:'.$name, after: self::snapshot($event));
                 $this->entityManager->flush();
@@ -82,6 +82,7 @@ class EventController extends AbstractController
             'deposit' => Money::formatEuros($event->getDepositCents()),
             'kitchen' => $event->hasKitchen(),
             'table' => $event->hasTableService(),
+            'zones' => (string) $event->getRowsPerZone(),
         ];
         $errors = [];
         // Après la première commande, changer le réglage fausserait les commandes déjà passées
@@ -91,7 +92,7 @@ class EventController extends AbstractController
 
         if ($request->isMethod('POST')) {
             $this->denyUnlessCsrfValid($request, 'event-form');
-            [$values, $errors, $name, $date, $depositCents] = $this->validate($request);
+            [$values, $errors, $name, $date, $depositCents, $rowsPerZone] = $this->validate($request);
             if ($kitchenLocked) {
                 // La case est désactivée dans la page : la valeur envoyée est ignorée
                 $values['kitchen'] = $event->hasKitchen();
@@ -100,9 +101,10 @@ class EventController extends AbstractController
 
             if (!$errors) {
                 $before = self::snapshot($event);
-                $event->setName($name)->setDate($date)->setDepositCents($depositCents)->setWithKitchen($values['kitchen'])->setTableService($values['table']);
+                $event->setName($name)->setDate($date)->setDepositCents($depositCents)->setWithKitchen($values['kitchen'])->setTableService($values['table'])->setRowsPerZone($rowsPerZone);
                 $this->auditLogger->log('event.update', 'event:'.$event->getId().' '.$name, $before, self::snapshot($event));
-                // Nom, date, consigne, cuisine et service à table font partie du menu des caisses
+                // Nom, date, consigne, cuisine et service à table font partie du menu des caisses ;
+                // les zones des livreurs, des tickets de la cuisine
                 $this->revisions->flushMenu($event);
                 $this->addFlash('info', \sprintf('L\'événement « %s » est enregistré.', $name));
                 if (!$event->hasKitchen() && $kitchenDevices) {
@@ -189,7 +191,7 @@ class EventController extends AbstractController
     }
 
     /**
-     * @return array{array{name: string, date: string, deposit: string, kitchen: bool, table: bool}, array<string, string>, string, ?\DateTimeImmutable, int}
+     * @return array{array{name: string, date: string, deposit: string, kitchen: bool, table: bool, zones: string}, array<string, string>, string, ?\DateTimeImmutable, int, int}
      */
     private function validate(Request $request): array
     {
@@ -201,6 +203,7 @@ class EventController extends AbstractController
             // Case à cocher : absente du formulaire envoyé quand elle est décochée
             'kitchen' => $payload->has('with_kitchen'),
             'table' => $payload->has('table_service'),
+            'zones' => trim($payload->getString('rows_per_zone')),
         ];
         $errors = [];
 
@@ -223,7 +226,14 @@ class EventController extends AbstractController
             $errors['deposit'] = 'Indiquez un montant en euros, par exemple 1 ou 1,50 (0 si pas de consigne).';
         }
 
-        return [$values, $errors, $values['name'], $date, $depositCents];
+        // Champ vide : valeur par défaut (3 rangées par zone)
+        $rowsPerZone = '' === $values['zones'] ? Event::DEFAULT_ROWS_PER_ZONE : (ctype_digit($values['zones']) ? (int) $values['zones'] : 0);
+        if ($rowsPerZone < Event::MIN_ROWS_PER_ZONE || $rowsPerZone > Event::MAX_ROWS_PER_ZONE) {
+            $rowsPerZone = Event::DEFAULT_ROWS_PER_ZONE;
+            $errors['zones'] = \sprintf('Indiquez un nombre de rangées de %d à %d, par exemple 3.', Event::MIN_ROWS_PER_ZONE, Event::MAX_ROWS_PER_ZONE);
+        }
+
+        return [$values, $errors, $values['name'], $date, $depositCents, $rowsPerZone];
     }
 
     /**
@@ -245,6 +255,7 @@ class EventController extends AbstractController
             'deposit_cents' => $event->getDepositCents(),
             'with_kitchen' => $event->hasKitchen(),
             'table_service' => $event->hasTableService(),
+            'rows_per_zone' => $event->getRowsPerZone(),
         ];
     }
 

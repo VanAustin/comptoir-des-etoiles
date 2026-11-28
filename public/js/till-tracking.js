@@ -5,7 +5,7 @@
 import { apiFetch, ApiError } from "./api.js";
 import { el } from "./dom.js";
 import { Lane, Poller } from "./poller.js";
-import { matchesTracking } from "./table-rules.js";
+import { handOverLabel, matchesTracking } from "./table-rules.js";
 
 const LATE_MINUTES = 10;
 const UNDO_SECONDS = 5;
@@ -115,7 +115,8 @@ export class TillTracking {
   // --- Remise au client ---
 
   press(order) {
-    const entry = { deadline: Date.now() + UNDO_SECONDS * 1000, sending: false, error: null };
+    // Commande à table : remise au livreur ; le libellé reste celui du moment de l'appui
+    const entry = { deadline: Date.now() + UNDO_SECONDS * 1000, sending: false, error: null, label: handOverLabel(order.tableNumber) };
     entry.timer = setInterval(() => {
       if (Date.now() >= entry.deadline) {
         clearInterval(entry.timer);
@@ -170,7 +171,7 @@ export class TillTracking {
   }
 
   countdownText(entry) {
-    return `Remise au client dans ${Math.max(1, Math.ceil((entry.deadline - Date.now()) / 1000))} s`;
+    return `${entry.label} dans ${Math.max(1, Math.ceil((entry.deadline - Date.now()) / 1000))} s`;
   }
 
   /** Décompte mis à jour sur place : redessiner ferait perdre un appui sur « Annuler ». */
@@ -248,10 +249,11 @@ export class TillTracking {
   serveAction(order) {
     const entry = this.pending.get(order.uuid);
     if (!entry) {
+      const label = handOverLabel(order.tableNumber);
       return el("button", {
         class: "btn btn-small act-served",
-        text: "Remise au client",
-        attrs: { type: "button", "aria-label": `Remise au client : commande ${order.displayNumber}` },
+        text: label,
+        attrs: { type: "button", "aria-label": `${label} : commande ${order.displayNumber}` },
         on: { click: () => this.press(order) },
       });
     }
