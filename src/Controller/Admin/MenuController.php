@@ -361,6 +361,8 @@ class MenuController extends AbstractController
                 default => 'preparing',
             },
             'articles' => $articles,
+            // Un bloc par catégorie, dans l'ordre du menu (première apparition de chaque catégorie)
+            'article_groups' => self::byCategory($articles),
             'formulas' => $formulas,
             // Ni vendus seuls, ni dans une formule : invisibles sur les caisses
             'unsellable' => array_values(array_filter($articles, static fn (Product $p) => !$p->isSoldAlone() && !isset($inFormulas[$p->getId()]))),
@@ -525,7 +527,7 @@ class MenuController extends AbstractController
     }
 
     /**
-     * Déplace un article d'un cran parmi ceux de sa partie (articles ou formules).
+     * Déplace un article d'un cran parmi ceux de sa catégorie (un article), ou parmi les formules.
      * Valeur attendue : « 12:up » ou « 12:down ».
      *
      * @return int|null l'identifiant déplacé
@@ -551,7 +553,9 @@ class MenuController extends AbstractController
         if (null === $target) {
             return null;
         }
-        $section = array_values(array_filter($all, static fn (Product $p) => $p->isFormula() === $target->isFormula()));
+        // Le tableau des articles est découpé par catégorie : on ne saute jamais d'un bloc à l'autre
+        $section = array_values(array_filter($all, static fn (Product $p) => $p->isFormula() === $target->isFormula()
+            && ($target->isFormula() || $p->getCategory() === $target->getCategory())));
         $index = array_search($target, $section, true);
         $neighbour = $section[$index + ('up' === $m[2] ? -1 : 1)] ?? null;
         if (null !== $neighbour) {

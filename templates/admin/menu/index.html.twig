@@ -3,6 +3,10 @@
 
 {% block title %}Menu · Administration{% endblock %}
 
+{% block javascripts %}
+    <script type="module" src="{{ app.request.basePath }}/js/menu-categories.js"></script>
+{% endblock %}
+
 {# Boutons ↑ ↓ : ils envoient tout le tableau, rien de ce qui a été saisi n'est perdu #}
 {% macro move_buttons(product, first, last) %}
     <span class="move">
@@ -73,7 +77,7 @@
         <div class="section-head">
             <div>
                 <h2 id="articles-title">Articles</h2>
-                <p class="lede">Ce qui se vend à l'unité. Laissez le stock vide pour un article non compté (café, thé…). Décochez « Vendu seul » pour un article vendu seulement dans les formules : il n'apparaît plus sur les caisses, mais son stock est toujours décompté.</p>
+                <p class="lede">Ce qui se vend à l'unité. Laissez le stock vide pour un article non compté (café, thé…). Décochez « Vendu seul » pour un article vendu seulement dans les formules : il n'apparaît plus sur les caisses, mais son stock est toujours décompté. Les articles sont rangés par catégorie : choisissez-en une dans les onglets. Pour changer la catégorie d'un article, touchez « Modifier ».</p>
             </div>
             <a class="btn" href="{{ path('admin_menu_product_new', menu_params) }}">Ajouter un article</a>
         </div>
@@ -94,26 +98,43 @@
                 </form>
             </div>
         {% else %}
-            <div class="tablewrap">
-                <table class="menu-table stack-table">
-                    <thead>
-                        <tr><th>Ordre</th><th>Article</th><th>Prix (€)</th><th>Stock de départ</th>{% if event.hasKitchen %}<th>Cuisine</th>{% endif %}<th>Consigne</th><th>Vendu seul</th><th><span class="visually-hidden">Actions</span></th></tr>
-                    </thead>
-                    <tbody>
-                        {% for product in articles %}
-                            {% set e = row_errors[product.id] ?? {} %}
-                            <tr id="produit-{{ product.id }}"{% if e is not empty %} class="row-invalid"{% endif %}>
-                                <td data-label="Ordre">{{ _self.move_buttons(product, loop.first, loop.last) }}</td>
-                                <td class="stack-title">
-                                    <span class="product-name"><span class="{{ icon_class(product.icon) }}" aria-hidden="true"></span> {{ product.name }}</span>
-                                    <span class="seen">{{ product.category }}</span>
-                                </td>
-                                {{ _self.row_inputs(product, row_values[product.id], e, true, event.hasKitchen, true) }}
-                                <td class="actions"><a class="btn btn-small" href="{{ path('admin_menu_edit', {id: product.id}) }}">Modifier</a></td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            {# Onglets : une catégorie à la fois (menu-categories.js). Sans JavaScript, tout s'affiche
+               et les onglets mènent à chaque catégorie. Les champs cachés restent dans le formulaire :
+               changer d'onglet ne perd aucune saisie. #}
+            {% if article_groups|length > 1 %}
+                <nav class="menu-tabs" aria-label="Catégories">
+                    <a href="#categories" class="menu-tab" data-menu-tab="all">Tout <span class="menu-tab-count">{{ articles|length }}</span></a>
+                    {% for category, products in article_groups %}
+                        <a href="#categorie-{{ loop.index }}" class="menu-tab" data-menu-tab="categorie-{{ loop.index }}">{{ category }} <span class="menu-tab-count">{{ products|length }}</span></a>
+                    {% endfor %}
+                </nav>
+            {% endif %}
+            <div id="categories">
+            {% for category, products in article_groups %}
+                <section class="menu-category" id="categorie-{{ loop.index }}" data-menu-panel aria-labelledby="categorie-{{ loop.index }}-titre">
+                    <h3 class="menu-category-title" id="categorie-{{ loop.index }}-titre">{{ category }} <span class="menu-category-count">{{ products|length }} article{{ products|length > 1 ? 's' }}</span></h3>
+                    <div class="tablewrap">
+                        <table class="menu-table stack-table">
+                            <thead>
+                                <tr><th>Ordre</th><th>Article</th><th>Prix (€)</th><th>Stock de départ</th>{% if event.hasKitchen %}<th>Cuisine</th>{% endif %}<th>Consigne</th><th>Vendu seul</th><th><span class="visually-hidden">Actions</span></th></tr>
+                            </thead>
+                            <tbody>
+                                {% for product in products %}
+                                    {% set e = row_errors[product.id] ?? {} %}
+                                    <tr id="produit-{{ product.id }}"{% if e is not empty %} class="row-invalid"{% endif %}>
+                                        <td data-label="Ordre">{{ _self.move_buttons(product, loop.first, loop.last) }}</td>
+                                        <td class="stack-title">
+                                            <span class="product-name"><span class="{{ icon_class(product.icon) }}" aria-hidden="true"></span> {{ product.name }}</span>
+                                        </td>
+                                        {{ _self.row_inputs(product, row_values[product.id], e, true, event.hasKitchen, true) }}
+                                        <td class="actions"><a class="btn btn-small" href="{{ path('admin_menu_edit', {id: product.id}) }}">Modifier</a></td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            {% endfor %}
             </div>
         {% endif %}
     </section>

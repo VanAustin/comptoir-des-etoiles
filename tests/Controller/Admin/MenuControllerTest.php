@@ -325,6 +325,43 @@ class MenuControllerTest extends WebTestCase
         self::assertCount(0, $crawler->filterXPath('//input[@name="products['.$menu->getId().'][stock]"]'));
     }
 
+    public function testArticlesAreGroupedByCategoryInMenuOrder(): void
+    {
+        self::createEvent();
+        $this->createProduct('Soda', 150, position: 1)->setCategory('Boissons');
+        $this->createProduct('Crêpe sucre', 200, position: 2)->setCategory('Crêpes');
+        $this->createProduct('Café', 100, position: 3)->setCategory('Boissons');
+        self::entityManager()->flush();
+
+        $crawler = $this->client->request('GET', '/admin/menu');
+
+        $blocks = $crawler->filterXPath('//section[@data-menu-panel]');
+        self::assertSame(['Boissons', 'Crêpes'], $blocks->each(static fn ($b) => trim($b->filterXPath('.//h3/text()')->text())), 'dans l\'ordre du menu');
+        self::assertSame(['Soda', 'Café'], $blocks->eq(0)->filterXPath('.//span[@class="product-name"]')->each(static fn ($n) => $n->text()));
+        self::assertStringContainsString('2 articles', $blocks->eq(0)->text());
+        // Onglets : « Tout », puis une par catégorie ; sans JavaScript, ce sont des liens vers chaque bloc
+        self::assertSame(['#categories', '#categorie-1', '#categorie-2'], $crawler->filterXPath('//nav[contains(@class, "menu-tabs")]//a')->each(static fn ($a) => $a->attr('href')));
+        self::assertSame(['categorie-1', 'categorie-2'], $blocks->each(static fn ($b) => $b->attr('id')));
+        self::assertCount(1, $crawler->filterXPath('//script[contains(@src, "/js/menu-categories.js")]'));
+        // Premier et dernier de chaque catégorie : flèche désactivée
+        self::assertCount(4, $crawler->filterXPath('//section[@data-menu-panel]//button[@name="move" and @disabled]'));
+    }
+
+    public function testMoveStaysWithinItsCategory(): void
+    {
+        self::createEvent();
+        $soda = $this->createProduct('Soda', 150, position: 1)->setCategory('Boissons');
+        $crepe = $this->createProduct('Crêpe sucre', 200, position: 2)->setCategory('Crêpes');
+        $cafe = $this->createProduct('Café', 100, position: 3)->setCategory('Boissons');
+        self::entityManager()->flush();
+
+        $crawler = $this->client->request('GET', '/admin/menu');
+        $this->client->submit($crawler->filterXPath('//button[@name="move" and @value="'.$cafe->getId().':up"]')->form());
+
+        self::assertResponseRedirects('/admin/menu#produit-'.$cafe->getId());
+        self::assertSame(['Café', 'Crêpe sucre', 'Soda'], array_map(static fn (Product $p) => $p->getName(), $this->orderedProducts()), 'échangé avec le Soda, pas avec la crêpe d\'une autre catégorie');
+    }
+
     public function testMoveKeepsUnsavedChanges(): void
     {
         self::createEvent();
