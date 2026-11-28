@@ -335,14 +335,16 @@ class MenuControllerTest extends WebTestCase
 
         $crawler = $this->client->request('GET', '/admin/menu');
 
-        $blocks = $crawler->filterXPath('//details[contains(@class, "menu-category")]');
-        self::assertSame(['Boissons', 'Crêpes'], $blocks->each(static fn ($b) => $b->filterXPath('.//span[@class="menu-category-name"]')->text()), 'dans l\'ordre du menu');
+        $blocks = $crawler->filterXPath('//section[@data-menu-panel]');
+        self::assertSame(['Boissons', 'Crêpes'], $blocks->each(static fn ($b) => trim($b->filterXPath('.//h3/text()')->text())), 'dans l\'ordre du menu');
         self::assertSame(['Soda', 'Café'], $blocks->eq(0)->filterXPath('.//span[@class="product-name"]')->each(static fn ($n) => $n->text()));
-        self::assertNotNull($blocks->eq(0)->attr('open'), 'ouvert à l\'arrivée');
         self::assertStringContainsString('2 articles', $blocks->eq(0)->text());
-        self::assertSame(['#categorie-1', '#categorie-2'], $crawler->filterXPath('//nav[contains(@class, "menu-shortcuts")]//a')->each(static fn ($a) => $a->attr('href')));
-        // Premier et dernier de chaque bloc : flèche désactivée
-        self::assertCount(4, $crawler->filterXPath('//details//button[@name="move" and @disabled]'));
+        // Onglets : « Tout », puis une par catégorie ; sans JavaScript, ce sont des liens vers chaque bloc
+        self::assertSame(['#categories', '#categorie-1', '#categorie-2'], $crawler->filterXPath('//nav[contains(@class, "menu-tabs")]//a')->each(static fn ($a) => $a->attr('href')));
+        self::assertSame(['categorie-1', 'categorie-2'], $blocks->each(static fn ($b) => $b->attr('id')));
+        self::assertCount(1, $crawler->filterXPath('//script[contains(@src, "/js/menu-categories.js")]'));
+        // Premier et dernier de chaque catégorie : flèche désactivée
+        self::assertCount(4, $crawler->filterXPath('//section[@data-menu-panel]//button[@name="move" and @disabled]'));
     }
 
     public function testMoveStaysWithinItsCategory(): void

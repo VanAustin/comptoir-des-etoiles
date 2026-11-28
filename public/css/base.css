@@ -231,14 +231,15 @@ fieldset.field legend { font-size: 14px; font-weight: 700; color: var(--encre-do
 .product-name .icon { font-size: 22px; color: var(--renard-texte); }
 .move { display: inline-flex; gap: 4px; }
 .btn-icon { min-height: 48px; width: 48px; padding: 0; font-size: 20px; }
-/* Menu : un bloc repliable par catégorie, raccourcis en haut */
-.menu-shortcuts { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; }
-.menu-shortcuts a { display: inline-flex; align-items: center; gap: 4px; min-height: 48px; padding: 0 14px; border: 1px solid var(--kraft); border-radius: var(--rayon-bouton); background: var(--surface); color: var(--renard-texte); font-weight: 700; text-decoration: none; }
-.menu-category { margin-top: 16px; scroll-margin-top: 12px; }
-.menu-category > summary { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 4px 0; cursor: pointer; border-bottom: 1px solid var(--kraft); }
-.menu-category-name { font-family: var(--f-titre); font-size: 20px; font-weight: 700; color: var(--encre); }
-.menu-category-count { font-size: 14px; color: var(--encre-douce); }
-.menu-category .tablewrap { margin-top: 8px; }
+/* Menu : onglets de catégories (comme sur la caisse), une catégorie à la fois */
+.menu-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 8px; }
+.menu-tab { display: inline-flex; align-items: center; gap: 10px; min-height: 56px; padding: 0 20px; border: 2px solid var(--kraft); border-radius: var(--rayon-bouton); background: var(--surface); color: var(--encre); font: 700 18px/1.2 var(--f-titre); text-decoration: none; }
+.menu-tab:hover { border-color: var(--renard-texte); }
+.menu-tab[aria-current="true"] { background: var(--or-fond); border-color: var(--or-texte); color: var(--or-texte); }
+.menu-tab-count { font: 700 15px/1 var(--f-chiffres); color: inherit; }
+.menu-category { margin-top: 24px; scroll-margin-top: 12px; }
+.menu-category-title { display: flex; align-items: baseline; gap: 12px; margin: 0 0 10px; font: 700 24px/1.2 var(--f-titre); color: var(--encre); }
+.menu-category-count { font: 400 15px/1 var(--f-texte); color: var(--encre-douce); }
 .menu-save { position: sticky; bottom: 0; margin-top: 20px; padding: 12px 0; background: var(--nuage); border-top: 1px solid var(--kraft); }
 
 /* Page d'un article ou d'une formule */
