@@ -73,7 +73,7 @@
         <div class="section-head">
             <div>
                 <h2 id="articles-title">Articles</h2>
-                <p class="lede">Ce qui se vend à l'unité. Laissez le stock vide pour un article non compté (café, thé…). Décochez « Vendu seul » pour un article vendu seulement dans les formules : il n'apparaît plus sur les caisses, mais son stock est toujours décompté.</p>
+                <p class="lede">Ce qui se vend à l'unité. Laissez le stock vide pour un article non compté (café, thé…). Décochez « Vendu seul » pour un article vendu seulement dans les formules : il n'apparaît plus sur les caisses, mais son stock est toujours décompté. Les articles sont regroupés par catégorie : touchez le nom d'une catégorie pour la replier. Pour changer la catégorie d'un article, touchez « Modifier ».</p>
             </div>
             <a class="btn" href="{{ path('admin_menu_product_new', menu_params) }}">Ajouter un article</a>
         </div>
@@ -94,27 +94,39 @@
                 </form>
             </div>
         {% else %}
-            <div class="tablewrap">
-                <table class="menu-table stack-table">
-                    <thead>
-                        <tr><th>Ordre</th><th>Article</th><th>Prix (€)</th><th>Stock de départ</th>{% if event.hasKitchen %}<th>Cuisine</th>{% endif %}<th>Consigne</th><th>Vendu seul</th><th><span class="visually-hidden">Actions</span></th></tr>
-                    </thead>
-                    <tbody>
-                        {% for product in articles %}
-                            {% set e = row_errors[product.id] ?? {} %}
-                            <tr id="produit-{{ product.id }}"{% if e is not empty %} class="row-invalid"{% endif %}>
-                                <td data-label="Ordre">{{ _self.move_buttons(product, loop.first, loop.last) }}</td>
-                                <td class="stack-title">
-                                    <span class="product-name"><span class="{{ icon_class(product.icon) }}" aria-hidden="true"></span> {{ product.name }}</span>
-                                    <span class="seen">{{ product.category }}</span>
-                                </td>
-                                {{ _self.row_inputs(product, row_values[product.id], e, true, event.hasKitchen, true) }}
-                                <td class="actions"><a class="btn btn-small" href="{{ path('admin_menu_edit', {id: product.id}) }}">Modifier</a></td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+            {% if article_groups|length > 1 %}
+                <nav class="menu-shortcuts" aria-label="Aller à une catégorie">
+                    {% for category, products in article_groups %}
+                        <a href="#categorie-{{ loop.index }}">{{ category }} <span class="num">({{ products|length }})</span></a>
+                    {% endfor %}
+                </nav>
+            {% endif %}
+            {# Un bloc par catégorie, repliable sans JavaScript ; les flèches restent dans le bloc #}
+            {% for category, products in article_groups %}
+                <details class="menu-category" id="categorie-{{ loop.index }}" open>
+                    <summary><span class="menu-category-name">{{ category }}</span> <span class="menu-category-count">{{ products|length }} article{{ products|length > 1 ? 's' }}</span></summary>
+                    <div class="tablewrap">
+                        <table class="menu-table stack-table">
+                            <thead>
+                                <tr><th>Ordre</th><th>Article</th><th>Prix (€)</th><th>Stock de départ</th>{% if event.hasKitchen %}<th>Cuisine</th>{% endif %}<th>Consigne</th><th>Vendu seul</th><th><span class="visually-hidden">Actions</span></th></tr>
+                            </thead>
+                            <tbody>
+                                {% for product in products %}
+                                    {% set e = row_errors[product.id] ?? {} %}
+                                    <tr id="produit-{{ product.id }}"{% if e is not empty %} class="row-invalid"{% endif %}>
+                                        <td data-label="Ordre">{{ _self.move_buttons(product, loop.first, loop.last) }}</td>
+                                        <td class="stack-title">
+                                            <span class="product-name"><span class="{{ icon_class(product.icon) }}" aria-hidden="true"></span> {{ product.name }}</span>
+                                        </td>
+                                        {{ _self.row_inputs(product, row_values[product.id], e, true, event.hasKitchen, true) }}
+                                        <td class="actions"><a class="btn btn-small" href="{{ path('admin_menu_edit', {id: product.id}) }}">Modifier</a></td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </details>
+            {% endfor %}
         {% endif %}
     </section>
 
